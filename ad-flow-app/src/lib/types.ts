@@ -3,6 +3,9 @@ export interface Campaign {
   name: string;
   client: string;
   color: string;
+  locked?: boolean;
+  lockedBy?: string;
+  people?: string[];
 }
 
 export interface Event {
@@ -13,13 +16,9 @@ export interface Event {
   startDate: Date;
   endDate: Date;
   assignee?: string;
+  notes?: string;
   color: string;
-}
-
-export interface Stage {
-  id: string;
-  name: string;
-  color: string;
+  isMisc?: boolean;
 }
 
 export interface Person {
@@ -29,4 +28,4 @@ export interface Person {
   avatar?: string;
 }
 
-export type ViewMode = 'daily' | '6-col' | '12-col' | 'vertical' | 'gantt' | 'topline' | 'people';
+export type ViewMode = 'daily-6' | 'daily-12' | 'vertical' | 'gantt' | 'topline' | 'people';

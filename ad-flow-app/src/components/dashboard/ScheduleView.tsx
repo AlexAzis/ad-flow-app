@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, List, BarChart3, Users, CalendarDays } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, LayoutGrid, List, BarChart3, Users, CalendarDays, Download } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
-import { format, addDays, startOfWeek, differenceInDays } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns';
 
 interface ScheduleViewProps {
   events: Event[];
@@ -13,32 +13,41 @@ interface ScheduleViewProps {
 
 export default function ScheduleView({ events, campaigns, people }: ScheduleViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date('2026-10-01'));
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
   const navigateDate = (direction: 'prev' | 'next') => {
-    const days = viewMode === 'daily' ? 1 : 7;
-    setCurrentDate(prev => addDays(prev, direction === 'next' ? days : -days));
+    const months = 1;
+    setCurrentDate(prev => addMonths(prev, direction === 'next' ? months : -months));
   };
 
-  const generateDateRange = () => {
-    const days = viewMode === 'daily' ? 1 : 14;
-    const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-    return Array.from({ length: days }, (_, i) => addDays(startDate, i));
+  const generateCalendarMonths = () => {
+    const months = [];
+    const startDate = startOfMonth(currentDate);
+    for (let i = 0; i < 6; i++) {
+      months.push(addMonths(startDate, i));
+    }
+    return months;
   };
 
-  const dateRange = generateDateRange();
+  const getDateRangeText = () => {
+    const startDate = startOfMonth(currentDate);
+    const endDate = addMonths(startDate, 5);
+    return `${format(startDate, 'MMM')} - ${format(endDate, 'MMM yyyy')}`;
+  };
+
+  const months = generateCalendarMonths();
 
   const viewModes: { value: ViewMode; label: string; icon: any }[] = [
-    { value: 'daily', label: 'Daily', icon: Calendar },
-    { value: '6-col', label: '6-Column', icon: LayoutGrid },
-    { value: '12-col', label: '12-Column', icon: LayoutGrid },
-    { value: 'vertical', label: 'Vertical', icon: List },
-    { value: 'gantt', label: 'Gantt', icon: BarChart3 },
-    { value: 'topline', label: 'Topline', icon: CalendarDays },
-    { value: 'people', label: 'People', icon: Users },
+    { value: 'daily', label: 'Daily 6', icon: Calendar },
+    { value: '6-col', label: 'Daily 12', icon: LayoutGrid },
+    { value: '12-col', label: 'Vertical', icon: LayoutGrid },
+    { value: 'vertical', label: 'Gantt', icon: List },
+    { value: 'gantt', label: 'Topline', icon: BarChart3 },
+    { value: 'topline', label: 'People', icon: CalendarDays },
+    { value: 'people', label: '', icon: Users },
   ];
 
   return (
@@ -47,19 +56,22 @@ export default function ScheduleView({ events, campaigns, people }: ScheduleView
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-gray-800">Schedule</h1>
-            <div className="flex items-center gap-2">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-800">Sky - TV Products</h1>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Owner</span>
+            </div>
+            <div className="flex items-center gap-2 ml-8">
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+              >
+                Today
+              </button>
               <button
                 onClick={() => navigateDate('prev')}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <ChevronLeft size={20} className="text-gray-600" />
-              </button>
-              <button
-                onClick={() => setCurrentDate(new Date())}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                Today
               </button>
               <button
                 onClick={() => navigateDate('next')}
@@ -68,14 +80,19 @@ export default function ScheduleView({ events, campaigns, people }: ScheduleView
                 <ChevronRight size={20} className="text-gray-600" />
               </button>
               <span className="text-lg font-medium text-gray-800">
-                {format(currentDate, 'MMMM yyyy')}
+                {getDateRangeText()}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+              <Download size={16} />
+              <span>Export</span>
+            </button>
             {viewModes.map((mode) => {
               const Icon = mode.icon;
+              if (!mode.label) return null;
               return (
                 <button
                   key={mode.value}
@@ -94,96 +111,101 @@ export default function ScheduleView({ events, campaigns, people }: ScheduleView
           </div>
         </div>
 
-        {/* Timeline Header */}
+        {/* Calendar Header */}
         <div className="flex border-l border-gray-200">
-          <div className="w-64 flex-shrink-0 px-4 py-2 border-r border-gray-200 bg-gray-50">
-            <span className="text-sm font-medium text-gray-600">Campaign / Event</span>
-          </div>
+          <div className="w-24 flex-shrink-0 border-r border-gray-200 bg-gray-50"></div>
           <div className="flex-1 flex">
-            {dateRange.map((date, index) => (
+            {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day) => (
               <div
-                key={date.toISOString()}
-                className={`flex-1 text-center border-r border-gray-200 ${
-                  index === 0 ? 'border-l' : ''
-                }`}
+                key={day}
+                className="flex-1 text-center border-r border-gray-200 bg-gray-50 py-2"
               >
-                <div className="text-xs text-gray-500 py-1">
-                  {format(date, 'EEE')}
-                </div>
-                <div className="text-sm font-medium text-gray-800 py-1">
-                  {format(date, 'd')}
-                </div>
+                <span className="text-xs font-medium text-gray-600">{day}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Timeline Grid */}
+      {/* Calendar Grid */}
       <div className="flex-1 overflow-y-auto bg-white">
-        {campaigns.map((campaign) => {
-          const campaignEvents = events.filter(e => e.campaignId === campaign.id);
-          if (campaignEvents.length === 0) return null;
+        {months.map((month) => {
+          const monthStart = startOfMonth(month);
+          const monthEnd = endOfMonth(month);
+          const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
           return (
-            <div key={campaign.id} className="border-b border-gray-200">
-              {/* Campaign Header */}
-              <div className="flex items-center h-12 border-l border-gray-200">
-                <div className="w-64 flex-shrink-0 px-4 py-2 border-r border-gray-200 flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: campaign.color }}
-                  />
-                  <span className="font-medium text-gray-800">{campaign.name}</span>
+            <div key={month.toISOString()} className="border-b border-gray-200">
+              {/* Month Header */}
+              <div className="flex h-10 border-l border-gray-200 bg-gray-50">
+                <div className="w-24 flex-shrink-0 px-3 py-2 border-r border-gray-200">
+                  <span className="text-sm font-medium text-gray-700">
+                    {format(month, 'MMM yyyy')}
+                  </span>
                 </div>
                 <div className="flex-1 flex">
-                  {dateRange.map((date) => (
+                  {daysInMonth.map((day) => (
                     <div
-                      key={date.toISOString()}
-                      className="flex-1 border-r border-gray-200 bg-gray-50"
-                    />
+                      key={day.toISOString()}
+                      className="flex-1 border-r border-gray-200 flex items-center justify-center"
+                    >
+                      <span className={`text-sm ${isSameDay(day, new Date()) ? 'font-bold text-blue-600' : 'text-gray-700'}`}>
+                        {format(day, 'd')}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* Events */}
-              {campaignEvents.map((event) => {
-                const startOffset = differenceInDays(event.startDate, dateRange[0]);
-                const duration = differenceInDays(event.endDate, event.startDate) + 1;
+              {/* Events Grid */}
+              {events.map((event) => {
+                const eventStart = new Date(event.startDate);
+                const eventEnd = new Date(event.endDate);
+                const monthStart = startOfMonth(month);
+                const monthEnd = endOfMonth(month);
+
+                // Check if event overlaps with this month
+                if (eventEnd < monthStart || eventStart > monthEnd) return null;
+
                 const person = event.assignee ? getPersonById(event.assignee) : null;
+                const campaign = getCampaignById(event.campaignId);
 
                 return (
-                  <div key={event.id} className="flex items-center h-16 border-l border-gray-200">
-                    <div className="w-64 flex-shrink-0 px-4 py-2 border-r border-gray-200">
-                      <div className="text-sm font-medium text-gray-800">{event.title}</div>
-                      <div className="text-xs text-gray-500">{event.stage}</div>
-                    </div>
+                  <div key={event.id} className="flex h-12 border-l border-gray-200">
+                    <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
                     <div className="flex-1 flex relative">
-                      {dateRange.map((date) => (
-                        <div
-                          key={date.toISOString()}
-                          className="flex-1 border-r border-gray-200"
-                        />
-                      ))}
-                      {startOffset >= 0 && startOffset < dateRange.length && (
-                        <div
-                          className="absolute h-10 top-3 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                          style={{
-                            left: `${(startOffset / dateRange.length) * 100}%`,
-                            width: `${(duration / dateRange.length) * 100}%`,
-                            backgroundColor: event.color,
-                          }}
-                        >
-                          <span className="text-sm font-medium text-white truncate">
-                            {event.title}
-                          </span>
-                          {person && (
-                            <div className="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-medium text-white">
-                              {person.name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {daysInMonth.map((day) => {
+                        const isEventDay = day >= eventStart && day <= eventEnd;
+                        const isStart = isSameDay(day, eventStart);
+                        const isEnd = isSameDay(day, eventEnd);
+
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            className="flex-1 border-r border-gray-200 relative"
+                          >
+                            {isEventDay && (
+                              <div
+                                className="absolute top-1 bottom-1 left-0.5 right-0.5 rounded px-2 py-1 overflow-hidden cursor-pointer hover:opacity-90"
+                                style={{
+                                  backgroundColor: event.color,
+                                  marginLeft: isStart ? '0' : '-4px',
+                                  marginRight: isEnd ? '0' : '-4px',
+                                }}
+                              >
+                                <div className="text-xs font-medium text-white truncate">
+                                  {isStart && event.title}
+                                </div>
+                                {person && isStart && (
+                                  <div className="text-xs text-white/80 truncate">
+                                    {person.name}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

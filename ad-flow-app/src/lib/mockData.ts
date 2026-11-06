@@ -2,9 +2,9 @@ import { Campaign, Event, Person } from './types';
 import { getStageColor } from './colorUtils';
 
 export const mockCampaigns: Campaign[] = [
-  { id: '1', name: 'Cinema Xmas ROI - 888481', client: 'Sky', color: '#FF6B6B' },
-  { id: '2', name: 'Good Daughter ROI - 888147', client: 'Sky', color: '#4ECDC4' },
-  { id: '3', name: 'Sky x Netflix AV - 876944', client: 'Sky', color: '#FFE66D' },
+  { id: '1', name: 'Cinema Xmas ROI - 888481', client: 'Sky', color: '#FFB3B3' },
+  { id: '2', name: 'Good Daughter ROI - 888147', client: 'Sky', color: '#A8E6CF' },
+  { id: '3', name: 'Sky x Netflix AV - 876944', client: 'Sky', color: '#FFF9C4' },
 ];
 
 export const mockPeople: Person[] = [
@@ -26,7 +26,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-10-28'),
     endDate: new Date('2026-10-31'),
     assignee: '1',
-    color: getStageColor('#FF6B6B', 'Creative Development'),
+    color: getStageColor('#FFB3B3', 'Creative Development'),
   },
   {
     id: '2',
@@ -36,7 +36,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-10-29'),
     endDate: new Date('2026-10-30'),
     assignee: '4',
-    color: getStageColor('#4ECDC4', 'Post-Production'),
+    color: getStageColor('#A8E6CF', 'Post-Production'),
   },
   {
     id: '3',
@@ -46,7 +46,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-01'),
     endDate: new Date('2026-11-03'),
     assignee: '3',
-    color: getStageColor('#4ECDC4', 'Creative Development'),
+    color: getStageColor('#A8E6CF', 'Creative Development'),
   },
   {
     id: '4',
@@ -56,7 +56,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-04'),
     endDate: new Date('2026-11-05'),
     assignee: '4',
-    color: getStageColor('#4ECDC4', 'Delivery'),
+    color: getStageColor('#A8E6CF', 'Delivery'),
   },
   {
     id: '5',
@@ -66,7 +66,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-06'),
     endDate: new Date('2026-11-07'),
     assignee: '4',
-    color: getStageColor('#4ECDC4', 'Delivery'),
+    color: getStageColor('#A8E6CF', 'Delivery'),
   },
   {
     id: '6',
@@ -76,7 +76,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-08'),
     endDate: new Date('2026-11-09'),
     assignee: '4',
-    color: getStageColor('#4ECDC4', 'Delivery'),
+    color: getStageColor('#A8E6CF', 'Delivery'),
   },
   {
     id: '7',
@@ -86,7 +86,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-02'),
     endDate: new Date('2026-11-03'),
     assignee: '5',
-    color: getStageColor('#FFE66D', 'Pre-Production'),
+    color: getStageColor('#FFF9C4', 'Pre-Production'),
   },
   {
     id: '8',
@@ -96,7 +96,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-05'),
     endDate: new Date('2026-11-07'),
     assignee: '3',
-    color: getStageColor('#FFE66D', 'Pre-Production'),
+    color: getStageColor('#FFF9C4', 'Pre-Production'),
   },
   {
     id: '9',
@@ -106,7 +106,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-08'),
     endDate: new Date('2026-11-10'),
     assignee: '5',
-    color: getStageColor('#FFE66D', 'Pre-Production'),
+    color: getStageColor('#FFF9C4', 'Pre-Production'),
   },
   {
     id: '10',
@@ -116,7 +116,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-10-27'),
     endDate: new Date('2026-10-28'),
     assignee: '7',
-    color: getStageColor('#FF6B6B', 'Post-Production'),
+    color: getStageColor('#FFB3B3', 'Post-Production'),
   },
   {
     id: '11',
@@ -126,7 +126,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-01'),
     endDate: new Date('2026-11-02'),
     assignee: '1',
-    color: getStageColor('#FF6B6B', 'Creative Development'),
+    color: getStageColor('#FFB3B3', 'Creative Development'),
   },
   {
     id: '12',
@@ -136,7 +136,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-12'),
     endDate: new Date('2026-11-12'),
     assignee: '6',
-    color: getStageColor('#FFE66D', 'Shoot'),
+    color: getStageColor('#FFF9C4', 'Shoot'),
   },
   {
     id: '13',
@@ -146,7 +146,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-13'),
     endDate: new Date('2026-11-13'),
     assignee: '6',
-    color: getStageColor('#FFE66D', 'Shoot'),
+    color: getStageColor('#FFF9C4', 'Shoot'),
   },
   {
     id: '14',
@@ -156,7 +156,7 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-14'),
     endDate: new Date('2026-11-16'),
     assignee: '4',
-    color: getStageColor('#FF6B6B', 'Post-Production'),
+    color: getStageColor('#FFB3B3', 'Post-Production'),
   },
   {
     id: '15',
@@ -166,6 +166,6 @@ export const mockEvents: Event[] = [
     startDate: new Date('2026-11-15'),
     endDate: new Date('2026-11-15'),
     assignee: '4',
-    color: getStageColor('#4ECDC4', 'Delivery'),
+    color: getStageColor('#A8E6CF', 'Delivery'),
   },
 ];

@@ -7,6 +7,7 @@ import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
+import EditEventModal from './EditEventModal';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -30,6 +31,8 @@ export default function SimpleScheduleView({
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(new Date());
+  const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
+  const [selectedEventToEdit, setSelectedEventToEdit] = useState<Event | null>(null);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
 
   const navigateDate = (direction: 'prev' | 'next') => {
@@ -56,8 +59,18 @@ export default function SimpleScheduleView({
   };
 
   const handleEventDoubleClick = (event: Event) => {
-    console.log('Event double-clicked:', event);
-    // TODO: Open edit event modal
+    setSelectedEventToEdit(event);
+    setIsEditEventModalOpen(true);
+  };
+
+  const handleUpdateEvent = (id: string, updatedEvent: Omit<Event, 'id'>) => {
+    setAllEvents(allEvents.map(event =>
+      event.id === id ? { ...updatedEvent, id } : event
+    ));
+  };
+
+  const handleDeleteEvent = (id: string) => {
+    setAllEvents(allEvents.filter(event => event.id !== id));
   };
 
   // Filter events based on selections
@@ -180,6 +193,17 @@ export default function SimpleScheduleView({
         campaigns={campaigns}
         people={people}
         selectedCampaigns={selectedCampaigns}
+      />
+
+      {/* Edit Event Modal */}
+      <EditEventModal
+        isOpen={isEditEventModalOpen}
+        onClose={() => setIsEditEventModalOpen(false)}
+        onUpdateEvent={handleUpdateEvent}
+        onDeleteEvent={handleDeleteEvent}
+        event={selectedEventToEdit}
+        campaigns={campaigns}
+        people={people}
       />
     </div>
   );

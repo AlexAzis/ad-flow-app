@@ -11,6 +11,7 @@ interface CalendarGridProps {
   people: Person[];
   currentDate: Date;
   onDateClick: (date: Date) => void;
+  onEventDoubleClick?: (event: Event) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -22,6 +23,7 @@ export default function CalendarGrid({
   people,
   currentDate,
   onDateClick,
+  onEventDoubleClick,
   showWeekends,
   showEventNotes,
   showPeople,
@@ -98,7 +100,7 @@ export default function CalendarGrid({
                   className={`w-[120px] border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden flex-shrink-0 ${
                     isWeekend && showWeekends ? 'bg-gray-100' : ''
                   } ${isPastMonth ? 'opacity-50' : ''}`}
-                  onClick={() => onDateClick(day)}
+                  onDoubleClick={() => onDateClick(day)}
                 >
                   {/* Date Number */}
                   <div className="absolute top-2 left-2">
@@ -124,8 +126,12 @@ export default function CalendarGrid({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-8 flex items-center"
+                          className="rounded px-2 py-1.5 text-xs h-8 flex items-center cursor-pointer hover:opacity-80"
                           style={{ backgroundColor: eventColor }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (onEventDoubleClick) onEventDoubleClick(event);
+                          }}
                         >
                           <div className="font-medium text-gray-800 truncate flex-1">
                             {event.title}

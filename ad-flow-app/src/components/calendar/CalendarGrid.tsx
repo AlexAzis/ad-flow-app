@@ -27,7 +27,7 @@ export default function CalendarGrid({
   showPeople,
 }: CalendarGridProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = Array.from({ length: 42 }, (_, i) => addDays(startDate, i)); // 6 weeks
+  const days = Array.from({ length: 180 }, (_, i) => addDays(startDate, i)); // 6 months (~180 days)
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
@@ -42,9 +42,10 @@ export default function CalendarGrid({
 
   const months = [...new Set(days.map(day => format(day, 'MMMM yyyy')))];
   const currentMonth = format(currentDate, 'MMMM yyyy');
+  const weeks = Math.ceil(days.length / 7);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-[800px]">
       {/* Month Header */}
       <div className="flex h-10 border-b border-gray-200">
         <div className="w-32 flex-shrink-0"></div>
@@ -52,7 +53,7 @@ export default function CalendarGrid({
           {days.slice(0, 7).map((day, index) => (
             <div
               key={day.toISOString()}
-              className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center"
+              className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center min-w-[100px]"
             >
               <span className="text-sm font-medium text-gray-700">
                 {format(day, 'EEE')}
@@ -64,19 +65,24 @@ export default function CalendarGrid({
 
       {/* Calendar Grid */}
       <div className="flex-1">
-        {Array.from({ length: 6 }).map((_, weekIndex) => (
+        {Array.from({ length: weeks }).map((_, weekIndex) => (
           <div key={weekIndex} className="flex border-b border-gray-200">
             {/* Month Column */}
-            {weekIndex === 0 && (
-              <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-700">
-                  {currentMonth}
-                </span>
-              </div>
-            )}
-            {weekIndex > 0 && (
-              <div className="w-32 flex-shrink-0 border-r border-gray-200"></div>
-            )}
+            {(() => {
+              const weekStartDate = days[weekIndex * 7];
+              const weekMonth = format(weekStartDate, 'MMMM yyyy');
+              const prevWeekMonth = weekIndex > 0 ? format(days[(weekIndex - 1) * 7], 'MMMM yyyy') : '';
+              const showMonth = weekMonth !== prevWeekMonth;
+              return (
+                <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex items-center justify-center">
+                  {showMonth && (
+                    <span className="text-sm font-medium text-gray-700">
+                      {weekMonth}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Days */}
             {days.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day) => {
@@ -89,7 +95,7 @@ export default function CalendarGrid({
               return (
                 <div
                   key={day.toISOString()}
-                  className={`flex-1 border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden ${
+                  className={`flex-1 border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden min-w-[100px] ${
                     isWeekend && showWeekends ? 'bg-gray-100' : ''
                   } ${isPastMonth ? 'opacity-50' : ''}`}
                   onClick={() => onDateClick(day)}
@@ -121,22 +127,18 @@ export default function CalendarGrid({
                           className="rounded px-2 py-1.5 text-xs h-8 flex items-center"
                           style={{ backgroundColor: eventColor }}
                         >
-                          {isEventStart && (
-                            <>
-                              <div className="font-medium text-white truncate flex-1">
-                                {event.title}
-                              </div>
-                              {showPeople && person && (
-                                <div className="text-white/80 truncate ml-2 text-[10px]">
-                                  {person.name}
-                                </div>
-                              )}
-                              {showEventNotes && event.notes && (
-                                <div className="text-white/70 truncate text-[10px] w-full">
-                                  {event.notes}
-                                </div>
-                              )}
-                            </>
+                          <div className="font-medium text-gray-800 truncate flex-1">
+                            {event.title}
+                          </div>
+                          {showPeople && person && (
+                            <div className="text-gray-600 truncate ml-2 text-[10px]">
+                              {person.name}
+                            </div>
+                          )}
+                          {showEventNotes && event.notes && (
+                            <div className="text-gray-500 truncate text-[10px] w-full">
+                              {event.notes}
+                            </div>
                           )}
                         </div>
                       );

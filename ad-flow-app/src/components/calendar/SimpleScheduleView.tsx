@@ -6,6 +6,7 @@ import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
 import FilterSidebar from './FilterSidebar';
+import AddEventModal from './AddEventModal';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -27,6 +28,9 @@ export default function SimpleScheduleView({
   const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set());
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
+  const [selectedDateForEvent, setSelectedDateForEvent] = useState(new Date());
+  const [allEvents, setAllEvents] = useState<Event[]>(events);
 
   const navigateDate = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
@@ -39,12 +43,25 @@ export default function SimpleScheduleView({
   };
 
   const handleDateClick = (date: Date) => {
-    console.log('Date clicked:', date);
-    // TODO: Open add event modal
+    setSelectedDateForEvent(date);
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleAddEvent = (newEvent: Omit<Event, 'id'>) => {
+    const eventWithId: Event = {
+      ...newEvent,
+      id: Date.now().toString(),
+    };
+    setAllEvents([...allEvents, eventWithId]);
+  };
+
+  const handleEventDoubleClick = (event: Event) => {
+    console.log('Event double-clicked:', event);
+    // TODO: Open edit event modal
   };
 
   // Filter events based on selections
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = allEvents.filter(event => {
     if (selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
     if (selectedPeople.size > 0 && event.assignee && !selectedPeople.has(event.assignee)) return false;
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
@@ -146,12 +163,24 @@ export default function SimpleScheduleView({
             people={people}
             currentDate={currentDate}
             onDateClick={handleDateClick}
+            onEventDoubleClick={handleEventDoubleClick}
             showWeekends={showWeekends}
             showEventNotes={showEventNotes}
             showPeople={showPeople}
           />
         </div>
       </div>
+
+      {/* Add Event Modal */}
+      <AddEventModal
+        isOpen={isAddEventModalOpen}
+        onClose={() => setIsAddEventModalOpen(false)}
+        onAddEvent={handleAddEvent}
+        selectedDate={selectedDateForEvent}
+        campaigns={campaigns}
+        people={people}
+        selectedCampaigns={selectedCampaigns}
+      />
     </div>
   );
 }

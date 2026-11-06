@@ -12,6 +12,7 @@ interface CalendarGridProps {
   currentDate: Date;
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
+  onEventDrop?: (eventId: string, newDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -25,6 +26,7 @@ export default function CalendarGrid({
   currentDate,
   onDateClick,
   onEventDoubleClick,
+  onEventDrop,
   showWeekends,
   showEventNotes,
   showPeople,
@@ -33,6 +35,22 @@ export default function CalendarGrid({
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const daysToShow = viewMode === 'daily-6' ? 180 : 365; // 6 months or 12 months
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+
+  const handleDragStart = (e: React.DragEvent, eventId: string) => {
+    e.dataTransfer.setData('eventId', eventId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, date: Date) => {
+    e.preventDefault();
+    const eventId = e.dataTransfer.getData('eventId');
+    if (eventId && onEventDrop) {
+      onEventDrop(eventId, date);
+    }
+  };
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
@@ -104,6 +122,8 @@ export default function CalendarGrid({
                     isWeekend && showWeekends ? 'bg-gray-100' : ''
                   } ${isPastMonth ? 'opacity-50' : ''}`}
                   onDoubleClick={() => onDateClick(day)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, day)}
                 >
                   {/* Date Number */}
                   <div className="absolute top-2 left-2">
@@ -129,8 +149,10 @@ export default function CalendarGrid({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-10 cursor-pointer hover:opacity-80 overflow-hidden"
+                          className="rounded px-2 py-1.5 text-xs h-10 cursor-move hover:opacity-80 overflow-hidden"
                           style={{ backgroundColor: eventColor }}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, event.id)}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);

@@ -15,6 +15,7 @@ interface CalendarGridProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  viewMode?: 'daily-6' | 'daily-12';
 }
 
 export default function CalendarGrid({
@@ -27,9 +28,11 @@ export default function CalendarGrid({
   showWeekends,
   showEventNotes,
   showPeople,
+  viewMode = 'daily-6',
 }: CalendarGridProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = Array.from({ length: 180 }, (_, i) => addDays(startDate, i)); // 6 months (~180 days)
+  const daysToShow = viewMode === 'daily-6' ? 180 : 365; // 6 months or 12 months
+  const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);

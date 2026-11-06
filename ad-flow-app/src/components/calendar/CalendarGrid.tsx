@@ -42,10 +42,12 @@ export default function CalendarGrid({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
+    e.stopPropagation();
     const eventId = e.dataTransfer.getData('eventId');
     if (eventId && onEventDrop) {
       onEventDrop(eventId, date);
@@ -153,6 +155,9 @@ export default function CalendarGrid({
                           style={{ backgroundColor: eventColor }}
                           draggable
                           onDragStart={(e) => handleDragStart(e, event.id)}
+                          onDragEnd={(e) => {
+                            e.preventDefault();
+                          }}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);

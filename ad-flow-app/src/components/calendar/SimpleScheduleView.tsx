@@ -21,6 +21,7 @@ export default function SimpleScheduleView({
   people,
 }: SimpleScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
+  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12'>('daily-6');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
   const [showPeople, setShowPeople] = useState(true);
@@ -41,7 +42,8 @@ export default function SimpleScheduleView({
 
   const getDateRangeText = () => {
     const startDate = startOfMonth(currentDate);
-    const endDate = addMonths(startDate, 5);
+    const monthsToShow = viewMode === 'daily-6' ? 5 : 11;
+    const endDate = addMonths(startDate, monthsToShow);
     return `${format(startDate, 'MMM')} - ${format(endDate, 'MMM yyyy')}`;
   };
 
@@ -123,9 +125,28 @@ export default function SimpleScheduleView({
               <Download size={16} />
               <span>Export</span>
             </button>
-            <button className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg flex items-center gap-2 text-sm">
-              Daily 6
-            </button>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('daily-6')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'daily-6'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Daily 6
+              </button>
+              <button
+                onClick={() => setViewMode('daily-12')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'daily-12'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Daily 12
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -180,6 +201,7 @@ export default function SimpleScheduleView({
             showWeekends={showWeekends}
             showEventNotes={showEventNotes}
             showPeople={showPeople}
+            viewMode={viewMode}
           />
         </div>
       </div>

@@ -126,23 +126,23 @@ export default function CalendarGrid({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-8 flex items-center cursor-pointer hover:opacity-80"
+                          className="rounded px-2 py-1 text-xs cursor-pointer hover:opacity-80"
                           style={{ backgroundColor: eventColor }}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);
                           }}
                         >
-                          <div className="font-medium text-gray-800 truncate flex-1">
+                          <div className="font-medium text-gray-800 truncate">
                             {event.title}
                           </div>
                           {showPeople && person && (
-                            <div className="text-gray-600 truncate ml-2 text-[10px]">
+                            <div className="text-gray-600 truncate text-[10px]">
                               {person.name}
                             </div>
                           )}
                           {showEventNotes && event.notes && (
-                            <div className="text-gray-500 truncate text-[10px] w-full">
+                            <div className="text-gray-500 truncate text-[9px] mt-0.5">
                               {event.notes}
                             </div>
                           )}

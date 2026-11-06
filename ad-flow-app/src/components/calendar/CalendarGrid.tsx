@@ -53,7 +53,7 @@ export default function CalendarGrid({
           {days.slice(0, 7).map((day, index) => (
             <div
               key={day.toISOString()}
-              className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center min-w-[100px]"
+              className="w-[120px] text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
             >
               <span className="text-sm font-medium text-gray-700">
                 {format(day, 'EEE')}
@@ -95,7 +95,7 @@ export default function CalendarGrid({
               return (
                 <div
                   key={day.toISOString()}
-                  className={`flex-1 border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden min-w-[100px] ${
+                  className={`w-[120px] border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden flex-shrink-0 ${
                     isWeekend && showWeekends ? 'bg-gray-100' : ''
                   } ${isPastMonth ? 'opacity-50' : ''}`}
                   onClick={() => onDateClick(day)}

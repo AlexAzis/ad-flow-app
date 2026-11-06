@@ -59,3 +59,55 @@ export const getEventsByStage = (stage: string) => {
 };
 
 export const getAllStages = ['Creative Development', 'Pre-Production', 'Shoot', 'Post-Production', 'Delivery'] as const;
+
+// Export events organized by stage for the modal
+export const eventTypesByStage: Record<string, string[]> = {
+  'Creative Development': [
+    'Internal presentation',
+    'Marketing presentation',
+    'Client presentation',
+    'ECD review',
+  ],
+  'Pre-Production': [
+    'Directors scouting',
+    'Directors treatments',
+    'Location scouting',
+    'Casting',
+    'Choreography',
+    'Art Department moodboards',
+    'Art Department design',
+    'Styling mood boards',
+    'Pre-PPM',
+    'PPM',
+    'Styling fitting',
+    'Construction',
+    'Pre-light',
+  ],
+  'Shoot': [
+    'Day 1',
+    'Day 2',
+    'Day 3',
+    'Day 4',
+    'Day 5',
+    'Day 6',
+    'Day 7',
+  ],
+  'Post-Production': [
+    'Offline edit',
+    'Offline presentation',
+    'Offline amends',
+    'Offline approval',
+    'VFX',
+    'VFX presentation',
+    'VFX approval',
+    'Audio mix',
+    'VO record',
+  ],
+  'Delivery': [
+    'Mastering',
+    'Clearcast',
+    'Clearcast approval',
+    'Clocking',
+    'Playout',
+  ],
+};

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
+import GanttView from './GanttView';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
@@ -21,7 +22,7 @@ export default function SimpleScheduleView({
   people,
 }: SimpleScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
-  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12'>('daily-6');
+  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12' | 'gantt'>('daily-6');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
   const [showPeople, setShowPeople] = useState(true);
@@ -42,7 +43,7 @@ export default function SimpleScheduleView({
 
   const getDateRangeText = () => {
     const startDate = startOfMonth(currentDate);
-    const monthsToShow = viewMode === 'daily-6' ? 5 : 11;
+    const monthsToShow = viewMode === 'daily-6' ? 5 : viewMode === 'daily-12' ? 11 : 2;
     const endDate = addMonths(startDate, monthsToShow);
     return `${format(startDate, 'MMM')} - ${format(endDate, 'MMM yyyy')}`;
   };
@@ -163,6 +164,16 @@ export default function SimpleScheduleView({
               >
                 Daily 12
               </button>
+              <button
+                onClick={() => setViewMode('gantt')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'gantt'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Gantt
+              </button>
             </div>
           </div>
         </div>
@@ -208,19 +219,34 @@ export default function SimpleScheduleView({
         />
 
         <div className="flex-1 overflow-y-auto bg-white">
-          <CalendarGrid
-            events={filteredEvents}
-            campaigns={campaigns}
-            people={people}
-            currentDate={currentDate}
-            onDateClick={handleDateClick}
-            onEventDoubleClick={handleEventDoubleClick}
-            onEventDrop={handleEventDrop}
-            showWeekends={showWeekends}
-            showEventNotes={showEventNotes}
-            showPeople={showPeople}
-            viewMode={viewMode}
-          />
+          {viewMode === 'gantt' ? (
+            <GanttView
+              events={filteredEvents}
+              campaigns={campaigns}
+              people={people}
+              currentDate={currentDate}
+              onDateClick={handleDateClick}
+              onEventDoubleClick={handleEventDoubleClick}
+              onEventDrop={handleEventDrop}
+              showWeekends={showWeekends}
+              showEventNotes={showEventNotes}
+              showPeople={showPeople}
+            />
+          ) : (
+            <CalendarGrid
+              events={filteredEvents}
+              campaigns={campaigns}
+              people={people}
+              currentDate={currentDate}
+              onDateClick={handleDateClick}
+              onEventDoubleClick={handleEventDoubleClick}
+              onEventDrop={handleEventDrop}
+              showWeekends={showWeekends}
+              showEventNotes={showEventNotes}
+              showPeople={showPeople}
+              viewMode={viewMode as 'daily-6' | 'daily-12'}
+            />
+          )}
         </div>
       </div>
 

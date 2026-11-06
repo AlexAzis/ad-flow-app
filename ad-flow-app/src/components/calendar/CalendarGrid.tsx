@@ -133,11 +133,11 @@ export default function CalendarGrid({
                             if (onEventDoubleClick) onEventDoubleClick(event);
                           }}
                         >
-                          <div className="font-medium text-gray-800 truncate">
+                          <div className="font-medium text-gray-800 truncate leading-tight">
                             {event.title}
                           </div>
                           {(showPeople || showEventNotes) && (
-                            <div className="text-gray-600 truncate text-[9px] mt-0.5">
+                            <div className="text-gray-600 truncate text-[9px] leading-tight">
                               {showPeople && person && <span>{person.name}</span>}
                               {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
                               {showEventNotes && event.notes && <span>{event.notes}</span>}

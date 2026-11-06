@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
+import { getStageColor } from '@/lib/colorUtils';
 
 interface CalendarGridProps {
   events: Event[];
@@ -88,7 +89,7 @@ export default function CalendarGrid({
               return (
                 <div
                   key={day.toISOString()}
-                  className={`flex-1 border-r border-gray-200 min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
+                  className={`flex-1 border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden ${
                     isWeekend && showWeekends ? 'bg-gray-100' : ''
                   } ${isPastMonth ? 'opacity-50' : ''}`}
                   onClick={() => onDateClick(day)}
@@ -112,25 +113,26 @@ export default function CalendarGrid({
                       const campaign = getCampaignById(event.campaignId);
                       const person = event.assignee ? getPersonById(event.assignee) : null;
                       const isEventStart = isSameDay(day, new Date(event.startDate));
+                      const eventColor = campaign ? getStageColor(campaign.color, event.stage) : event.color;
 
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1 text-xs"
-                          style={{ backgroundColor: event.color }}
+                          className="rounded px-2 py-1.5 text-xs h-8 flex items-center"
+                          style={{ backgroundColor: eventColor }}
                         >
                           {isEventStart && (
                             <>
-                              <div className="font-medium text-white truncate">
+                              <div className="font-medium text-white truncate flex-1">
                                 {event.title}
                               </div>
                               {showPeople && person && (
-                                <div className="text-white/80 truncate">
+                                <div className="text-white/80 truncate ml-2 text-[10px]">
                                   {person.name}
                                 </div>
                               )}
                               {showEventNotes && event.notes && (
-                                <div className="text-white/70 truncate text-[10px]">
+                                <div className="text-white/70 truncate text-[10px] w-full">
                                   {event.notes}
                                 </div>
                               )}

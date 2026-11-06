@@ -126,7 +126,7 @@ export default function CalendarGrid({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-8 cursor-pointer hover:opacity-80 overflow-hidden"
+                          className="rounded px-2 py-1.5 text-xs h-10 cursor-pointer hover:opacity-80 overflow-hidden"
                           style={{ backgroundColor: eventColor }}
                           onDoubleClick={(e) => {
                             e.stopPropagation();

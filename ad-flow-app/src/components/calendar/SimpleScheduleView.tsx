@@ -75,6 +75,23 @@ export default function SimpleScheduleView({
     setAllEvents(allEvents.filter(event => event.id !== id));
   };
 
+  const handleEventDrop = (eventId: string, newDate: Date) => {
+    const event = allEvents.find(e => e.id === eventId);
+    if (!event) return;
+
+    const startDate = new Date(event.startDate);
+    const endDate = new Date(event.endDate);
+    const duration = endDate.getTime() - startDate.getTime();
+
+    const updatedEvent = {
+      ...event,
+      startDate: newDate,
+      endDate: new Date(newDate.getTime() + duration),
+    };
+
+    setAllEvents(allEvents.map(e => e.id === eventId ? updatedEvent : e));
+  };
+
   // Filter events based on selections
   const filteredEvents = allEvents.filter(event => {
     if (selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
@@ -198,6 +215,7 @@ export default function SimpleScheduleView({
             currentDate={currentDate}
             onDateClick={handleDateClick}
             onEventDoubleClick={handleEventDoubleClick}
+            onEventDrop={handleEventDrop}
             showWeekends={showWeekends}
             showEventNotes={showEventNotes}
             showPeople={showPeople}

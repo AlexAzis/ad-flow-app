@@ -1,20 +1,20 @@
 // Campaign color palette - pastel colors as requested
 export const campaignColors = [
-  '#FF6B6B', // Light red
-  '#4ECDC4', // Teal
-  '#FFE66D', // Yellow
-  '#95E1D3', // Mint
-  '#F38181', // Coral
-  '#A8E6CF', // Light green
-  '#DDA0DD', // Plum
-  '#98D8C8', // Sea green
-  '#F7DC6F', // Light gold
-  '#BB8FCE', // Soft purple
-  '#85C1E9', // Light blue
-  '#F8B500', // Amber
-  '#00CED1', // Dark turquoise
-  '#FF69B4', // Hot pink
-  '#20B2AA', // Light sea green
+  '#FFB3B3', // Pastel red
+  '#A8E6CF', // Pastel teal
+  '#FFF9C4', // Pastel yellow
+  '#B5EAD7', // Pastel mint
+  '#FFCDD2', // Pastel coral
+  '#C8E6C9', // Pastel green
+  '#E1BEE7', // Pastel plum
+  '#B2DFDB', // Pastel sea green
+  '#FFF59D', // Pastel gold
+  '#D1C4E9', // Pastel purple
+  '#BBDEFB', // Pastel blue
+  '#FFE0B2', // Pastel amber
+  '#B2EBF2', // Pastel turquoise
+  '#F8BBD0', // Pastel pink
+  '#B2DFDB', // Pastel sea green
 ];
 
 export interface ColorShades {

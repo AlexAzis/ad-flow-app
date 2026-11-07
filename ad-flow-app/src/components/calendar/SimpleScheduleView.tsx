@@ -14,6 +14,7 @@ import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
 import ManageEventsModal from './ManageEventsModal';
+import EditCampaignModal from './EditCampaignModal';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -42,6 +43,8 @@ export default function SimpleScheduleView({
   const [selectedEventToEdit, setSelectedEventToEdit] = useState<Event | null>(null);
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
+  const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
+  const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
 
@@ -90,6 +93,17 @@ export default function SimpleScheduleView({
       id: Date.now().toString(),
     };
     setAllCampaigns([...allCampaigns, campaignWithId]);
+  };
+
+  const handleUpdateCampaign = (id: string, updatedCampaign: Omit<Campaign, 'id'>) => {
+    setAllCampaigns(allCampaigns.map(campaign =>
+      campaign.id === id ? { ...updatedCampaign, id } : campaign
+    ));
+  };
+
+  const handleEditCampaign = (campaign: Campaign) => {
+    setSelectedCampaignToEdit(campaign);
+    setIsEditCampaignModalOpen(true);
   };
 
   const handleEventDrop = (eventId: string, newDate: Date) => {
@@ -276,6 +290,7 @@ export default function SimpleScheduleView({
           onToggleShowEventNotes={() => setShowEventNotes(!showEventNotes)}
           onToggleShowPeople={() => setShowPeople(!showPeople)}
           onToggleShowMisc={() => setShowMisc(!showMisc)}
+          onEditCampaign={handleEditCampaign}
         />
 
         <div className="flex-1 overflow-hidden bg-white flex flex-col">
@@ -395,6 +410,14 @@ export default function SimpleScheduleView({
       <ManageEventsModal
         isOpen={isManageEventsModalOpen}
         onClose={() => setIsManageEventsModalOpen(false)}
+      />
+
+      {/* Edit Campaign Modal */}
+      <EditCampaignModal
+        isOpen={isEditCampaignModalOpen}
+        onClose={() => setIsEditCampaignModalOpen(false)}
+        onUpdateCampaign={handleUpdateCampaign}
+        campaign={selectedCampaignToEdit}
       />
     </div>
   );

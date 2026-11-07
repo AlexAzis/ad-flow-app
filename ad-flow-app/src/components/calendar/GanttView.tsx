@@ -61,7 +61,7 @@ export default function GanttView({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Timeline Header */}
       <div className="flex h-10 border-b border-gray-200 bg-gray-50">
         <div className="w-48 flex-shrink-0 border-r border-gray-200"></div>

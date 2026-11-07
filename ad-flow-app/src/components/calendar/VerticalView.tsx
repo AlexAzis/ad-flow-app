@@ -16,6 +16,7 @@ interface VerticalViewProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  selectedCampaigns?: Set<string>;
 }
 
 export default function VerticalView({
@@ -29,6 +30,7 @@ export default function VerticalView({
   showWeekends,
   showEventNotes,
   showPeople,
+  selectedCampaigns,
 }: VerticalViewProps) {
   const [scrollDate, setScrollDate] = useState(currentDate);
   const minDate = subDays(new Date(), 7); // Can only scroll back 7 days
@@ -69,7 +71,9 @@ export default function VerticalView({
       {/* Header Row */}
       <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0">
         <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
-        {campaigns.map((campaign) => (
+        {campaigns
+          .filter(campaign => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(campaign.id))
+          .map((campaign) => (
           <div
             key={campaign.id}
             className="flex-1 border-r border-gray-200 flex items-center justify-center px-2 min-w-[200px]"
@@ -121,7 +125,9 @@ export default function VerticalView({
               </div>
 
               {/* Campaign Columns */}
-              {campaigns.map((campaign) => {
+              {campaigns
+                .filter(campaign => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(campaign.id))
+                .map((campaign) => {
                 const dayEvents = getEventsForCampaignAndDate(campaign.id, day);
 
                 return (

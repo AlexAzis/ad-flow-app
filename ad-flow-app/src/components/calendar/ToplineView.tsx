@@ -16,6 +16,7 @@ interface ToplineViewProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  selectedCampaigns?: Set<string>;
 }
 
 export default function ToplineView({
@@ -29,6 +30,7 @@ export default function ToplineView({
   showWeekends,
   showEventNotes,
   showPeople,
+  selectedCampaigns,
 }: ToplineViewProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i)); // 3 months
@@ -98,6 +100,11 @@ export default function ToplineView({
       {/* Campaign Rows with Stage Blocks */}
       <div className="flex-1 overflow-y-auto">
         {campaigns.map((campaign) => {
+          // Only show if no campaigns selected or if this campaign is selected
+          if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(campaign.id)) {
+            return null;
+          }
+
           const stageBlocks = getStageBlocks(campaign.id);
 
           return (

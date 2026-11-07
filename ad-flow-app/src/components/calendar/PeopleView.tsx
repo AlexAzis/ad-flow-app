@@ -98,7 +98,7 @@ export default function PeopleView({
           const personCampaigns = Array.from(new Set(personEvents.map(e => e.campaignId)));
 
           return (
-            <div key={person.id} className="flex border-b border-gray-200">
+            <div key={person.id} className="flex border-b border-gray-200 h-20">
               {/* Person Column */}
               <div className="w-48 flex-shrink-0 border-r border-gray-200 bg-white flex items-center px-3">
                 <span className="text-sm font-medium text-gray-800">

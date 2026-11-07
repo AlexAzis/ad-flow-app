@@ -24,6 +24,7 @@ interface FilterSidebarProps {
   onToggleShowEventNotes: () => void;
   onToggleShowPeople: () => void;
   onToggleShowMisc: () => void;
+  onEditCampaign?: (campaign: Campaign) => void;
 }
 
 export default function FilterSidebar({
@@ -45,6 +46,7 @@ export default function FilterSidebar({
   onToggleShowEventNotes,
   onToggleShowPeople,
   onToggleShowMisc,
+  onEditCampaign,
 }: FilterSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(['campaigns', 'people', 'stages', 'events']);
 
@@ -83,19 +85,32 @@ export default function FilterSidebar({
             </div>
           </button>
           {expandedSections.includes('campaigns') && (
-            <div className="ml-4 flex flex-wrap gap-2">
+            <div className="ml-4 space-y-2">
               {campaigns.map((campaign) => (
-                <button
-                  key={campaign.id}
-                  onClick={() => onToggleCampaign(campaign.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedCampaigns.has(campaign.id)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {campaign.name}
-                </button>
+                <div key={campaign.id} className="flex items-center justify-between">
+                  <button
+                    onClick={() => onToggleCampaign(campaign.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium flex-1 ${
+                      selectedCampaigns.has(campaign.id)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {campaign.name}
+                  </button>
+                  {onEditCampaign && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditCampaign(campaign);
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded text-gray-500 ml-2"
+                      title="Edit campaign"
+                    >
+                      <Settings size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}

@@ -16,6 +16,7 @@ interface GanttViewProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  selectedCampaigns?: Set<string>;
 }
 
 export default function GanttView({
@@ -29,6 +30,7 @@ export default function GanttView({
   showWeekends,
   showEventNotes,
   showPeople,
+  selectedCampaigns,
 }: GanttViewProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i)); // 3 months for Gantt
@@ -87,6 +89,11 @@ export default function GanttView({
       {/* Campaign Rows */}
       <div className="flex-1 overflow-y-auto">
         {campaigns.map((campaign) => {
+          // Only show if no campaigns selected or if this campaign is selected
+          if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(campaign.id)) {
+            return null;
+          }
+
           const campaignEvents = getEventsForCampaign(campaign.id);
 
           return (

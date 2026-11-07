@@ -6,10 +6,13 @@ import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
 import GanttView from './GanttView';
+import VerticalView from './VerticalView';
+import ToplineView from './ToplineView';
+import PeopleView from './PeopleView';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
-// Trigger redeploy
+
 interface SimpleScheduleViewProps {
   events: Event[];
   campaigns: Campaign[];
@@ -22,7 +25,7 @@ export default function SimpleScheduleView({
   people,
 }: SimpleScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
-  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12' | 'gantt'>('daily-6');
+  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12' | 'gantt' | 'vertical' | 'topline' | 'people'>('daily-6');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
   const [showPeople, setShowPeople] = useState(true);
@@ -174,6 +177,36 @@ export default function SimpleScheduleView({
               >
                 Gantt
               </button>
+              <button
+                onClick={() => setViewMode('vertical')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'vertical'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Vertical
+              </button>
+              <button
+                onClick={() => setViewMode('topline')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'topline'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Topline
+              </button>
+              <button
+                onClick={() => setViewMode('people')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  viewMode === 'people'
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                People
+              </button>
             </div>
           </div>
         </div>
@@ -221,6 +254,45 @@ export default function SimpleScheduleView({
         <div className="flex-1 overflow-y-auto bg-white">
           {viewMode === 'gantt' ? (
             <GanttView
+              events={filteredEvents}
+              campaigns={campaigns}
+              people={people}
+              currentDate={currentDate}
+              onDateClick={handleDateClick}
+              onEventDoubleClick={handleEventDoubleClick}
+              onEventDrop={handleEventDrop}
+              showWeekends={showWeekends}
+              showEventNotes={showEventNotes}
+              showPeople={showPeople}
+            />
+          ) : viewMode === 'vertical' ? (
+            <VerticalView
+              events={filteredEvents}
+              campaigns={campaigns}
+              people={people}
+              currentDate={currentDate}
+              onDateClick={handleDateClick}
+              onEventDoubleClick={handleEventDoubleClick}
+              onEventDrop={handleEventDrop}
+              showWeekends={showWeekends}
+              showEventNotes={showEventNotes}
+              showPeople={showPeople}
+            />
+          ) : viewMode === 'topline' ? (
+            <ToplineView
+              events={filteredEvents}
+              campaigns={campaigns}
+              people={people}
+              currentDate={currentDate}
+              onDateClick={handleDateClick}
+              onEventDoubleClick={handleEventDoubleClick}
+              onEventDrop={handleEventDrop}
+              showWeekends={showWeekends}
+              showEventNotes={showEventNotes}
+              showPeople={showPeople}
+            />
+          ) : viewMode === 'people' ? (
+            <PeopleView
               events={filteredEvents}
               campaigns={campaigns}
               people={people}

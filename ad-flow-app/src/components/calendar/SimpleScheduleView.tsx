@@ -251,63 +251,71 @@ export default function SimpleScheduleView({
           onToggleShowMisc={() => setShowMisc(!showMisc)}
         />
 
-        <div className="flex-1 overflow-hidden bg-white">
+        <div className="flex-1 overflow-hidden bg-white flex flex-col">
           {viewMode === 'gantt' ? (
-            <GanttView
-              events={filteredEvents}
-              campaigns={campaigns}
-              people={people}
-              currentDate={currentDate}
-              onDateClick={handleDateClick}
-              onEventDoubleClick={handleEventDoubleClick}
-              onEventDrop={handleEventDrop}
-              showWeekends={showWeekends}
-              showEventNotes={showEventNotes}
-              showPeople={showPeople}
-              selectedCampaigns={selectedCampaigns}
-            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <GanttView
+                events={filteredEvents}
+                campaigns={campaigns}
+                people={people}
+                currentDate={currentDate}
+                onDateClick={handleDateClick}
+                onEventDoubleClick={handleEventDoubleClick}
+                onEventDrop={handleEventDrop}
+                showWeekends={showWeekends}
+                showEventNotes={showEventNotes}
+                showPeople={showPeople}
+                selectedCampaigns={selectedCampaigns}
+              />
+            </div>
           ) : viewMode === 'vertical' ? (
-            <VerticalView
-              events={filteredEvents}
-              campaigns={campaigns}
-              people={people}
-              currentDate={currentDate}
-              onDateClick={handleDateClick}
-              onEventDoubleClick={handleEventDoubleClick}
-              onEventDrop={handleEventDrop}
-              showWeekends={showWeekends}
-              showEventNotes={showEventNotes}
-              showPeople={showPeople}
-              selectedCampaigns={selectedCampaigns}
-            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <VerticalView
+                events={filteredEvents}
+                campaigns={campaigns}
+                people={people}
+                currentDate={currentDate}
+                onDateClick={handleDateClick}
+                onEventDoubleClick={handleEventDoubleClick}
+                onEventDrop={handleEventDrop}
+                showWeekends={showWeekends}
+                showEventNotes={showEventNotes}
+                showPeople={showPeople}
+                selectedCampaigns={selectedCampaigns}
+              />
+            </div>
           ) : viewMode === 'topline' ? (
-            <ToplineView
-              events={filteredEvents}
-              campaigns={campaigns}
-              people={people}
-              currentDate={currentDate}
-              onDateClick={handleDateClick}
-              onEventDoubleClick={handleEventDoubleClick}
-              onEventDrop={handleEventDrop}
-              showWeekends={showWeekends}
-              showEventNotes={showEventNotes}
-              showPeople={showPeople}
-              selectedCampaigns={selectedCampaigns}
-            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <ToplineView
+                events={filteredEvents}
+                campaigns={campaigns}
+                people={people}
+                currentDate={currentDate}
+                onDateClick={handleDateClick}
+                onEventDoubleClick={handleEventDoubleClick}
+                onEventDrop={handleEventDrop}
+                showWeekends={showWeekends}
+                showEventNotes={showEventNotes}
+                showPeople={showPeople}
+                selectedCampaigns={selectedCampaigns}
+              />
+            </div>
           ) : viewMode === 'people' ? (
-            <PeopleView
-              events={filteredEvents}
-              campaigns={campaigns}
-              people={people}
-              currentDate={currentDate}
-              onDateClick={handleDateClick}
-              onEventDoubleClick={handleEventDoubleClick}
-              onEventDrop={handleEventDrop}
-              showWeekends={showWeekends}
-              showEventNotes={showEventNotes}
-              showPeople={showPeople}
-              selectedCampaigns={selectedCampaigns}
-            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <PeopleView
+                events={filteredEvents}
+                campaigns={campaigns}
+                people={people}
+                currentDate={currentDate}
+                onDateClick={handleDateClick}
+                onEventDoubleClick={handleEventDoubleClick}
+                onEventDrop={handleEventDrop}
+                showWeekends={showWeekends}
+                showEventNotes={showEventNotes}
+                showPeople={showPeople}
+                selectedCampaigns={selectedCampaigns}
+              />
+            </div>
           ) : (
             <CalendarGrid
               events={filteredEvents}

@@ -13,6 +13,7 @@ import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
+import ManageEventsModal from './ManageEventsModal';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -40,6 +41,7 @@ export default function SimpleScheduleView({
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
   const [selectedEventToEdit, setSelectedEventToEdit] = useState<Event | null>(null);
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
+  const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
 
@@ -159,6 +161,13 @@ export default function SimpleScheduleView({
             >
               <Plus size={16} />
               <span>New Campaign</span>
+            </button>
+            <button
+              onClick={() => setIsManageEventsModalOpen(true)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Plus size={16} />
+              <span>Manage Events</span>
             </button>
             <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
               <Download size={16} />
@@ -380,6 +389,12 @@ export default function SimpleScheduleView({
         onClose={() => setIsNewCampaignModalOpen(false)}
         onAddCampaign={handleAddCampaign}
         existingCampaigns={allCampaigns}
+      />
+
+      {/* Manage Events Modal */}
+      <ManageEventsModal
+        isOpen={isManageEventsModalOpen}
+        onClose={() => setIsManageEventsModalOpen(false)}
       />
     </div>
   );

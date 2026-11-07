@@ -251,7 +251,7 @@ export default function SimpleScheduleView({
           onToggleShowMisc={() => setShowMisc(!showMisc)}
         />
 
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 overflow-hidden bg-white">
           {viewMode === 'gantt' ? (
             <GanttView
               events={filteredEvents}

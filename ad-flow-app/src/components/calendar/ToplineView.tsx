@@ -101,7 +101,7 @@ export default function ToplineView({
           const stageBlocks = getStageBlocks(campaign.id);
 
           return (
-            <div key={campaign.id} className="flex border-b border-gray-200">
+            <div key={campaign.id} className="flex border-b border-gray-200 h-20">
               {/* Campaign Column */}
               <div className="w-48 flex-shrink-0 border-r border-gray-200 bg-white flex items-center px-3">
                 <div className="flex items-center gap-2">

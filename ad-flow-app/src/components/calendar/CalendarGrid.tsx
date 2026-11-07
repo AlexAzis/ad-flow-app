@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format, addDays, subDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor } from '@/lib/colorUtils';
@@ -44,6 +44,45 @@ export default function CalendarGrid({
     originalStart: Date;
     originalEnd: Date;
   } | null>(null);
+  const resizeStateRef = useRef(resizeState);
+  resizeStateRef.current = resizeState;
+
+  // Listen for mouse move and mouse up at document level during resize
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const state = resizeStateRef.current;
+      if (!state || !onEventResize) return;
+
+      const deltaX = e.clientX - state.startX;
+      const cellWidth = 120;
+      const daysDelta = Math.round(deltaX / cellWidth);
+      if (daysDelta === 0) return;
+
+      if (state.edge === 'left') {
+        let newStart = addDays(state.originalStart, daysDelta);
+        if (newStart > state.originalEnd) newStart = state.originalEnd;
+        onEventResize(state.eventId, newStart, state.originalEnd);
+      } else {
+        let newEnd = addDays(state.originalEnd, daysDelta);
+        if (newEnd < state.originalStart) newEnd = state.originalStart;
+        onEventResize(state.eventId, state.originalStart, newEnd);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setResizeState(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizeState, onEventResize]);
 
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     e.dataTransfer.setData('eventId', eventId);
@@ -52,6 +91,7 @@ export default function CalendarGrid({
   const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right') => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();
     setResizeState({
       eventId: event.id,
       edge,
@@ -59,38 +99,6 @@ export default function CalendarGrid({
       originalStart: new Date(event.startDate),
       originalEnd: new Date(event.endDate),
     });
-  };
-
-  const handleResizeMove = (e: React.MouseEvent) => {
-    if (!resizeState || !onEventResize) return;
-
-    const deltaX = e.clientX - resizeState.startX;
-    const cellWidth = 120; // w-[120px]
-    const daysDelta = Math.round(deltaX / cellWidth);
-
-    const event = events.find(ev => ev.id === resizeState.eventId);
-    if (!event) return;
-
-    let newStart = resizeState.originalStart;
-    let newEnd = resizeState.originalEnd;
-
-    if (resizeState.edge === 'left') {
-      newStart = addDays(resizeState.originalStart, daysDelta);
-      if (newStart > resizeState.originalEnd) {
-        newStart = resizeState.originalEnd;
-      }
-    } else {
-      newEnd = addDays(resizeState.originalEnd, daysDelta);
-      if (newEnd < resizeState.originalStart) {
-        newEnd = resizeState.originalStart;
-      }
-    }
-
-    onEventResize(resizeState.eventId, newStart, newEnd);
-  };
-
-  const handleResizeEnd = () => {
-    setResizeState(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -206,7 +214,7 @@ export default function CalendarGrid({
                           key={event.id}
                           className="rounded px-2 py-1.5 text-xs h-10 cursor-move hover:opacity-80 overflow-hidden relative group"
                           style={{ backgroundColor: eventColor }}
-                          draggable
+                          draggable={!resizeState}
                           onDragStart={(e) => handleDragStart(e, event.id)}
                           onDragEnd={(e) => {
                             e.preventDefault();
@@ -215,9 +223,6 @@ export default function CalendarGrid({
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);
                           }}
-                          onMouseMove={handleResizeMove}
-                          onMouseUp={handleResizeEnd}
-                          onMouseLeave={handleResizeEnd}
                         >
                           {/* Left resize handle */}
                           <div

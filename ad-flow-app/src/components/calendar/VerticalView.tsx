@@ -67,7 +67,7 @@ export default function VerticalView({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header Row */}
       <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0">
         <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>

@@ -100,7 +100,7 @@ export default function PeopleView({
       </div>
 
       {/* Person Rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {people.map((person) => {
           const personEvents = getEventsForPerson(person.id);
           const personCampaigns = Array.from(new Set(personEvents.map(e => e.campaignId)));

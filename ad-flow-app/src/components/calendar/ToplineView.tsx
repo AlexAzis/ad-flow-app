@@ -98,7 +98,7 @@ export default function ToplineView({
       </div>
 
       {/* Campaign Rows with Stage Blocks */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {campaigns.map((campaign) => {
           // Only show if no campaigns selected or if this campaign is selected
           if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(campaign.id)) {

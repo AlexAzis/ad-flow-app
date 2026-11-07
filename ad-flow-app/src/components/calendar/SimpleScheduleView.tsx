@@ -264,6 +264,7 @@ export default function SimpleScheduleView({
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}
+              selectedCampaigns={selectedCampaigns}
             />
           ) : viewMode === 'vertical' ? (
             <VerticalView
@@ -277,6 +278,7 @@ export default function SimpleScheduleView({
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}
+              selectedCampaigns={selectedCampaigns}
             />
           ) : viewMode === 'topline' ? (
             <ToplineView
@@ -290,6 +292,7 @@ export default function SimpleScheduleView({
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}
+              selectedCampaigns={selectedCampaigns}
             />
           ) : viewMode === 'people' ? (
             <PeopleView
@@ -303,6 +306,7 @@ export default function SimpleScheduleView({
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}
+              selectedCampaigns={selectedCampaigns}
             />
           ) : (
             <CalendarGrid

@@ -9,7 +9,7 @@ import GanttView from './GanttView';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
-
+// Trigger redeploy
 interface SimpleScheduleViewProps {
   events: Event[];
   campaigns: Campaign[];

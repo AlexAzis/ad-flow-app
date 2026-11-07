@@ -92,7 +92,7 @@ export default function VerticalView({
       </div>
 
       {/* Date Rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {days.map((day) => {
           const dayOfWeek = day.getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

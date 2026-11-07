@@ -123,6 +123,14 @@ export default function SimpleScheduleView({
     setAllEvents(allEvents.map(e => e.id === eventId ? updatedEvent : e));
   };
 
+  const handleEventResize = (eventId: string, newStartDate: Date, newEndDate: Date) => {
+    setAllEvents(allEvents.map(event =>
+      event.id === eventId
+        ? { ...event, startDate: newStartDate, endDate: newEndDate }
+        : event
+    ));
+  };
+
   // Filter events based on selections
   const filteredEvents = allEvents.filter(event => {
     if (selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
@@ -367,6 +375,7 @@ export default function SimpleScheduleView({
               onDateClick={handleDateClick}
               onEventDoubleClick={handleEventDoubleClick}
               onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}

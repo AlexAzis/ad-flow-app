@@ -16,6 +16,7 @@ interface PeopleViewProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  selectedCampaigns?: Set<string>;
 }
 
 export default function PeopleView({
@@ -29,6 +30,7 @@ export default function PeopleView({
   showWeekends,
   showEventNotes,
   showPeople,
+  selectedCampaigns,
 }: PeopleViewProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i)); // 3 months
@@ -36,9 +38,15 @@ export default function PeopleView({
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
-  // Get events for a person
+  // Get events for a person (filtered by selected campaigns)
   const getEventsForPerson = (personId: string) => {
-    return events.filter(event => event.assignee === personId);
+    return events.filter(event => {
+      if (event.assignee !== personId) return false;
+      if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) {
+        return false;
+      }
+      return true;
+    });
   };
 
   // Group events by campaign for a person

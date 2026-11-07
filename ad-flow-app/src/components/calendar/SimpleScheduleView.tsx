@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
@@ -12,6 +12,7 @@ import PeopleView from './PeopleView';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
+import NewCampaignModal from './NewCampaignModal';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -38,6 +39,8 @@ export default function SimpleScheduleView({
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(new Date());
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
   const [selectedEventToEdit, setSelectedEventToEdit] = useState<Event | null>(null);
+  const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
 
   const navigateDate = (direction: 'prev' | 'next') => {
@@ -77,6 +80,14 @@ export default function SimpleScheduleView({
 
   const handleDeleteEvent = (id: string) => {
     setAllEvents(allEvents.filter(event => event.id !== id));
+  };
+
+  const handleAddCampaign = (newCampaign: Omit<Campaign, 'id'>) => {
+    const campaignWithId: Campaign = {
+      ...newCampaign,
+      id: Date.now().toString(),
+    };
+    setAllCampaigns([...allCampaigns, campaignWithId]);
   };
 
   const handleEventDrop = (eventId: string, newDate: Date) => {
@@ -142,6 +153,13 @@ export default function SimpleScheduleView({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsNewCampaignModalOpen(true)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Plus size={16} />
+              <span>New Campaign</span>
+            </button>
             <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
               <Download size={16} />
               <span>Export</span>
@@ -215,7 +233,7 @@ export default function SimpleScheduleView({
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         <FilterSidebar
-          campaigns={campaigns}
+          campaigns={allCampaigns}
           people={people}
           selectedCampaigns={selectedCampaigns}
           selectedPeople={selectedPeople}
@@ -256,7 +274,7 @@ export default function SimpleScheduleView({
             <div className="flex-1 overflow-hidden flex flex-col">
               <GanttView
                 events={filteredEvents}
-                campaigns={campaigns}
+                campaigns={allCampaigns}
                 people={people}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
@@ -272,7 +290,7 @@ export default function SimpleScheduleView({
             <div className="flex-1 overflow-hidden flex flex-col">
               <VerticalView
                 events={filteredEvents}
-                campaigns={campaigns}
+                campaigns={allCampaigns}
                 people={people}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
@@ -288,7 +306,7 @@ export default function SimpleScheduleView({
             <div className="flex-1 overflow-hidden flex flex-col">
               <ToplineView
                 events={filteredEvents}
-                campaigns={campaigns}
+                campaigns={allCampaigns}
                 people={people}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
@@ -304,7 +322,7 @@ export default function SimpleScheduleView({
             <div className="flex-1 overflow-hidden flex flex-col">
               <PeopleView
                 events={filteredEvents}
-                campaigns={campaigns}
+                campaigns={allCampaigns}
                 people={people}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
@@ -319,7 +337,7 @@ export default function SimpleScheduleView({
           ) : (
             <CalendarGrid
               events={filteredEvents}
-              campaigns={campaigns}
+              campaigns={allCampaigns}
               people={people}
               currentDate={currentDate}
               onDateClick={handleDateClick}
@@ -352,8 +370,16 @@ export default function SimpleScheduleView({
         onUpdateEvent={handleUpdateEvent}
         onDeleteEvent={handleDeleteEvent}
         event={selectedEventToEdit}
-        campaigns={campaigns}
+        campaigns={allCampaigns}
         people={people}
+      />
+
+      {/* New Campaign Modal */}
+      <NewCampaignModal
+        isOpen={isNewCampaignModalOpen}
+        onClose={() => setIsNewCampaignModalOpen(false)}
+        onAddCampaign={handleAddCampaign}
+        existingCampaigns={allCampaigns}
       />
     </div>
   );

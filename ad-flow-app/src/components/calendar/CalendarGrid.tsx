@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
+import { format, addDays, subDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor } from '@/lib/colorUtils';
 
@@ -13,6 +13,7 @@ interface CalendarGridProps {
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
   onEventDrop?: (eventId: string, newDate: Date) => void;
+  onEventResize?: (eventId: string, newStartDate: Date, newEndDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -27,6 +28,7 @@ export default function CalendarGrid({
   onDateClick,
   onEventDoubleClick,
   onEventDrop,
+  onEventResize,
   showWeekends,
   showEventNotes,
   showPeople,
@@ -35,9 +37,60 @@ export default function CalendarGrid({
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const daysToShow = viewMode === 'daily-6' ? 180 : 365; // 6 months or 12 months
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+  const [resizeState, setResizeState] = useState<{
+    eventId: string;
+    edge: 'left' | 'right';
+    startX: number;
+    originalStart: Date;
+    originalEnd: Date;
+  } | null>(null);
 
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     e.dataTransfer.setData('eventId', eventId);
+  };
+
+  const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizeState({
+      eventId: event.id,
+      edge,
+      startX: e.clientX,
+      originalStart: new Date(event.startDate),
+      originalEnd: new Date(event.endDate),
+    });
+  };
+
+  const handleResizeMove = (e: React.MouseEvent) => {
+    if (!resizeState || !onEventResize) return;
+
+    const deltaX = e.clientX - resizeState.startX;
+    const cellWidth = 120; // w-[120px]
+    const daysDelta = Math.round(deltaX / cellWidth);
+
+    const event = events.find(ev => ev.id === resizeState.eventId);
+    if (!event) return;
+
+    let newStart = resizeState.originalStart;
+    let newEnd = resizeState.originalEnd;
+
+    if (resizeState.edge === 'left') {
+      newStart = addDays(resizeState.originalStart, daysDelta);
+      if (newStart > resizeState.originalEnd) {
+        newStart = resizeState.originalEnd;
+      }
+    } else {
+      newEnd = addDays(resizeState.originalEnd, daysDelta);
+      if (newEnd < resizeState.originalStart) {
+        newEnd = resizeState.originalStart;
+      }
+    }
+
+    onEventResize(resizeState.eventId, newStart, newEnd);
+  };
+
+  const handleResizeEnd = () => {
+    setResizeState(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -151,7 +204,7 @@ export default function CalendarGrid({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-10 cursor-move hover:opacity-80 overflow-hidden"
+                          className="rounded px-2 py-1.5 text-xs h-10 cursor-move hover:opacity-80 overflow-hidden relative group"
                           style={{ backgroundColor: eventColor }}
                           draggable
                           onDragStart={(e) => handleDragStart(e, event.id)}
@@ -162,7 +215,20 @@ export default function CalendarGrid({
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);
                           }}
+                          onMouseMove={handleResizeMove}
+                          onMouseUp={handleResizeEnd}
+                          onMouseLeave={handleResizeEnd}
                         >
+                          {/* Left resize handle */}
+                          <div
+                            className="absolute left-0 top-0 w-1 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 bg-gray-500 transition-opacity"
+                            onMouseDown={(e) => handleResizeStart(e, event, 'left')}
+                          />
+                          {/* Right resize handle */}
+                          <div
+                            className="absolute right-0 top-0 w-1 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 bg-gray-500 transition-opacity"
+                            onMouseDown={(e) => handleResizeStart(e, event, 'right')}
+                          />
                           <div className="font-medium text-gray-800 truncate leading-tight">
                             {event.title}
                           </div>

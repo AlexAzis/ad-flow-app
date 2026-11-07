@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Lock, Unlock } from 'lucide-react';
 import { Campaign } from '@/lib/types';
 
@@ -26,7 +26,7 @@ export default function EditCampaignModal({
   const [lockedBy, setLockedBy] = useState('');
 
   // Populate form when campaign changes
-  useState(() => {
+  useEffect(() => {
     if (campaign && isOpen) {
       setName(campaign.name);
       setClient(campaign.client);

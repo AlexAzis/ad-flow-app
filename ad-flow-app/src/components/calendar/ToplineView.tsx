@@ -73,30 +73,6 @@ export default function ToplineView({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Timeline Header */}
-      <div className="flex h-10 border-b border-gray-200 bg-gray-50">
-        <div className="w-48 flex-shrink-0 border-r border-gray-200"></div>
-        <div className="flex-1 flex">
-          {days.map((day) => {
-            const dayOfWeek = day.getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            const isToday = isSameDay(day, new Date());
-
-            return (
-              <div
-                key={day.toISOString()}
-                className={`flex-1 text-center border-r border-gray-200 flex flex-col items-center justify-center min-w-[30px] ${
-                  isWeekend && showWeekends ? 'bg-gray-200' : ''
-                } ${isToday ? 'bg-blue-100' : ''}`}
-              >
-                <span className="text-[10px] text-gray-600">{format(day, 'd')}</span>
-                <span className="text-[9px] text-gray-500">{format(day, 'MMM')}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Campaign Rows with Stage Blocks */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {campaigns.map((campaign) => {

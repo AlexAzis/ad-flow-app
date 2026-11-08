@@ -85,21 +85,22 @@ export default function FilterSidebar({
   return (
     <aside className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-        <Filter size={16} className="text-gray-700" />
-        <span className="font-semibold text-gray-800 text-sm">Filters</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Clear Filters */}
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-gray-700" />
+          <span className="font-semibold text-gray-800 text-sm">Filters</span>
+        </div>
         {(selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0) && (
           <button
             onClick={onClearFilters}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 text-sm font-medium"
+            className="text-xs text-gray-500 hover:text-gray-800 font-medium"
           >
-            Clear filters
+            Clear all
           </button>
         )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
 
         {/* Campaigns */}
         <div>

@@ -177,20 +177,6 @@ export default function SimpleScheduleView({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsNewCampaignModalOpen(true)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            >
-              <Plus size={16} />
-              <span>New Campaign</span>
-            </button>
-            <button
-              onClick={() => setIsManageEventsModalOpen(true)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            >
-              <Plus size={16} />
-              <span>Manage Events</span>
-            </button>
             <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
               <Download size={16} />
               <span>Export</span>
@@ -299,9 +285,11 @@ export default function SimpleScheduleView({
           onToggleShowPeople={() => setShowPeople(!showPeople)}
           onToggleShowMisc={() => setShowMisc(!showMisc)}
           onEditCampaign={handleEditCampaign}
+          onNewCampaign={() => setIsNewCampaignModalOpen(true)}
+          onManageEvents={() => setIsManageEventsModalOpen(true)}
         />
 
-        <div className="flex-1 overflow-hidden bg-white flex flex-col">
+        <div className="flex-1 min-w-0 overflow-hidden bg-white flex flex-col">
           {viewMode === 'gantt' ? (
             <div className="flex-1 overflow-hidden flex flex-col">
               <GanttView

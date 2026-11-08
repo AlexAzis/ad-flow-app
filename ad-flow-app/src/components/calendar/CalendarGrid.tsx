@@ -273,7 +273,8 @@ export default function CalendarGrid({
                 {/* Continuous Event Blocks spanning multiple days */}
                 {positionedEvents.map(({ event, startCol, span, lane }) => {
                   const campaign = getCampaignById(event.campaignId);
-                  const person = event.assignee ? getPersonById(event.assignee) : null;
+                  const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
+                  const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                   const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : event.color);
 
@@ -320,8 +321,8 @@ export default function CalendarGrid({
                           className="truncate text-[9px] leading-tight"
                           style={{ color: getSubTextColor(eventColor) }}
                         >
-                          {showPeople && person && <span>{person.name}</span>}
-                          {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                          {showPeople && personNames && <span>{personNames}</span>}
+                          {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
                           {showEventNotes && event.notes && <span>{event.notes}</span>}
                         </div>
                       )}

@@ -1,20 +1,19 @@
-// Campaign color palette - pastel colors as requested
+// Campaign color palette - rich pastels matching Base44
 export const campaignColors = [
-  '#FFB3B3', // Pastel red
-  '#A8E6CF', // Pastel teal
-  '#FFF9C4', // Pastel yellow
-  '#B5EAD7', // Pastel mint
-  '#FFCDD2', // Pastel coral
-  '#C8E6C9', // Pastel green
-  '#E1BEE7', // Pastel plum
-  '#B2DFDB', // Pastel sea green
-  '#FFF59D', // Pastel gold
-  '#D1C4E9', // Pastel purple
-  '#BBDEFB', // Pastel blue
-  '#FFE0B2', // Pastel amber
-  '#B2EBF2', // Pastel turquoise
-  '#F8BBD0', // Pastel pink
-  '#B2DFDB', // Pastel sea green
+  '#F2A4C0', // Pink
+  '#8FD98F', // Green
+  '#F0A860', // Orange
+  '#B090E0', // Purple
+  '#58B8B0', // Teal
+  '#B8D848', // Lime
+  '#F0D050', // Gold
+  '#58A0E0', // Blue
+  '#E060A8', // Magenta
+  '#F08868', // Coral
+  '#88A0F0', // Periwinkle
+  '#C89858', // Tan
+  '#D080A8', // Mauve
+  '#9860D8', // Deep purple
 ];
 
 export interface ColorShades {
@@ -27,16 +26,16 @@ export interface ColorShades {
   misc: string;
 }
 
-// Generate color shades based on base color
+// Generate color shades: very pale Creative → darkest Delivery (matching Base44)
 export function generateColorShades(baseColor: string): ColorShades {
   return {
     base: baseColor,
-    creativeDev: lightenColor(baseColor, 30),
-    preProduction: lightenColor(baseColor, 20),
-    shoot: baseColor,
-    postProduction: darkenColor(baseColor, 15),
-    delivery: darkenColor(baseColor, 30),
-    misc: '#E5E5E5', // Light grey for miscellaneous
+    creativeDev: lightenColor(baseColor, 78),
+    preProduction: lightenColor(baseColor, 55),
+    shoot: lightenColor(baseColor, 32),
+    postProduction: lightenColor(baseColor, 12),
+    delivery: darkenColor(baseColor, 15),
+    misc: '#F0F0F0',
   };
 }
 
@@ -87,4 +86,25 @@ export function getStageColor(baseColor: string, stage: string): string {
     default:
       return shades.misc;
   }
+}
+
+// Compute relative luminance of a hex color (0 = black, 1 = white)
+function getLuminance(color: string): number {
+  const num = parseInt(color.replace('#', ''), 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+// Text color for event blocks: darker shade of bg for light colors, white for dark
+export function getTextColor(bgColor: string): string {
+  if (getLuminance(bgColor) < 0.55) return '#FFFFFF';
+  return darkenColor(bgColor, 50);
+}
+
+// Subtle text color for secondary lines (person/notes)
+export function getSubTextColor(bgColor: string): string {
+  if (getLuminance(bgColor) < 0.55) return 'rgba(255, 255, 255, 0.8)';
+  return darkenColor(bgColor, 35);
 }

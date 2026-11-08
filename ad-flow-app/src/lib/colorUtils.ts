@@ -26,47 +26,37 @@ export interface ColorShades {
   misc: string;
 }
 
-// Generate color shades: very pale Creative → darkest Delivery (matching Base44)
+// Generate color shades: lightest Creative → darkest Delivery in equal steps
 export function generateColorShades(baseColor: string): ColorShades {
   return {
     base: baseColor,
-    creativeDev: lightenColor(baseColor, 78),
-    preProduction: lightenColor(baseColor, 55),
-    shoot: lightenColor(baseColor, 32),
-    postProduction: lightenColor(baseColor, 12),
-    delivery: darkenColor(baseColor, 15),
+    creativeDev: lightenColor(baseColor, 60),
+    preProduction: lightenColor(baseColor, 40),
+    shoot: lightenColor(baseColor, 20),
+    postProduction: baseColor,
+    delivery: darkenColor(baseColor, 20),
     misc: '#F0F0F0',
   };
 }
 
-// Helper function to lighten a hex color
+// Helper: blend color toward white by percent (keeps the hue visible)
 function lightenColor(color: string, percent: number): string {
   const num = parseInt(color.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) + amt;
-  const G = (num >> 8 & 0x00FF) + amt;
-  const B = (num & 0x0000FF) + amt;
-  return '#' + (
-    0x1000000 +
-    (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-    (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-    (B < 255 ? (B < 1 ? 0 : B) : 255)
-  ).toString(16).slice(1);
+  const p = percent / 100;
+  const R = Math.round((num >> 16) + (255 - (num >> 16)) * p);
+  const G = Math.round((num >> 8 & 0x00FF) + (255 - (num >> 8 & 0x00FF)) * p);
+  const B = Math.round((num & 0x0000FF) + (255 - (num & 0x0000FF)) * p);
+  return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
-// Helper function to darken a hex color
+// Helper: blend color toward black by percent
 function darkenColor(color: string, percent: number): string {
   const num = parseInt(color.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) - amt;
-  const G = (num >> 8 & 0x00FF) - amt;
-  const B = (num & 0x0000FF) - amt;
-  return '#' + (
-    0x1000000 +
-    (R > 0 ? (R > 255 ? 255 : R) : 0) * 0x10000 +
-    (G > 0 ? (G > 255 ? 255 : G) : 0) * 0x100 +
-    (B > 0 ? (B > 255 ? 255 : B) : 0)
-  ).toString(16).slice(1);
+  const p = 1 - percent / 100;
+  const R = Math.round((num >> 16) * p);
+  const G = Math.round((num >> 8 & 0x00FF) * p);
+  const B = Math.round((num & 0x0000FF) * p);
+  return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
 // Get color for a specific stage

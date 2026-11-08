@@ -130,11 +130,12 @@ export default function GanttView({
                 {days.map((day) => {
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isToday = isSameDay(day, new Date());
+                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
                   return (
                     <div
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isWeekend && showWeekends ? 'bg-gray-100' : ''
+                        isWeekend || isPast ? 'bg-gray-100' : ''
                       } ${isToday ? 'bg-blue-50' : ''}`}
                       style={{ left: days.indexOf(day) * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}
@@ -150,7 +151,8 @@ export default function GanttView({
                   const startOffset = differenceInDays(eventStart, startDate);
                   const duration = differenceInDays(eventEnd, eventStart) + 1;
                   const person = event.assignee ? getPersonById(event.assignee) : null;
-                  const eventColor = getStageColor(campaign.color, event.stage);
+                  const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
+                  const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
 
                   if (startOffset + duration < 0 || startOffset >= days.length) return null;
 

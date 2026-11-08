@@ -142,7 +142,7 @@ export default function VerticalView({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1 text-xs h-8 flex items-center cursor-move hover:opacity-80 flex-shrink-0"
+                          className="rounded px-2 py-1 text-xs h-8 cursor-move hover:opacity-80 flex-shrink-0"
                           style={{ backgroundColor: eventColor }}
                           draggable
                           onDragStart={(e) => handleDragStart(e, event.id)}

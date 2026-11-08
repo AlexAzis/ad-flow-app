@@ -25,6 +25,8 @@ interface FilterSidebarProps {
   onToggleShowPeople: () => void;
   onToggleShowMisc: () => void;
   onEditCampaign?: (campaign: Campaign) => void;
+  onNewCampaign?: () => void;
+  onManageEvents?: () => void;
 }
 
 export default function FilterSidebar({
@@ -47,6 +49,8 @@ export default function FilterSidebar({
   onToggleShowPeople,
   onToggleShowMisc,
   onEditCampaign,
+  onNewCampaign,
+  onManageEvents,
 }: FilterSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(['campaigns', 'people', 'stages', 'events']);
 
@@ -293,11 +297,17 @@ export default function FilterSidebar({
         </div>
 
         <div className="pt-3 space-y-2">
-          <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm font-medium">
+          <button
+            onClick={onNewCampaign}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm font-medium"
+          >
             <Plus size={16} />
             <span>New Campaign</span>
           </button>
-          <button className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 text-sm font-medium">
+          <button
+            onClick={onManageEvents}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 text-sm font-medium"
+          >
             <Settings size={16} />
             <span>Manage Events</span>
           </button>

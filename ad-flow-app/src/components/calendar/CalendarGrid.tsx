@@ -281,7 +281,7 @@ export default function CalendarGrid({
                       key={`${event.id}-w${weekIndex}`}
                       className="absolute rounded px-2 text-xs cursor-move hover:opacity-80 overflow-hidden group"
                       style={{
-                        left: `${(startCol / weekDays.length) * 100}%`,
+                        left: `calc(${(startCol / weekDays.length) * 100}% + 2px)`,
                         width: `calc(${(span / weekDays.length) * 100}% - 4px)`,
                         top: DATE_HEADER_HEIGHT + lane * (EVENT_HEIGHT + EVENT_GAP),
                         height: EVENT_HEIGHT,

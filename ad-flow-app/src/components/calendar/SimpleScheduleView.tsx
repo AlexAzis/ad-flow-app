@@ -194,6 +194,11 @@ export default function SimpleScheduleView({
     setIsEditCampaignModalOpen(true);
   };
 
+  const handleDeleteCampaign = (id: string) => {
+    setAllCampaigns(allCampaigns.filter(c => c.id !== id));
+    setAllEvents(allEvents.filter(e => e.campaignId !== id));
+  };
+
   const handleAddPerson = (name: string): Person => {
     const newPerson: Person = {
       id: Date.now().toString(),
@@ -542,6 +547,7 @@ export default function SimpleScheduleView({
         isOpen={isEditCampaignModalOpen}
         onClose={() => setIsEditCampaignModalOpen(false)}
         onUpdateCampaign={handleUpdateCampaign}
+        onDeleteCampaign={handleDeleteCampaign}
         campaign={selectedCampaignToEdit}
         allCampaigns={allCampaigns}
       />

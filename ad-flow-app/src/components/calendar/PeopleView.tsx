@@ -200,14 +200,14 @@ export default function PeopleView({
                     >
                       <div
                         className="font-medium truncate text-[10px] leading-tight"
-                        style={{ color: getTextColor(eventColor) }}
+                        style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
                       >
                         {event.title}
                       </div>
                       {showEventNotes && event.notes && (
                         <div
                           className="truncate text-[9px] leading-tight"
-                          style={{ color: getSubTextColor(eventColor) }}
+                          style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                         >
                           {event.notes}
                         </div>

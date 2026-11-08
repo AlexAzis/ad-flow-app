@@ -234,7 +234,7 @@ export default function CalendarGrid({
                         <span
                           className={`text-sm ${
                             isToday
-                              ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold'
+                              ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold'
                               : 'text-gray-700'
                           }`}
                         >

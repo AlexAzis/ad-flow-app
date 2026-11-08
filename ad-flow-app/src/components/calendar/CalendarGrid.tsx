@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { format, addDays, subDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor } from '@/lib/colorUtils';
 
@@ -20,6 +20,11 @@ interface CalendarGridProps {
   viewMode?: 'daily-6' | 'daily-12';
 }
 
+const CELL_WIDTH = 120;
+const EVENT_HEIGHT = 40;
+const EVENT_GAP = 4;
+const DATE_HEADER_HEIGHT = 32;
+
 export default function CalendarGrid({
   events,
   campaigns,
@@ -35,8 +40,9 @@ export default function CalendarGrid({
   viewMode = 'daily-6',
 }: CalendarGridProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const daysToShow = viewMode === 'daily-6' ? 180 : 365; // 6 months or 12 months
+  const daysToShow = viewMode === 'daily-6' ? 182 : 371; // full weeks
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+
   const [resizeState, setResizeState] = useState<{
     eventId: string;
     edge: 'left' | 'right';
@@ -47,7 +53,6 @@ export default function CalendarGrid({
   const resizeStateRef = useRef(resizeState);
   resizeStateRef.current = resizeState;
 
-  // Listen for mouse move and mouse up at document level during resize
   useEffect(() => {
     if (!resizeState) return;
 
@@ -56,8 +61,7 @@ export default function CalendarGrid({
       if (!state || !onEventResize) return;
 
       const deltaX = e.clientX - state.startX;
-      const cellWidth = 120;
-      const daysDelta = Math.round(deltaX / cellWidth);
+      const daysDelta = Math.round(deltaX / CELL_WIDTH);
       if (daysDelta === 0) return;
 
       if (state.edge === 'left') {
@@ -71,13 +75,10 @@ export default function CalendarGrid({
       }
     };
 
-    const handleMouseUp = () => {
-      setResizeState(null);
-    };
+    const handleMouseUp = () => setResizeState(null);
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -85,13 +86,16 @@ export default function CalendarGrid({
   }, [resizeState, onEventResize]);
 
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
+    if (resizeState) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData('eventId', eventId);
   };
 
   const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right') => {
     e.preventDefault();
     e.stopPropagation();
-    e.nativeEvent.stopImmediatePropagation();
     setResizeState({
       eventId: event.id,
       edge,
@@ -118,25 +122,50 @@ export default function CalendarGrid({
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => {
-      const eventStart = new Date(event.startDate);
-      const eventEnd = new Date(event.endDate);
-      return date >= eventStart && date <= eventEnd;
+  // Compute positioned events for a week: span across day columns with lane stacking
+  const getWeekEvents = (weekDays: Date[]) => {
+    const weekStart = weekDays[0];
+    const weekEnd = weekDays[6];
+
+    const weekEvents = events.filter(e => {
+      const s = new Date(e.startDate);
+      const en = new Date(e.endDate);
+      return s <= weekEnd && en >= weekStart;
+    });
+
+    weekEvents.sort((a, b) => {
+      const aStart = Math.max(0, differenceInDays(new Date(a.startDate), weekStart));
+      const bStart = Math.max(0, differenceInDays(new Date(b.startDate), weekStart));
+      const aDuration = differenceInDays(new Date(a.endDate), new Date(a.startDate));
+      const bDuration = differenceInDays(new Date(b.endDate), new Date(b.startDate));
+      return aStart - bStart || bDuration - aDuration;
+    });
+
+    const lanes: number[] = [];
+    return weekEvents.map(e => {
+      const s = new Date(e.startDate);
+      const en = new Date(e.endDate);
+      const startCol = Math.max(0, differenceInDays(s, weekStart));
+      const endCol = Math.min(6, differenceInDays(en, weekStart));
+      let lane = lanes.findIndex(end => end < startCol);
+      if (lane === -1) {
+        lane = lanes.length;
+        lanes.push(0);
+      }
+      lanes[lane] = endCol;
+      return { event: e, startCol, span: endCol - startCol + 1, lane };
     });
   };
 
-  const months = [...new Set(days.map(day => format(day, 'MMMM yyyy')))];
-  const currentMonth = format(currentDate, 'MMMM yyyy');
   const weeks = Math.ceil(days.length / 7);
 
   return (
-    <div className="flex flex-col min-w-[800px]">
-      {/* Month Header */}
-      <div className="flex h-10 border-b border-gray-200">
+    <div className="flex flex-col min-w-0 h-full">
+      {/* Weekday Header */}
+      <div className="flex h-10 border-b border-gray-200 flex-shrink-0">
         <div className="w-32 flex-shrink-0"></div>
-        <div className="flex-1 flex">
-          {days.slice(0, 7).map((day, index) => (
+        <div className="flex">
+          {days.slice(0, 7).map((day) => (
             <div
               key={day.toISOString()}
               className="w-[120px] text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
@@ -150,109 +179,119 @@ export default function CalendarGrid({
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1">
-        {Array.from({ length: weeks }).map((_, weekIndex) => (
-          <div key={weekIndex} className="flex border-b border-gray-200">
-            {/* Month Column */}
-            {(() => {
-              const weekStartDate = days[weekIndex * 7];
-              const weekMonth = format(weekStartDate, 'MMMM yyyy');
-              const prevWeekMonth = weekIndex > 0 ? format(days[(weekIndex - 1) * 7], 'MMMM yyyy') : '';
-              const showMonth = weekMonth !== prevWeekMonth;
-              return (
-                <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex items-center justify-center">
-                  {showMonth && (
-                    <span className="text-sm font-medium text-gray-700">
-                      {weekMonth}
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
+      <div className="flex-1 overflow-auto">
+        {Array.from({ length: weeks }).map((_, weekIndex) => {
+          const weekDays = days.slice(weekIndex * 7, (weekIndex + 1) * 7);
+          const positionedEvents = getWeekEvents(weekDays);
+          const laneCount = Math.max(3, ...positionedEvents.map(e => e.lane + 1), 0);
+          const rowHeight = DATE_HEADER_HEIGHT + laneCount * (EVENT_HEIGHT + EVENT_GAP) + 8;
 
-            {/* Days */}
-            {days.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day) => {
-              const dayOfWeek = day.getDay();
-              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-              const isToday = isSameDay(day, new Date());
-              const isPastMonth = !isSameMonth(day, currentDate);
-              const dayEvents = getEventsForDate(day);
+          return (
+            <div key={weekIndex} className="flex border-b border-gray-200" style={{ height: rowHeight }}>
+              {/* Month Column */}
+              {(() => {
+                const weekMonth = format(weekDays[0], 'MMMM yyyy');
+                const prevWeekMonth = weekIndex > 0 ? format(days[(weekIndex - 1) * 7], 'MMMM yyyy') : '';
+                const showMonth = weekMonth !== prevWeekMonth;
+                return (
+                  <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex items-center justify-center">
+                    {showMonth && (
+                      <span className="text-sm font-medium text-gray-700">
+                        {weekMonth}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`w-[120px] border-r border-gray-200 h-[140px] relative cursor-pointer hover:bg-gray-50 overflow-hidden flex-shrink-0 ${
-                    isWeekend && showWeekends ? 'bg-gray-100' : ''
-                  } ${isPastMonth ? 'opacity-50' : ''}`}
-                  onDoubleClick={() => onDateClick(day)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, day)}
-                >
-                  {/* Date Number */}
-                  <div className="absolute top-2 left-2">
-                    <span
-                      className={`text-sm ${
-                        isToday
-                          ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold'
-                          : 'text-gray-700'
-                      }`}
+              {/* Week Row: day cells background + positioned event blocks */}
+              <div className="flex-1 relative flex">
+                {weekDays.map((day) => {
+                  const dayOfWeek = day.getDay();
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const isToday = isSameDay(day, new Date());
+                  const isPastMonth = !isSameMonth(day, currentDate);
+
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`w-[120px] border-r border-gray-200 h-full relative flex-shrink-0 ${
+                        isWeekend && showWeekends ? 'bg-gray-100' : ''
+                      } ${isPastMonth ? 'opacity-50' : ''}`}
+                      onDoubleClick={() => onDateClick(day)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, day)}
                     >
-                      {format(day, 'd')}
-                    </span>
-                  </div>
-
-                  {/* Events */}
-                  <div className="mt-8 px-1 space-y-1">
-                    {dayEvents.map((event) => {
-                      const campaign = getCampaignById(event.campaignId);
-                      const person = event.assignee ? getPersonById(event.assignee) : null;
-                      const isEventStart = isSameDay(day, new Date(event.startDate));
-                      const eventColor = campaign ? getStageColor(campaign.color, event.stage) : event.color;
-
-                      return (
-                        <div
-                          key={event.id}
-                          className="rounded px-2 py-1.5 text-xs h-10 cursor-move hover:opacity-80 overflow-hidden relative group"
-                          style={{ backgroundColor: eventColor }}
-                          draggable={!resizeState}
-                          onDragStart={(e) => handleDragStart(e, event.id)}
-                          onDragEnd={(e) => {
-                            e.preventDefault();
-                          }}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            if (onEventDoubleClick) onEventDoubleClick(event);
-                          }}
+                      <div className="absolute top-2 left-2">
+                        <span
+                          className={`text-sm ${
+                            isToday
+                              ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold'
+                              : 'text-gray-700'
+                          }`}
                         >
-                          {/* Left resize handle */}
-                          <div
-                            className="absolute left-0 top-0 w-1 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 bg-gray-500 transition-opacity"
-                            onMouseDown={(e) => handleResizeStart(e, event, 'left')}
-                          />
-                          {/* Right resize handle */}
-                          <div
-                            className="absolute right-0 top-0 w-1 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 bg-gray-500 transition-opacity"
-                            onMouseDown={(e) => handleResizeStart(e, event, 'right')}
-                          />
-                          <div className="font-medium text-gray-800 truncate leading-tight">
-                            {event.title}
-                          </div>
-                          {(showPeople || showEventNotes) && (
-                            <div className="text-gray-600 truncate text-[9px] leading-tight">
-                              {showPeople && person && <span>{person.name}</span>}
-                              {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
-                              {showEventNotes && event.notes && <span>{event.notes}</span>}
-                            </div>
-                          )}
+                          {format(day, 'd')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Continuous Event Blocks spanning multiple days */}
+                {positionedEvents.map(({ event, startCol, span, lane }) => {
+                  const campaign = getCampaignById(event.campaignId);
+                  const person = event.assignee ? getPersonById(event.assignee) : null;
+                  const eventColor = campaign ? getStageColor(campaign.color, event.stage) : event.color;
+
+                  return (
+                    <div
+                      key={`${event.id}-w${weekIndex}`}
+                      className="absolute rounded px-2 py-1.5 text-xs cursor-move hover:opacity-80 overflow-hidden group"
+                      style={{
+                        left: startCol * CELL_WIDTH + 1,
+                        width: span * CELL_WIDTH - 4,
+                        top: DATE_HEADER_HEIGHT + lane * (EVENT_HEIGHT + EVENT_GAP),
+                        height: EVENT_HEIGHT,
+                        backgroundColor: eventColor,
+                      }}
+                      draggable={!resizeState}
+                      onDragStart={(e) => handleDragStart(e, event.id)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (onEventDoubleClick) onEventDoubleClick(event);
+                      }}
+                    >
+                      {/* Left resize handle */}
+                      <div
+                        className="absolute left-0 top-0 w-2 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-gray-500/50 transition-opacity z-10"
+                        draggable={false}
+                        onMouseDown={(e) => handleResizeStart(e, event, 'left')}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                      {/* Right resize handle */}
+                      <div
+                        className="absolute right-0 top-0 w-2 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-gray-500/50 transition-opacity z-10"
+                        draggable={false}
+                        onMouseDown={(e) => handleResizeStart(e, event, 'right')}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                      <div className="font-medium text-gray-800 truncate leading-tight">
+                        {event.title}
+                      </div>
+                      {(showPeople || showEventNotes) && (
+                        <div className="text-gray-600 truncate text-[9px] leading-tight">
+                          {showPeople && person && <span>{person.name}</span>}
+                          {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                          {showEventNotes && event.notes && <span>{event.notes}</span>}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -203,7 +203,8 @@ export default function GanttView({
                   const eventEnd = new Date(event.endDate);
                   const startOffset = differenceInDays(eventStart, startDate);
                   const duration = differenceInDays(eventEnd, eventStart) + 1;
-                  const person = event.assignee ? getPersonById(event.assignee) : null;
+                  const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
+                  const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                   const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
 
@@ -238,8 +239,8 @@ export default function GanttView({
                           className="truncate text-[9px] leading-tight"
                           style={{ color: getSubTextColor(eventColor) }}
                         >
-                          {showPeople && person && <span>{person.name}</span>}
-                          {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                          {showPeople && personNames && <span>{personNames}</span>}
+                          {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
                           {showEventNotes && event.notes && <span>{event.notes}</span>}
                         </div>
                       )}

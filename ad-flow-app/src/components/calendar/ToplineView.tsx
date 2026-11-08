@@ -91,7 +91,8 @@ export default function ToplineView({
 
   const monthHeaderHeight = 28;
   const weekHeaderHeight = 22;
-  const rowHeight = 44;
+  // Row height expands to fit stacked stage pills (14px each + 2px gap)
+  const getRowHeight = (maxPills: number) => 8 + Math.max(1, maxPills) * 16 + 4;
 
   return (
     <div className="h-full overflow-auto bg-white">
@@ -146,8 +147,10 @@ export default function ToplineView({
         </div>
 
         {/* Campaign Rows - compact stage pills per week */}
-        {visibleCampaigns.map((campaign) => (
-          <div key={campaign.id} className="flex border-b border-gray-200" style={{ height: rowHeight }}>
+        {visibleCampaigns.map((campaign) => {
+          const maxPills = Math.max(1, ...weeks.map(w => getStagesForWeek(campaign.id, w).length));
+          return (
+          <div key={campaign.id} className="flex border-b border-gray-200" style={{ height: getRowHeight(maxPills) }}>
             {/* Sticky Campaign Column */}
             <div
               className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
@@ -200,10 +203,11 @@ export default function ToplineView({
               );
             })}
           </div>
-        ))}
+          );
+        })}
 
         {/* Misc Row */}
-        <div className="flex border-b border-gray-200" style={{ height: rowHeight }}>
+        <div className="flex border-b border-gray-200" style={{ height: getRowHeight(Math.max(1, ...weeks.map(w => getMiscForWeek(w).length))) }}>
           <div
             className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
             style={{ width: LABEL_COL_WIDTH }}

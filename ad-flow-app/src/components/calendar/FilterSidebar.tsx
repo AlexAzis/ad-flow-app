@@ -113,30 +113,19 @@ export default function FilterSidebar({
           <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">CAMPAIGNS</div>
           <div className="flex flex-col gap-1.5">
             {campaigns.map((campaign) => (
-              <div key={campaign.id} className="flex items-center gap-1">
-                <button
-                  onClick={() => onToggleCampaign(campaign.id)}
-                  className={`${pillClass(selectedCampaigns.has(campaign.id))} flex items-center gap-2 flex-1 text-left`}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: campaign.color }}
-                  />
-                  <span className="truncate">{campaign.name}</span>
-                </button>
-                {onEditCampaign && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditCampaign(campaign);
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 flex-shrink-0"
-                    title="Edit campaign"
-                  >
-                    <Settings size={13} />
-                  </button>
-                )}
-              </div>
+              <button
+                key={campaign.id}
+                onClick={() => onToggleCampaign(campaign.id)}
+                onDoubleClick={() => onEditCampaign && onEditCampaign(campaign)}
+                className={`${pillClass(selectedCampaigns.has(campaign.id))} flex items-center gap-2 w-full text-left`}
+                title="Double-click to edit"
+              >
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: campaign.color }}
+                />
+                <span className="truncate">{campaign.name}</span>
+              </button>
             ))}
           </div>
         </div>

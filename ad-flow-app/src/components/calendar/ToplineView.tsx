@@ -3,6 +3,7 @@
 import { format, addWeeks, addDays, startOfWeek, endOfWeek, isWithinInterval, differenceInWeeks, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
+import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 
 interface ToplineViewProps {
   events: Event[];
@@ -19,7 +20,6 @@ interface ToplineViewProps {
 }
 
 const WEEK_WIDTH = 44;
-const LABEL_COL_WIDTH = 200;
 
 // Stage abbreviations for the compact pills
 const stageAbbr: Record<string, string> = {
@@ -46,6 +46,15 @@ export default function ToplineView({
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekCount = 24;
   const weeks = Array.from({ length: weekCount }, (_, i) => addWeeks(startDate, i));
+  const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
+
+  // Does a bank holiday fall within this week?
+  const weekHasBankHoliday = (weekStart: Date) => {
+    for (let i = 0; i < 7; i++) {
+      if (bankHolidays.has(addDays(weekStart, i).toDateString())) return true;
+    }
+    return false;
+  };
 
   const isCurrentWeek = (weekStart: Date) =>
     isWithinInterval(new Date(), { start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) });
@@ -89,6 +98,9 @@ export default function ToplineView({
     c => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
   );
 
+  // Auto-size label column to fit the longest campaign name
+  const labelWidth = Math.max(200, ...visibleCampaigns.map(c => c.name.length * 7.5 + 40), 220);
+
   const monthHeaderHeight = 28;
   const weekHeaderHeight = 22;
   // Row height expands to fit stacked stage pills (14px each + 2px gap)
@@ -96,14 +108,14 @@ export default function ToplineView({
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <div style={{ width: LABEL_COL_WIDTH + weeks.length * WEEK_WIDTH, minWidth: '100%' }}>
+      <div style={{ width: labelWidth + weeks.length * WEEK_WIDTH, minWidth: '100%' }}>
         {/* Sticky Header - Month row + Week row */}
         <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
           {/* Month row */}
           <div className="flex" style={{ height: monthHeaderHeight }}>
             <div
               className="sticky left-0 z-30 bg-white border-r border-b border-gray-200 flex-shrink-0"
-              style={{ width: LABEL_COL_WIDTH }}
+              style={{ width: labelWidth }}
             />
             <div className="flex">
               {monthGroups.map((group, i) => (
@@ -123,7 +135,7 @@ export default function ToplineView({
           <div className="flex" style={{ height: weekHeaderHeight }}>
             <div
               className="sticky left-0 z-30 bg-white border-r border-gray-200 flex-shrink-0"
-              style={{ width: LABEL_COL_WIDTH }}
+              style={{ width: labelWidth }}
             />
             <div className="flex">
               {weeks.map((weekStart) => {
@@ -154,7 +166,7 @@ export default function ToplineView({
             {/* Sticky Campaign Column */}
             <div
               className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
-              style={{ width: LABEL_COL_WIDTH }}
+              style={{ width: labelWidth }}
             >
               <div className="flex items-center gap-2">
                 <div
@@ -171,11 +183,12 @@ export default function ToplineView({
             {weeks.map((weekStart) => {
               const stages = getStagesForWeek(campaign.id, weekStart);
               const isPast = isPastWeek(weekStart);
+              const hasHoliday = weekHasBankHoliday(weekStart);
               return (
                 <div
                   key={weekStart.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 justify-center ${
-                    isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast ? 'bg-gray-100' : ''
+                    isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast || hasHoliday ? 'bg-gray-100' : ''
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
@@ -210,7 +223,7 @@ export default function ToplineView({
         <div className="flex border-b border-gray-200" style={{ height: getRowHeight(Math.max(1, ...weeks.map(w => getMiscForWeek(w).length))) }}>
           <div
             className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
-            style={{ width: LABEL_COL_WIDTH }}
+            style={{ width: labelWidth }}
           >
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full flex-shrink-0 bg-gray-300" />
@@ -220,11 +233,12 @@ export default function ToplineView({
           {weeks.map((weekStart) => {
             const miscEvents = getMiscForWeek(weekStart);
             const isPast = isPastWeek(weekStart);
+            const hasHoliday = weekHasBankHoliday(weekStart);
             return (
               <div
                 key={weekStart.toISOString()}
                 className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 justify-center ${
-                  isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast ? 'bg-gray-100' : ''
+                  isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast || hasHoliday ? 'bg-gray-100' : ''
                 }`}
                 style={{ width: WEEK_WIDTH }}
               >

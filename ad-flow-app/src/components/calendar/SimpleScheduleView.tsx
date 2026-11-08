@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
@@ -45,10 +45,52 @@ export default function SimpleScheduleView({
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
-  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
-  const [allEvents, setAllEvents] = useState<Event[]>(events);
-  const [allPeople, setAllPeople] = useState<Person[]>(people);
-  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>({});
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('campaigns');
+      if (saved) return JSON.parse(saved);
+    }
+    return campaigns;
+  });
+  const [allEvents, setAllEvents] = useState<Event[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('events');
+      if (saved) {
+        return JSON.parse(saved, (key, value) =>
+          key === 'startDate' || key === 'endDate' ? new Date(value) : value
+        );
+      }
+    }
+    return events;
+  });
+  const [allPeople, setAllPeople] = useState<Person[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('people');
+      if (saved) return JSON.parse(saved);
+    }
+    return people;
+  });
+  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('customEventTypes');
+      if (saved) return JSON.parse(saved);
+    }
+    return {};
+  });
+
+  // Persist to localStorage on changes
+  useEffect(() => {
+    localStorage.setItem('campaigns', JSON.stringify(allCampaigns));
+  }, [allCampaigns]);
+  useEffect(() => {
+    localStorage.setItem('events', JSON.stringify(allEvents));
+  }, [allEvents]);
+  useEffect(() => {
+    localStorage.setItem('people', JSON.stringify(allPeople));
+  }, [allPeople]);
+  useEffect(() => {
+    localStorage.setItem('customEventTypes', JSON.stringify(customEventTypes));
+  }, [customEventTypes]);
 
   const navigateDate = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
@@ -154,7 +196,7 @@ export default function SimpleScheduleView({
   });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0 w-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">

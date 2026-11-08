@@ -143,17 +143,49 @@ export default function SimpleScheduleView({
     setAllEvents(allEvents.filter(event => event.id !== id));
   };
 
+  // Convert people names to person IDs, creating people as needed
+  const resolveNamesToIds = (names: string[], peopleList: Person[]): { ids: string[]; newPeople: Person[] } => {
+    const ids: string[] = [];
+    const newPeople: Person[] = [];
+    names.forEach(name => {
+      const existing = peopleList.find(p => p.name.toLowerCase() === name.toLowerCase())
+        || newPeople.find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        ids.push(existing.id);
+      } else {
+        const newPerson: Person = { id: `${Date.now()}-${name}`, name, role: 'Team Member' };
+        newPeople.push(newPerson);
+        ids.push(newPerson.id);
+      }
+    });
+    return { ids, newPeople };
+  };
+
   const handleAddCampaign = (newCampaign: Omit<Campaign, 'id'>) => {
+    // Convert people names to IDs, creating people as needed
+    let peopleIds = newCampaign.people;
+    if (newCampaign.people?.length) {
+      const { ids, newPeople } = resolveNamesToIds(newCampaign.people, allPeople);
+      if (newPeople.length) setAllPeople([...allPeople, ...newPeople]);
+      peopleIds = ids;
+    }
     const campaignWithId: Campaign = {
       ...newCampaign,
       id: Date.now().toString(),
+      people: peopleIds,
     };
     setAllCampaigns([...allCampaigns, campaignWithId]);
   };
 
   const handleUpdateCampaign = (id: string, updatedCampaign: Omit<Campaign, 'id'>) => {
+    let peopleIds = updatedCampaign.people;
+    if (updatedCampaign.people?.length) {
+      const { ids, newPeople } = resolveNamesToIds(updatedCampaign.people, allPeople);
+      if (newPeople.length) setAllPeople([...allPeople, ...newPeople]);
+      peopleIds = ids;
+    }
     setAllCampaigns(allCampaigns.map(campaign =>
-      campaign.id === id ? { ...updatedCampaign, id } : campaign
+      campaign.id === id ? { ...updatedCampaign, id, people: peopleIds } : campaign
     ));
   };
 
@@ -208,7 +240,10 @@ export default function SimpleScheduleView({
   const filteredEvents = allEvents.filter(event => {
     // Misc events bypass campaign filtering - controlled only by the Misc toggle
     if (!event.isMisc && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
-    if (selectedPeople.size > 0 && event.assignee && !selectedPeople.has(event.assignee)) return false;
+    if (selectedPeople.size > 0) {
+      const eventAssignees = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
+      if (eventAssignees.length && !eventAssignees.some(id => selectedPeople.has(id))) return false;
+    }
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
     if (selectedEvents.size > 0 && !selectedEvents.has(event.title)) return false;
     if (!showMisc && event.isMisc) return false;
@@ -483,6 +518,7 @@ export default function SimpleScheduleView({
         event={selectedEventToEdit}
         campaigns={allCampaigns}
         people={allPeople}
+        onAddPerson={handleAddPerson}
       />
 
       {/* New Campaign Modal */}

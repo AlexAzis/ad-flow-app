@@ -160,6 +160,13 @@ export default function SimpleScheduleView({
     return newPerson;
   };
 
+  const handleClearFilters = () => {
+    setSelectedCampaigns(new Set());
+    setSelectedPeople(new Set());
+    setSelectedStages(new Set());
+    setSelectedEvents(new Set());
+  };
+
   const handleEventDrop = (eventId: string, newDate: Date) => {
     const event = allEvents.find(e => e.id === eventId);
     if (!event) return;
@@ -343,6 +350,7 @@ export default function SimpleScheduleView({
           onEditCampaign={handleEditCampaign}
           onNewCampaign={() => setIsNewCampaignModalOpen(true)}
           onManageEvents={() => setIsManageEventsModalOpen(true)}
+          onClearFilters={handleClearFilters}
         />
 
         <div className="flex-1 min-w-0 overflow-hidden bg-white flex flex-col">

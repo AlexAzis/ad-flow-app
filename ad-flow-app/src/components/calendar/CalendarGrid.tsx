@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 
 interface CalendarGridProps {
   events: Event[];
@@ -42,6 +43,9 @@ export default function CalendarGrid({
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const daysToShow = viewMode === 'daily-6' ? 182 : 371; // full weeks
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+
+  // UK bank holidays for the visible range
+  const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
   const [resizeState, setResizeState] = useState<{
     eventId: string;
@@ -228,12 +232,13 @@ export default function CalendarGrid({
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const isToday = isSameDay(day, new Date());
                   const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                  const bankHolidayName = bankHolidays.get(day.toDateString());
 
                   return (
                     <div
                       key={day.toISOString()}
                       className={`flex-1 border-r border-gray-200 h-full relative ${
-                        isWeekend || isPast ? 'bg-gray-100' : ''
+                        isWeekend || isPast || bankHolidayName ? 'bg-gray-100' : ''
                       }`}
                       onDoubleClick={() => onDateClick(day)}
                       onDragOver={handleDragOver}
@@ -264,6 +269,15 @@ export default function CalendarGrid({
                           </div>
                         ))}
                       </div>
+
+                      {/* Bank Holiday label - top right */}
+                      {bankHolidayName && (
+                        <div className="absolute top-2 right-1">
+                          <span className="text-[9px] text-gray-400 whitespace-nowrap">
+                            {bankHolidayName}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

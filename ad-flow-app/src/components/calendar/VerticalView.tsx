@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format, addDays, subDays, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor } from '@/lib/colorUtils';
+import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 
 interface VerticalViewProps {
   events: Event[];
@@ -91,6 +91,13 @@ export default function VerticalView({
             </div>
           </div>
         ))}
+        {/* Misc Column Header */}
+        <div className="w-36 flex-shrink-0 flex items-center justify-center px-2">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300" />
+            <span className="text-sm font-medium text-gray-800">Misc.</span>
+          </div>
+        </div>
       </div>
 
       {/* Date Rows */}
@@ -165,11 +172,17 @@ export default function VerticalView({
                             if (onEventDoubleClick) onEventDoubleClick(event);
                           }}
                         >
-                          <div className="font-medium text-gray-800 truncate leading-tight">
+                          <div
+                            className="font-medium truncate leading-tight"
+                            style={{ color: getTextColor(eventColor) }}
+                          >
                             {event.title}
                           </div>
                           {(showPeople || showEventNotes) && (
-                            <div className="text-gray-600 truncate text-[9px] leading-tight">
+                            <div
+                              className="truncate text-[9px] leading-tight"
+                              style={{ color: getSubTextColor(eventColor) }}
+                            >
                               {showPeople && person && <span>{person.name}</span>}
                               {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
                               {showEventNotes && event.notes && <span>{event.notes}</span>}
@@ -181,6 +194,26 @@ export default function VerticalView({
                   </div>
                 );
               })}
+
+              {/* Misc Column */}
+              <div className="w-36 flex-shrink-0 px-1 py-1 flex flex-col gap-1">
+                {events
+                  .filter(e => e.isMisc && day >= new Date(e.startDate) && day <= new Date(e.endDate))
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded px-2 py-1 text-xs bg-gray-200 w-full overflow-hidden"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (onEventDoubleClick) onEventDoubleClick(event);
+                      }}
+                    >
+                      <div className="font-medium text-gray-600 truncate leading-tight text-[10px]">
+                        {event.title}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           );
         })}

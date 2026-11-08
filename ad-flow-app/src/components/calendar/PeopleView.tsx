@@ -3,6 +3,7 @@
 import { format, addDays, startOfWeek, isSameDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 
 interface PeopleViewProps {
   events: Event[];
@@ -37,6 +38,7 @@ export default function PeopleView({
 }: PeopleViewProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i));
+  const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
 
@@ -173,11 +175,12 @@ export default function PeopleView({
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isToday = isSameDay(day, new Date());
                   const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isBankHoliday = bankHolidays.has(day.toDateString());
                   return (
                     <div
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isWeekend || isPast ? 'bg-gray-100' : ''
+                        isWeekend || isPast || isBankHoliday ? 'bg-gray-100' : ''
                       } ${isToday ? 'bg-blue-50' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}

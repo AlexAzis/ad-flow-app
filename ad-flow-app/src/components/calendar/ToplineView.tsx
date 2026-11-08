@@ -189,7 +189,7 @@ export default function ToplineView({
                       >
                         <span
                           className="truncate leading-none"
-                          style={{ fontSize: 7, color: getTextColor(stageColor), fontWeight: 500 }}
+                          style={{ fontSize: 7, color: stage === 'Delivery' ? '#FFFFFF' : getTextColor(stageColor), fontWeight: 500 }}
                         >
                           {stageAbbr[stage] || stage.slice(0, 4)}
                         </span>

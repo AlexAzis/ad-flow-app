@@ -314,14 +314,14 @@ export default function CalendarGrid({
                       <div className="h-full flex flex-col justify-center">
                         <div
                           className="font-medium truncate leading-tight"
-                          style={{ color: getTextColor(eventColor) }}
+                          style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
                         >
                           {event.title}
                         </div>
                         {(showPeople || showEventNotes) && (
                           <div
                             className="truncate text-[10px] leading-tight"
-                            style={{ color: getSubTextColor(eventColor) }}
+                            style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                           >
                             {showPeople && personNames && <span>{personNames}</span>}
                             {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}

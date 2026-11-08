@@ -21,7 +21,7 @@ interface CalendarGridProps {
 }
 
 const CELL_WIDTH = 120;
-const EVENT_HEIGHT = 40;
+const EVENT_HEIGHT = 34;
 const EVENT_GAP = 4;
 const DATE_HEADER_HEIGHT = 32;
 
@@ -281,7 +281,7 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`${event.id}-w${weekIndex}`}
-                      className="absolute rounded px-2 py-1.5 text-xs cursor-move hover:opacity-80 overflow-hidden group"
+                      className="absolute rounded px-2 text-xs cursor-move hover:opacity-80 overflow-hidden group"
                       style={{
                         left: `${(startCol / weekDays.length) * 100}%`,
                         width: `calc(${(span / weekDays.length) * 100}% - 4px)`,
@@ -310,22 +310,24 @@ export default function CalendarGrid({
                         onMouseDown={(e) => handleResizeStart(e, event, 'right', weekDays.length)}
                         onDragStart={(e) => e.preventDefault()}
                       />
-                      <div
-                        className="font-medium truncate leading-tight"
-                        style={{ color: getTextColor(eventColor) }}
-                      >
-                        {event.title}
-                      </div>
-                      {(showPeople || showEventNotes) && (
+                      <div className="h-full flex flex-col justify-center">
                         <div
-                          className="truncate text-[9px] leading-tight"
-                          style={{ color: getSubTextColor(eventColor) }}
+                          className="font-medium truncate leading-tight"
+                          style={{ color: getTextColor(eventColor) }}
                         >
-                          {showPeople && personNames && <span>{personNames}</span>}
-                          {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
-                          {showEventNotes && event.notes && <span>{event.notes}</span>}
+                          {event.title}
                         </div>
-                      )}
+                        {(showPeople || showEventNotes) && (
+                          <div
+                            className="truncate text-[10px] leading-tight"
+                            style={{ color: getSubTextColor(eventColor) }}
+                          >
+                            {showPeople && personNames && <span>{personNames}</span>}
+                            {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                            {showEventNotes && event.notes && <span>{event.notes}</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

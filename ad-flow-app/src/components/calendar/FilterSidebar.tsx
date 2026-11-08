@@ -57,7 +57,9 @@ export default function FilterSidebar({
   onClearFilters,
 }: FilterSidebarProps) {
   // Only show event titles actually used in the schedule, grouped by stage
+  // Misc events are excluded - controlled only by the Misc toggle
   const usedEventsByStage = (events || []).reduce<Record<string, Set<string>>>((acc, e) => {
+    if (e.stage === 'Misc') return acc;
     if (!acc[e.stage]) acc[e.stage] = new Set();
     acc[e.stage].add(e.title);
     return acc;
@@ -79,11 +81,11 @@ export default function FilterSidebar({
         {icon}
         {label}
       </span>
-      <span className={`w-8 h-4.5 rounded-full relative transition-colors inline-block ${on ? 'bg-gray-800' : 'bg-gray-400'}`} style={{ height: 18, width: 32 }}>
-        <span
-          className="w-3.5 h-3.5 bg-white rounded-full absolute top-1 transition-transform shadow-sm"
-          style={{ left: on ? 'calc(100% - 17px)' : '2px' }}
-        />
+      <span
+        className={`rounded-full relative transition-colors inline-flex items-center ${on ? 'bg-gray-800 justify-end' : 'bg-gray-400 justify-start'}`}
+        style={{ height: 20, width: 36, padding: 2 }}
+      >
+        <span className="bg-white rounded-full shadow-sm" style={{ width: 16, height: 16 }} />
       </span>
     </button>
   );

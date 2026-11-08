@@ -20,7 +20,6 @@ interface GanttViewProps {
 }
 
 const DAY_WIDTH = 60;
-const LABEL_COL_WIDTH = 200;
 
 export default function GanttView({
   events,
@@ -64,14 +63,17 @@ export default function GanttView({
     c => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
   );
 
+  // Auto-size label column to fit the longest campaign name
+  const labelWidth = Math.max(200, ...visibleCampaigns.map(c => c.name.length * 7.5 + 40), 220);
+
   return (
     <div className="h-full overflow-auto bg-white">
-      <div style={{ width: LABEL_COL_WIDTH + days.length * DAY_WIDTH, minWidth: '100%' }}>
+      <div style={{ width: labelWidth + days.length * DAY_WIDTH, minWidth: '100%' }}>
         {/* Sticky Date Header */}
         <div className="sticky top-0 z-20 flex h-14 bg-white border-b border-gray-200">
           <div
             className="sticky left-0 z-30 bg-white border-r border-gray-200 flex-shrink-0"
-            style={{ width: LABEL_COL_WIDTH }}
+            style={{ width: labelWidth }}
           />
           <div className="flex">
             {days.map((day) => {
@@ -114,7 +116,7 @@ export default function GanttView({
             <div className="flex border-b border-gray-200" style={{ height: 64 }}>
               <div
                 className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
-                style={{ width: LABEL_COL_WIDTH }}
+                style={{ width: labelWidth }}
               >
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300" />
@@ -186,7 +188,7 @@ export default function GanttView({
               {/* Sticky Campaign Column */}
               <div
                 className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
-                style={{ width: LABEL_COL_WIDTH }}
+                style={{ width: labelWidth }}
               >
                 <div className="flex items-center gap-2">
                   <div

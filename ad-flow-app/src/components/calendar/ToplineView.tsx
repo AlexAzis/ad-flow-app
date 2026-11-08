@@ -43,6 +43,9 @@ export default function ToplineView({
   const isCurrentWeek = (weekStart: Date) =>
     isWithinInterval(new Date(), { start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) });
 
+  const isPastWeek = (weekStart: Date) =>
+    endOfWeek(weekStart, { weekStartsOn: 1 }) < new Date();
+
   // Group events by campaign and stage, then compute stage blocks per week
   const getStageBlocks = (campaignId: string) => {
     const campaignEvents = events.filter(e => e.campaignId === campaignId);
@@ -82,7 +85,7 @@ export default function ToplineView({
                 <div
                   key={weekStart.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-200 flex items-center justify-center ${
-                    isCurrent ? 'bg-blue-50' : 'bg-white'
+                    isCurrent ? 'bg-blue-50' : isPastWeek(weekStart) ? 'bg-gray-100' : 'bg-white'
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
@@ -135,11 +138,12 @@ export default function ToplineView({
               <div className="flex-1 relative">
                 {weeks.map((weekStart, index) => {
                   const isCurrent = isCurrentWeek(weekStart);
+                  const isPast = isPastWeek(weekStart);
                   return (
                     <div
                       key={weekStart.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isCurrent ? 'bg-blue-50' : ''
+                        isCurrent ? 'bg-blue-50' : isPast ? 'bg-gray-100' : ''
                       }`}
                       style={{ left: index * WEEK_WIDTH, width: WEEK_WIDTH }}
                     />
@@ -148,7 +152,9 @@ export default function ToplineView({
 
                 {/* Stage Blocks */}
                 {positioned.map(({ stage, stageEvents, startWeek, spanWeeks, lane }) => {
-                  const stageColor = getStageColor(campaign.color, stage);
+                  const latestEnd = Math.max(...stageEvents.map(e => new Date(e.endDate).getTime()));
+                  const isPast = new Date(latestEnd) < new Date(new Date().setHours(0, 0, 0, 0));
+                  const stageColor = isPast ? '#D1D5DB' : getStageColor(campaign.color, stage);
                   if (startWeek + spanWeeks < 0 || startWeek >= weekCount) return null;
 
                   return (

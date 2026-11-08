@@ -99,7 +99,7 @@ export default function ToplineView({
               </div>
 
               {/* Timeline with Stage Blocks */}
-              <div className="flex-1 flex relative">
+              <div className="flex-1 min-w-0 flex relative overflow-x-auto">
                 {days.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

@@ -10,21 +10,16 @@ const abbreviations: Record<string, string> = {
   'production': 'Prod.',
   'department': 'Dept.',
   'development': 'Dev.',
-  'presentation': 'pres.',
   'marketing': 'Mktg.',
   'internal': 'Int.',
   'approval': 'App.',
   'approvals': 'App.',
   'scouting': 'Scout.',
-  'department': 'Dept.',
   'construction': 'Constr.',
   'choreography': 'Choreo.',
   'styling': 'Styl.',
-  'offline': 'Offline',
   'mastering': 'Master.',
   'clearcast': 'Clear.',
-  'clocking': 'Clock.',
-  'playout': 'Playout',
 };
 
 export function abbreviateText(text: string): string {

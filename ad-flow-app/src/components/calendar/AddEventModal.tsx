@@ -72,13 +72,14 @@ export default function AddEventModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!campaignId || !eventTitle) {
+    const isMisc = stage === 'Misc';
+    if ((!isMisc && !campaignId) || !eventTitle) {
       alert('Please select a campaign and event');
       return;
     }
 
     const campaign = campaigns.find(c => c.id === campaignId);
-    const eventColor = campaign ? getStageColor(campaign.color, stage) : '#999999';
+    const eventColor = isMisc ? '#E5E5E5' : (campaign ? getStageColor(campaign.color, stage) : '#999999');
 
     // Find or create person by name
     let assigneeId: string | undefined;
@@ -93,13 +94,14 @@ export default function AddEventModal({
 
     const newEvent: Omit<Event, 'id'> = {
       title: eventTitle,
-      campaignId,
+      campaignId: isMisc ? '' : campaignId,
       stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       assignee: assigneeId,
       notes: notes || undefined,
       color: eventColor,
+      isMisc,
     };
 
     onAddEvent(newEvent);
@@ -152,25 +154,27 @@ export default function AddEventModal({
             </div>
           </div>
 
-          {/* Campaign */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Campaign
-            </label>
-            <select
-              value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select campaign</option>
-              {availableCampaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Campaign - hidden for Misc events */}
+          {stage !== 'Misc' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Campaign
+              </label>
+              <select
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select campaign</option>
+                {availableCampaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Stage */}
           <div>
@@ -190,27 +194,39 @@ export default function AddEventModal({
                   {stageName}
                 </option>
               ))}
+              <option value="Misc">Misc</option>
             </select>
           </div>
 
-          {/* Event */}
+          {/* Event - dropdown for stages, free text for Misc */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Event
+              {stage === 'Misc' ? 'Name (e.g. Holiday, Bank Holiday)' : 'Event'}
             </label>
-            <select
-              value={eventTitle}
-              onChange={(e) => setEventTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select event</option>
-              {(customEventTypes?.[stage] || eventTypesByStage[stage])?.map((event) => (
-                <option key={event} value={event}>
-                  {event}
-                </option>
-              ))}
-            </select>
+            {stage === 'Misc' ? (
+              <input
+                type="text"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                placeholder="e.g. Alex Holiday"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            ) : (
+              <select
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select event</option>
+                {(customEventTypes?.[stage] || eventTypesByStage[stage])?.map((event) => (
+                  <option key={event} value={event}>
+                    {event}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Person */}

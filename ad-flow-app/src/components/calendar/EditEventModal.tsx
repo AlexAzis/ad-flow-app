@@ -15,6 +15,7 @@ interface EditEventModalProps {
   event: Event | null;
   campaigns: Campaign[];
   people: Person[];
+  onAddPerson?: (name: string) => Person;
 }
 
 export default function EditEventModal({
@@ -25,6 +26,7 @@ export default function EditEventModal({
   event,
   campaigns,
   people,
+  onAddPerson,
 }: EditEventModalProps) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -32,7 +34,8 @@ export default function EditEventModal({
   const [stage, setStage] = useState('');
   const [eventTitle, setEventTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [personName, setPersonName] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Populate form when event changes
   useEffect(() => {
@@ -43,9 +46,17 @@ export default function EditEventModal({
       setStage(event.stage);
       setEventTitle(event.title);
       setNotes(event.notes || '');
-      setAssigneeId(event.assignee || '');
+      // Convert assignee IDs back to names for display
+      const ids = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
+      setPersonName(ids.map(id => people.find(p => p.id === id)?.name || '').filter(Boolean).join(', '));
     }
-  }, [event, isOpen]);
+  }, [event, isOpen, people]);
+
+  // Filter people suggestions based on last typed name segment
+  const lastSegment = personName.split(',').pop()?.trim() || '';
+  const filteredPeople = lastSegment
+    ? people.filter(p => p.name.toLowerCase().includes(lastSegment.toLowerCase()))
+    : people;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,13 +69,25 @@ export default function EditEventModal({
     const campaign = campaigns.find(c => c.id === campaignId);
     const eventColor = campaign ? getStageColor(campaign.color, stage) : '#999999';
 
+    // Parse comma-separated names → find or create each person
+    const assigneeIds = personName
+      .split(',')
+      .map(n => n.trim())
+      .filter(Boolean)
+      .map(name => {
+        const existing = people.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (existing) return existing.id;
+        return onAddPerson ? onAddPerson(name).id : name;
+      });
+
     const updatedEvent: Omit<Event, 'id'> = {
       title: eventTitle,
       campaignId,
       stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      assignee: assigneeId || undefined,
+      assignee: assigneeIds[0],
+      assignees: assigneeIds.length ? assigneeIds : undefined,
       notes: notes || undefined,
       color: eventColor,
     };
@@ -189,22 +212,42 @@ export default function EditEventModal({
           </div>
 
           {/* Person */}
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Person (optional)
             </label>
-            <select
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
+            <input
+              type="text"
+              value={personName}
+              onChange={(e) => {
+                setPersonName(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Type names, separated by commas..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Unassigned</option>
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
+            />
+            {showSuggestions && filteredPeople.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                {filteredPeople.map((person) => (
+                  <button
+                    key={person.id}
+                    type="button"
+                    onMouseDown={() => {
+                      // Replace the last comma segment with the selected name
+                      const parts = personName.split(',');
+                      parts[parts.length - 1] = ' ' + person.name;
+                      setPersonName(parts.join(',').replace(/^,|,\s*$/, '').trim());
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                  >
+                    {person.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Notes */}

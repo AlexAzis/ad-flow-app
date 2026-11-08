@@ -9,6 +9,7 @@ interface EditCampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>) => void;
+  onDeleteCampaign?: (id: string) => void;
   campaign: Campaign | null;
   currentUser?: string;
   allCampaigns?: Campaign[];
@@ -18,6 +19,7 @@ export default function EditCampaignModal({
   isOpen,
   onClose,
   onUpdateCampaign,
+  onDeleteCampaign,
   campaign,
   currentUser = 'Alex Azis',
   allCampaigns = [],
@@ -54,6 +56,16 @@ export default function EditCampaignModal({
 
     onUpdateCampaign(campaign.id, updatedCampaign);
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (!campaign) return;
+    if (confirm(`Delete "${campaign.name}" and all its events? This cannot be undone.`)) {
+      if (onDeleteCampaign) {
+        onDeleteCampaign(campaign.id);
+      }
+      onClose();
+    }
   };
 
   const handleLockToggle = () => {
@@ -186,20 +198,29 @@ export default function EditCampaignModal({
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-between gap-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
             >
-              Cancel
+              Delete Campaign
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Update Campaign
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Update Campaign
+              </button>
+            </div>
           </div>
         </form>
       </div>

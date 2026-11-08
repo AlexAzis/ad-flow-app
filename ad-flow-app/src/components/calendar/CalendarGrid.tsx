@@ -218,14 +218,14 @@ export default function CalendarGrid({
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const isToday = isSameDay(day, new Date());
-                  const isPastMonth = !isSameMonth(day, currentDate);
+                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
 
                   return (
                     <div
                       key={day.toISOString()}
                       className={`w-[120px] border-r border-gray-200 h-full relative flex-shrink-0 ${
-                        isWeekend && showWeekends ? 'bg-gray-100' : ''
-                      } ${isPastMonth ? 'opacity-50' : ''}`}
+                        isWeekend || isPast ? 'bg-gray-100' : ''
+                      }`}
                       onDoubleClick={() => onDateClick(day)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
@@ -265,7 +265,8 @@ export default function CalendarGrid({
                 {positionedEvents.map(({ event, startCol, span, lane }) => {
                   const campaign = getCampaignById(event.campaignId);
                   const person = event.assignee ? getPersonById(event.assignee) : null;
-                  const eventColor = campaign ? getStageColor(campaign.color, event.stage) : event.color;
+                  const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
+                  const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : event.color);
 
                   return (
                     <div

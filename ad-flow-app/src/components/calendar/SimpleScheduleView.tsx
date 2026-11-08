@@ -502,7 +502,7 @@ export default function SimpleScheduleView({
         onClose={() => setIsAddEventModalOpen(false)}
         onAddEvent={handleAddEvent}
         selectedDate={selectedDateForEvent}
-        campaigns={campaigns}
+        campaigns={allCampaigns}
         people={allPeople}
         selectedCampaigns={selectedCampaigns}
         customEventTypes={customEventTypes}

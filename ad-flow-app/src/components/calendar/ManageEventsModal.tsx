@@ -7,14 +7,17 @@ import { eventTypesByStage } from '@/lib/eventTypes';
 interface ManageEventsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  customEvents: Record<string, string[]>;
+  onUpdateCustomEvents: (customEvents: Record<string, string[]>) => void;
 }
 
 export default function ManageEventsModal({
   isOpen,
   onClose,
+  customEvents,
+  onUpdateCustomEvents,
 }: ManageEventsModalProps) {
   const [selectedStage, setSelectedStage] = useState<string>('Creative Development');
-  const [customEvents, setCustomEvents] = useState<Record<string, string[]>>({});
   const [newEventName, setNewEventName] = useState('');
 
   // Get events for selected stage (custom or default)
@@ -27,7 +30,7 @@ export default function ManageEventsModal({
 
     const currentEvents = getEventsForStage(selectedStage);
     const updatedEvents = [...currentEvents, newEventName.trim()];
-    setCustomEvents({
+    onUpdateCustomEvents({
       ...customEvents,
       [selectedStage]: updatedEvents,
     });
@@ -37,7 +40,7 @@ export default function ManageEventsModal({
   const handleDeleteEvent = (eventName: string) => {
     const currentEvents = getEventsForStage(selectedStage);
     const updatedEvents = currentEvents.filter(e => e !== eventName);
-    setCustomEvents({
+    onUpdateCustomEvents({
       ...customEvents,
       [selectedStage]: updatedEvents,
     });
@@ -45,7 +48,6 @@ export default function ManageEventsModal({
 
   const handleClose = () => {
     setSelectedStage('Creative Development');
-    setCustomEvents({});
     setNewEventName('');
     onClose();
   };

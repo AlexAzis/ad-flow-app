@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor } from '@/lib/colorUtils';
+import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 
 interface CalendarGridProps {
   events: Event[];
@@ -309,11 +309,17 @@ export default function CalendarGrid({
                         onMouseDown={(e) => handleResizeStart(e, event, 'right', weekDays.length)}
                         onDragStart={(e) => e.preventDefault()}
                       />
-                      <div className="font-medium text-gray-800 truncate leading-tight">
+                      <div
+                        className="font-medium truncate leading-tight"
+                        style={{ color: getTextColor(eventColor) }}
+                      >
                         {event.title}
                       </div>
                       {(showPeople || showEventNotes) && (
-                        <div className="text-gray-600 truncate text-[9px] leading-tight">
+                        <div
+                          className="truncate text-[9px] leading-tight"
+                          style={{ color: getSubTextColor(eventColor) }}
+                        >
                           {showPeople && person && <span>{person.name}</span>}
                           {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
                           {showEventNotes && event.notes && <span>{event.notes}</span>}

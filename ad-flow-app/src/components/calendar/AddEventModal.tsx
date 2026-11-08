@@ -37,7 +37,6 @@ export default function AddEventModal({
   const [eventTitle, setEventTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [personName, setPersonName] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Reset form when modal opens or selected date changes
   useEffect(() => {
@@ -78,11 +77,7 @@ export default function AddEventModal({
     }
   }, [campaignId, campaigns, people]);
 
-  // Filter suggestions on last comma segment
-  const lastSegment = personName.split(',').pop()?.trim() || '';
-  const filteredPeople = lastSegment
-    ? people.filter(p => p.name.toLowerCase().includes(lastSegment.toLowerCase()))
-    : people;
+  const filteredPeople = people;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,35 +248,10 @@ export default function AddEventModal({
             <input
               type="text"
               value={personName}
-              onChange={(e) => {
-                setPersonName(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onChange={(e) => setPersonName(e.target.value)}
               placeholder="Type names, separated by commas..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {showSuggestions && filteredPeople.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
-                {filteredPeople.map((person) => (
-                  <button
-                    key={person.id}
-                    type="button"
-                    onMouseDown={() => {
-                      // Replace the last comma segment with the selected name
-                      const parts = personName.split(',');
-                      parts[parts.length - 1] = ' ' + person.name;
-                      setPersonName(parts.join(',').trim());
-                      setShowSuggestions(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    {person.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Notes */}

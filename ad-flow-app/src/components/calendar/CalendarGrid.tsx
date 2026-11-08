@@ -270,9 +270,9 @@ export default function CalendarGrid({
                         ))}
                       </div>
 
-                      {/* Bank Holiday label - top right */}
+                      {/* Bank Holiday label - centered, in line with date number */}
                       {bankHolidayName && (
-                        <div className="absolute top-2 right-1">
+                        <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ top: 13 }}>
                           <span className="text-[9px] text-gray-400 whitespace-nowrap">
                             {bankHolidayName}
                           </span>

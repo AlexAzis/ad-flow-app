@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { format, addDays, subDays, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 
 interface VerticalViewProps {
   events: Event[];
@@ -36,6 +37,7 @@ export default function VerticalView({
   const minDate = subDays(new Date(), 7); // Can only scroll back 7 days
 
   const days = Array.from({ length: 60 }, (_, i) => addDays(scrollDate, i)); // Show 60 days
+  const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
@@ -107,6 +109,7 @@ export default function VerticalView({
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isToday = isSameDay(day, new Date());
           const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
+          const bankHolidayName = bankHolidays.get(day.toDateString());
 
           // Uniform row height = max events on any day across visible campaigns
           const maxEvents = Math.max(
@@ -124,7 +127,7 @@ export default function VerticalView({
             <div
               key={day.toISOString()}
               className={`flex border-b border-gray-200 ${
-                isWeekend || isPast ? 'bg-gray-100' : ''
+                isWeekend || isPast || bankHolidayName ? 'bg-gray-100' : ''
               }`}
               style={{ height: rowHeight }}
               onDragOver={handleDragOver}
@@ -143,6 +146,9 @@ export default function VerticalView({
                     {format(day, 'd')}
                   </span>
                   <span className="text-[10px] text-gray-500">{format(day, 'MMM')}</span>
+                  {bankHolidayName && (
+                    <span className="text-[9px] text-gray-400 block mt-0.5">{bankHolidayName}</span>
+                  )}
                 </div>
               </div>
 

@@ -8,6 +8,7 @@ import { eventTypes, getAllStages } from '@/lib/eventTypes';
 interface FilterSidebarProps {
   campaigns: Campaign[];
   people: Person[];
+  events?: { title: string; stage: string }[];
   selectedCampaigns: Set<string>;
   selectedPeople: Set<string>;
   selectedStages: Set<string>;
@@ -32,6 +33,7 @@ interface FilterSidebarProps {
 export default function FilterSidebar({
   campaigns,
   people,
+  events,
   selectedCampaigns,
   selectedPeople,
   selectedStages,
@@ -53,6 +55,13 @@ export default function FilterSidebar({
   onManageEvents,
 }: FilterSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(['campaigns', 'people', 'stages', 'events']);
+
+  // Only show event titles actually used in the schedule, grouped by stage
+  const usedEventsByStage = (events || []).reduce<Record<string, Set<string>>>((acc, e) => {
+    if (!acc[e.stage]) acc[e.stage] = new Set();
+    acc[e.stage].add(e.title);
+    return acc;
+  }, {});
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -205,29 +214,26 @@ export default function FilterSidebar({
           </button>
           {expandedSections.includes('events') && (
             <div className="ml-4 space-y-2">
-              {getAllStages.map((stage) => {
-                const stageEvents = eventTypes.filter(e => e.stage === stage);
-                return (
-                  <div key={stage}>
-                    <div className="text-xs font-medium text-gray-500 mb-1">{stage}</div>
-                    <div className="flex flex-wrap gap-1">
-                      {stageEvents.map((event) => (
-                        <button
-                          key={event.id}
-                          onClick={() => onToggleEvent(event.name)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                            selectedEvents.has(event.name)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {event.name}
-                        </button>
-                      ))}
-                    </div>
+              {Object.entries(usedEventsByStage).map(([stage, titles]) => (
+                <div key={stage}>
+                  <div className="text-xs font-medium text-gray-500 mb-1">{stage}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.from(titles).map((title) => (
+                      <button
+                        key={title}
+                        onClick={() => onToggleEvent(title)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                          selectedEvents.has(title)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {title}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>

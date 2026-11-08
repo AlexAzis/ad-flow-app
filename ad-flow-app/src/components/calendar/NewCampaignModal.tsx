@@ -21,6 +21,7 @@ export default function NewCampaignModal({
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [color, setColor] = useState('');
+  const [peopleNames, setPeopleNames] = useState('');
 
   // Get colors that are already in use
   const usedColors = new Set(existingCampaigns.map(c => c.color));
@@ -33,10 +34,15 @@ export default function NewCampaignModal({
       return;
     }
 
+    // Pass people as names - converted to person IDs by the handler
     const newCampaign: Omit<Campaign, 'id'> = {
       name,
       client,
       color,
+      people: peopleNames
+        .split(',')
+        .map(n => n.trim())
+        .filter(Boolean),
     };
 
     onAddCampaign(newCampaign);
@@ -47,6 +53,7 @@ export default function NewCampaignModal({
     setName('');
     setClient('');
     setColor('');
+    setPeopleNames('');
     onClose();
   };
 
@@ -96,6 +103,21 @@ export default function NewCampaignModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+          </div>
+
+          {/* People */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              People (optional)
+            </label>
+            <input
+              type="text"
+              value={peopleNames}
+              onChange={(e) => setPeopleNames(e.target.value)}
+              placeholder="e.g., Alex, Kelly, Rob"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
           </div>
 
           {/* Color Selection */}

@@ -153,11 +153,12 @@ export default function PeopleView({
                 {days.map((day, index) => {
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isToday = isSameDay(day, new Date());
+                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
                   return (
                     <div
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isWeekend && showWeekends ? 'bg-gray-100' : ''
+                        isWeekend || isPast ? 'bg-gray-100' : ''
                       } ${isToday ? 'bg-blue-50' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}
@@ -173,7 +174,8 @@ export default function PeopleView({
                   const eventEnd = new Date(event.endDate);
                   const startOffset = differenceInDays(eventStart, startDate);
                   const duration = differenceInDays(eventEnd, eventStart) + 1;
-                  const eventColor = campaign ? getStageColor(campaign.color, event.stage) : '#999999';
+                  const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
+                  const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#999999');
 
                   if (startOffset + duration < 0 || startOffset >= days.length) return null;
 

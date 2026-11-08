@@ -239,7 +239,8 @@ export default function CalendarGrid({
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
                     >
-                      <div className="absolute top-2 left-2">
+                      {/* Date number + misc lozenges on one aligned row */}
+                      <div className="absolute top-2 left-2 right-1 flex items-center gap-1.5 flex-wrap">
                         <span
                           className={`text-sm ${
                             isToday
@@ -249,10 +250,6 @@ export default function CalendarGrid({
                         >
                           {format(day, 'd')}
                         </span>
-                      </div>
-
-                      {/* Misc Events - grey lozenges aligned with date number */}
-                      <div className="absolute left-9 right-1 flex flex-wrap gap-x-1 gap-y-0.5 items-center" style={{ top: 10 }}>
                         {getEventsForDate(day).filter(e => e.isMisc).map((event) => (
                           <div
                             key={event.id}

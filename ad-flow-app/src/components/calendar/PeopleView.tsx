@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { format, addDays, startOfWeek, isSameDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor } from '@/lib/colorUtils';
@@ -19,6 +18,10 @@ interface PeopleViewProps {
   selectedCampaigns?: Set<string>;
 }
 
+const DAY_WIDTH = 60;
+const NAME_COL_WIDTH = 140;
+const CAMPAIGN_COL_WIDTH = 160;
+
 export default function PeopleView({
   events,
   campaigns,
@@ -33,26 +36,16 @@ export default function PeopleView({
   selectedCampaigns,
 }: PeopleViewProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i)); // 3 months
+  const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i));
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
-  const getPersonById = (id: string) => people.find(p => p.id === id);
 
-  // Get events for a person (filtered by selected campaigns)
-  const getEventsForPerson = (personId: string) => {
-    return events.filter(event => {
-      if (event.assignee !== personId) return false;
-      if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) {
-        return false;
-      }
+  const getEventsForPerson = (personId: string) =>
+    events.filter(e => {
+      if (e.assignee !== personId) return false;
+      if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(e.campaignId)) return false;
       return true;
     });
-  };
-
-  // Group events by campaign for a person
-  const getCampaignEventsForPerson = (personId: string, campaignId: string) => {
-    return events.filter(e => e.assignee === personId && e.campaignId === campaignId);
-  };
 
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     e.dataTransfer.setData('eventId', eventId);
@@ -67,69 +60,106 @@ export default function PeopleView({
     e.preventDefault();
     e.stopPropagation();
     const eventId = e.dataTransfer.getData('eventId');
-    if (eventId && onEventDrop) {
-      onEventDrop(eventId, date);
-    }
+    if (eventId && onEventDrop) onEventDrop(eventId, date);
   };
 
+  const labelWidth = NAME_COL_WIDTH + CAMPAIGN_COL_WIDTH;
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Person Rows */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+    <div className="h-full overflow-auto bg-white">
+      <div style={{ width: labelWidth + days.length * DAY_WIDTH, minWidth: '100%' }}>
+        {/* Sticky Date Header */}
+        <div className="sticky top-0 z-20 flex h-14 bg-white border-b border-gray-200">
+          <div
+            className="sticky left-0 z-30 bg-white border-r border-gray-200 flex-shrink-0"
+            style={{ width: labelWidth }}
+          />
+          <div className="flex">
+            {days.map((day) => {
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+              const isToday = isSameDay(day, new Date());
+              const showMonth = day.getDate() === 1 || isSameDay(day, days[0]);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`flex-shrink-0 border-r border-gray-200 flex flex-col items-center justify-center ${
+                    isWeekend && showWeekends ? 'bg-gray-100' : 'bg-white'
+                  }`}
+                  style={{ width: DAY_WIDTH }}
+                >
+                  {showMonth && (
+                    <span className="text-[9px] font-semibold text-gray-500 uppercase">
+                      {format(day, 'MMM')}
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs font-medium ${
+                      isToday
+                        ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    {format(day, 'd')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Person Rows */}
         {people.map((person) => {
           const personEvents = getEventsForPerson(person.id);
           const personCampaigns = Array.from(new Set(personEvents.map(e => e.campaignId)));
 
           return (
-            <div key={person.id} className="flex border-b border-gray-200 h-20">
-              {/* Person Column */}
-              <div className="w-48 flex-shrink-0 border-r border-gray-200 bg-white flex items-center px-3">
-                <span className="text-sm font-medium text-gray-800">
+            <div key={person.id} className="flex border-b border-gray-200" style={{ height: 64 }}>
+              {/* Sticky Person Column */}
+              <div
+                className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
+                style={{ width: NAME_COL_WIDTH }}
+              >
+                <span className="text-sm font-medium text-gray-800 truncate">
                   {person.name}
                 </span>
               </div>
 
-              {/* Campaign Column */}
-              <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-white flex items-center px-2">
-                {personCampaigns.length > 0 ? (
-                  <div className="flex flex-col gap-1">
-                    {personCampaigns.map((campaignId) => {
-                      const campaign = getCampaignById(campaignId);
-                      if (!campaign) return null;
-                      return (
+              {/* Sticky Campaign Column */}
+              <div
+                className="sticky z-10 bg-white border-r border-gray-200 flex items-center px-2 flex-shrink-0"
+                style={{ width: CAMPAIGN_COL_WIDTH, left: NAME_COL_WIDTH }}
+              >
+                <div className="flex flex-col gap-1">
+                  {personCampaigns.map((campaignId) => {
+                    const campaign = getCampaignById(campaignId);
+                    if (!campaign) return null;
+                    return (
+                      <div key={campaignId} className="flex items-center gap-1">
                         <div
-                          key={campaignId}
-                          className="flex items-center gap-1"
-                        >
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: campaign.color }}
-                          />
-                          <span className="text-[10px] text-gray-600 truncate">
-                            {campaign.name}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span className="text-gray-400 text-xs">No events</span>
-                )}
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: campaign.color }}
+                        />
+                        <span className="text-[10px] text-gray-600 truncate">
+                          {campaign.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Timeline */}
-              <div className="flex-1 min-w-0 flex relative overflow-x-auto">
-                {days.map((day) => {
-                  const dayOfWeek = day.getDay();
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              <div className="flex-1 relative">
+                {days.map((day, index) => {
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isToday = isSameDay(day, new Date());
-
                   return (
                     <div
                       key={day.toISOString()}
-                      className={`flex-1 border-r border-gray-100 min-w-[30px] relative ${
+                      className={`absolute top-0 bottom-0 border-r border-gray-100 ${
                         isWeekend && showWeekends ? 'bg-gray-100' : ''
                       } ${isToday ? 'bg-blue-50' : ''}`}
+                      style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
                     />
@@ -137,7 +167,7 @@ export default function PeopleView({
                 })}
 
                 {/* Event Blocks */}
-                {personEvents.map((event) => {
+                {personEvents.map((event, eventIndex) => {
                   const campaign = getCampaignById(event.campaignId);
                   const eventStart = new Date(event.startDate);
                   const eventEnd = new Date(event.endDate);
@@ -145,15 +175,17 @@ export default function PeopleView({
                   const duration = differenceInDays(eventEnd, eventStart) + 1;
                   const eventColor = campaign ? getStageColor(campaign.color, event.stage) : '#999999';
 
-                  if (startOffset < 0 || startOffset >= days.length) return null;
+                  if (startOffset + duration < 0 || startOffset >= days.length) return null;
 
                   return (
                     <div
                       key={event.id}
-                      className="absolute top-2 bottom-2 rounded px-2 py-1 text-xs cursor-move hover:opacity-80 overflow-hidden"
+                      className="absolute rounded px-2 py-1 text-xs cursor-move hover:opacity-80 overflow-hidden"
                       style={{
-                        left: `${(startOffset / days.length) * 100}%`,
-                        width: `${(duration / days.length) * 100}%`,
+                        top: 12 + eventIndex * 44,
+                        left: startOffset * DAY_WIDTH + 1,
+                        width: duration * DAY_WIDTH - 3,
+                        height: 40,
                         backgroundColor: eventColor,
                       }}
                       draggable
@@ -163,11 +195,11 @@ export default function PeopleView({
                         if (onEventDoubleClick) onEventDoubleClick(event);
                       }}
                     >
-                      <div className="font-medium text-gray-800 truncate text-[10px]">
+                      <div className="font-medium text-gray-800 truncate text-[10px] leading-tight">
                         {event.title}
                       </div>
                       {showEventNotes && event.notes && (
-                        <div className="text-gray-600 truncate text-[8px]">
+                        <div className="text-gray-600 truncate text-[9px] leading-tight">
                           {event.notes}
                         </div>
                       )}

@@ -47,6 +47,8 @@ export default function SimpleScheduleView({
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
+  const [allPeople, setAllPeople] = useState<Person[]>(people);
+  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>({});
 
   const navigateDate = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
@@ -104,6 +106,16 @@ export default function SimpleScheduleView({
   const handleEditCampaign = (campaign: Campaign) => {
     setSelectedCampaignToEdit(campaign);
     setIsEditCampaignModalOpen(true);
+  };
+
+  const handleAddPerson = (name: string): Person => {
+    const newPerson: Person = {
+      id: Date.now().toString(),
+      name,
+      role: 'Team Member',
+    };
+    setAllPeople([...allPeople, newPerson]);
+    return newPerson;
   };
 
   const handleEventDrop = (eventId: string, newDate: Date) => {
@@ -251,7 +263,7 @@ export default function SimpleScheduleView({
       <div className="flex-1 flex overflow-hidden">
         <FilterSidebar
           campaigns={allCampaigns}
-          people={people}
+          people={allPeople}
           selectedCampaigns={selectedCampaigns}
           selectedPeople={selectedPeople}
           selectedStages={selectedStages}
@@ -291,11 +303,11 @@ export default function SimpleScheduleView({
 
         <div className="flex-1 min-w-0 overflow-hidden bg-white flex flex-col">
           {viewMode === 'gantt' ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <GanttView
                 events={filteredEvents}
                 campaigns={allCampaigns}
-                people={people}
+                people={allPeople}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
@@ -307,11 +319,11 @@ export default function SimpleScheduleView({
               />
             </div>
           ) : viewMode === 'vertical' ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <VerticalView
                 events={filteredEvents}
                 campaigns={allCampaigns}
-                people={people}
+                people={allPeople}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
@@ -323,11 +335,11 @@ export default function SimpleScheduleView({
               />
             </div>
           ) : viewMode === 'topline' ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <ToplineView
                 events={filteredEvents}
                 campaigns={allCampaigns}
-                people={people}
+                people={allPeople}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
@@ -339,11 +351,11 @@ export default function SimpleScheduleView({
               />
             </div>
           ) : viewMode === 'people' ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <PeopleView
                 events={filteredEvents}
                 campaigns={allCampaigns}
-                people={people}
+                people={allPeople}
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
@@ -358,7 +370,7 @@ export default function SimpleScheduleView({
             <CalendarGrid
               events={filteredEvents}
               campaigns={allCampaigns}
-              people={people}
+              people={allPeople}
               currentDate={currentDate}
               onDateClick={handleDateClick}
               onEventDoubleClick={handleEventDoubleClick}
@@ -380,8 +392,10 @@ export default function SimpleScheduleView({
         onAddEvent={handleAddEvent}
         selectedDate={selectedDateForEvent}
         campaigns={campaigns}
-        people={people}
+        people={allPeople}
         selectedCampaigns={selectedCampaigns}
+        customEventTypes={customEventTypes}
+        onAddPerson={handleAddPerson}
       />
 
       {/* Edit Event Modal */}
@@ -392,7 +406,7 @@ export default function SimpleScheduleView({
         onDeleteEvent={handleDeleteEvent}
         event={selectedEventToEdit}
         campaigns={allCampaigns}
-        people={people}
+        people={allPeople}
       />
 
       {/* New Campaign Modal */}
@@ -407,6 +421,8 @@ export default function SimpleScheduleView({
       <ManageEventsModal
         isOpen={isManageEventsModalOpen}
         onClose={() => setIsManageEventsModalOpen(false)}
+        customEvents={customEventTypes}
+        onUpdateCustomEvents={setCustomEventTypes}
       />
 
       {/* Edit Campaign Modal */}

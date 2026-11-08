@@ -2,7 +2,7 @@
 
 import { format, addDays, startOfWeek, isSameDay, isSameMonth, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor } from '@/lib/colorUtils';
+import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 
 interface GanttViewProps {
   events: Event[];
@@ -104,6 +104,59 @@ export default function GanttView({
           </div>
         </div>
 
+        {/* Misc Row */}
+        {(() => {
+          const miscEvents = events.filter(e => e.isMisc);
+          if (miscEvents.length === 0) return null;
+          return (
+            <div className="flex border-b border-gray-200" style={{ height: 64 }}>
+              <div
+                className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
+                style={{ width: LABEL_COL_WIDTH }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300" />
+                  <span className="text-sm font-medium text-gray-800">Misc.</span>
+                </div>
+              </div>
+              <div className="flex-1 relative">
+                {days.map((day, index) => (
+                  <div
+                    key={day.toISOString()}
+                    className="absolute top-0 bottom-0 border-r border-gray-100"
+                    style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
+                  />
+                ))}
+                {miscEvents.map((event, idx) => {
+                  const startOffset = differenceInDays(new Date(event.startDate), startDate);
+                  const duration = differenceInDays(new Date(event.endDate), new Date(event.startDate)) + 1;
+                  if (startOffset + duration < 0 || startOffset >= days.length) return null;
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute rounded px-2 py-1 text-xs overflow-hidden bg-gray-200"
+                      style={{
+                        top: 12 + idx * 44,
+                        left: startOffset * DAY_WIDTH + 1,
+                        width: duration * DAY_WIDTH - 3,
+                        height: 40,
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (onEventDoubleClick) onEventDoubleClick(event);
+                      }}
+                    >
+                      <div className="font-medium text-gray-600 truncate leading-tight">
+                        {event.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Campaign Rows */}
         {visibleCampaigns.map((campaign) => {
           const campaignEvents = getEventsForCampaign(campaign.id);
@@ -174,11 +227,17 @@ export default function GanttView({
                         if (onEventDoubleClick) onEventDoubleClick(event);
                       }}
                     >
-                      <div className="font-medium text-gray-800 truncate leading-tight">
+                      <div
+                        className="font-medium truncate leading-tight"
+                        style={{ color: getTextColor(eventColor) }}
+                      >
                         {event.title}
                       </div>
                       {(showPeople || showEventNotes) && (
-                        <div className="text-gray-600 truncate text-[9px] leading-tight">
+                        <div
+                          className="truncate text-[9px] leading-tight"
+                          style={{ color: getSubTextColor(eventColor) }}
+                        >
                           {showPeople && person && <span>{person.name}</span>}
                           {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
                           {showEventNotes && event.notes && <span>{event.notes}</span>}

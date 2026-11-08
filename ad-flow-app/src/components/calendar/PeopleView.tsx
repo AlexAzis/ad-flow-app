@@ -113,8 +113,26 @@ export default function PeopleView({
           const personEvents = getEventsForPerson(person.id);
           const personCampaigns = Array.from(new Set(personEvents.map(e => e.campaignId)));
 
+          // Assign lanes to overlapping events so they stack instead of overlap
+          const sorted = [...personEvents].sort((a, b) => {
+            const aStart = differenceInDays(new Date(a.startDate), startDate);
+            const bStart = differenceInDays(new Date(b.startDate), startDate);
+            return aStart - bStart;
+          });
+          const lanes: number[] = [];
+          const positioned = sorted.map(e => {
+            const s = differenceInDays(new Date(e.startDate), startDate);
+            const d = differenceInDays(new Date(e.endDate), new Date(e.startDate)) + 1;
+            let lane = lanes.findIndex(end => end < s);
+            if (lane === -1) { lane = lanes.length; lanes.push(0); }
+            lanes[lane] = s + d - 1;
+            return { event: e, lane, startOffset: s, duration: d };
+          });
+          const laneCount = Math.max(1, ...positioned.map(p => p.lane + 1));
+          const rowHeight = 8 + laneCount * 44 + 8;
+
           return (
-            <div key={person.id} className="flex border-b border-gray-200" style={{ height: 64 }}>
+            <div key={person.id} className="flex border-b border-gray-200" style={{ height: rowHeight }}>
               {/* Sticky Person Column */}
               <div
                 className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
@@ -169,12 +187,9 @@ export default function PeopleView({
                 })}
 
                 {/* Event Blocks */}
-                {personEvents.map((event, eventIndex) => {
+                {positioned.map(({ event, lane, startOffset, duration }) => {
                   const campaign = getCampaignById(event.campaignId);
-                  const eventStart = new Date(event.startDate);
                   const eventEnd = new Date(event.endDate);
-                  const startOffset = differenceInDays(eventStart, startDate);
-                  const duration = differenceInDays(eventEnd, eventStart) + 1;
                   const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#999999');
 
@@ -185,7 +200,7 @@ export default function PeopleView({
                       key={event.id}
                       className="absolute rounded px-2 py-1 text-xs cursor-move hover:opacity-80 overflow-hidden"
                       style={{
-                        top: 12 + eventIndex * 44,
+                        top: 8 + lane * 44,
                         left: startOffset * DAY_WIDTH + 1,
                         width: duration * DAY_WIDTH - 3,
                         height: 40,

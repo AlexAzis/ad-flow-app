@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Lock, Unlock } from 'lucide-react';
 import { Campaign } from '@/lib/types';
+import { campaignColors } from '@/lib/colorUtils';
 
 interface EditCampaignModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface EditCampaignModalProps {
   onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>) => void;
   campaign: Campaign | null;
   currentUser?: string;
+  allCampaigns?: Campaign[];
 }
 
 export default function EditCampaignModal({
@@ -18,6 +20,7 @@ export default function EditCampaignModal({
   onUpdateCampaign,
   campaign,
   currentUser = 'Alex Azis',
+  allCampaigns = [],
 }: EditCampaignModalProps) {
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -111,13 +114,41 @@ export default function EditCampaignModal({
 
           {/* Color */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Campaign Color
             </label>
-            <div
-              className="w-12 h-12 rounded-full border-2 border-gray-200"
-              style={{ backgroundColor: color }}
-            />
+            <div className="grid grid-cols-7 gap-2">
+              {campaignColors.map((colorOption) => {
+                const isUsedByOther = allCampaigns.some(
+                  c => c.id !== campaign.id && c.color === colorOption
+                );
+                const isSelected = color === colorOption;
+                return (
+                  <button
+                    key={colorOption}
+                    type="button"
+                    onClick={() => setColor(colorOption)}
+                    className={`relative w-10 h-10 rounded-full transition-transform hover:scale-110 ${
+                      isSelected ? 'ring-2 ring-offset-2 ring-gray-800' : ''
+                    }`}
+                    style={{ backgroundColor: colorOption }}
+                  >
+                    {isUsedByOther && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <X size={20} className="text-red-600 stroke-[3]" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <div
+                className="w-8 h-8 rounded-full border-2 border-gray-200"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs text-gray-500">Selected color</span>
+            </div>
           </div>
 
           {/* Lock/Unlock Toggle */}

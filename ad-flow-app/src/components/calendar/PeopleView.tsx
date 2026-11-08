@@ -42,7 +42,8 @@ export default function PeopleView({
 
   const getEventsForPerson = (personId: string) =>
     events.filter(e => {
-      if (e.assignee !== personId) return false;
+      const assigneeIds = e.assignees?.length ? e.assignees : (e.assignee ? [e.assignee] : []);
+      if (!assigneeIds.includes(personId)) return false;
       if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(e.campaignId)) return false;
       return true;
     });

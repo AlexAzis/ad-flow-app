@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Plus, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
@@ -20,12 +20,14 @@ interface SimpleScheduleViewProps {
   events: Event[];
   campaigns: Campaign[];
   people: Person[];
+  onBack?: () => void;
 }
 
 export default function SimpleScheduleView({
   events,
   campaigns,
   people,
+  onBack,
 }: SimpleScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
   const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12' | 'gantt' | 'vertical' | 'topline' | 'people'>('daily-6');
@@ -209,9 +211,21 @@ export default function SimpleScheduleView({
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <div>
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+                title="Back to schedules"
+              >
+                <ArrowLeft size={20} className="text-gray-600" />
+              </button>
+            )}
+            <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold text-gray-800">Sky - TV Products</h1>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Owner</span>
+              <span className="text-xs font-medium text-white bg-gray-900 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <ShieldCheck size={11} />
+                Owner
+              </span>
             </div>
             <div className="flex items-center gap-2 ml-8">
               <button

@@ -507,6 +507,7 @@ export default function SimpleScheduleView({
         onClose={() => setIsEditCampaignModalOpen(false)}
         onUpdateCampaign={handleUpdateCampaign}
         campaign={selectedCampaignToEdit}
+        allCampaigns={allCampaigns}
       />
     </div>
   );

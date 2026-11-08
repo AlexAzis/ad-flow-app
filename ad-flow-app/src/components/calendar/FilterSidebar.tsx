@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Settings } from 'lucide-react';
+import { Funnel, Plus, Settings, StickyNote, Users, CalendarX, CircleDot } from 'lucide-react';
 import { Campaign, Person } from '@/lib/types';
-import { eventTypes, getAllStages } from '@/lib/eventTypes';
+import { getAllStages } from '@/lib/eventTypes';
 
 interface FilterSidebarProps {
   campaigns: Campaign[];
@@ -56,8 +56,6 @@ export default function FilterSidebar({
   onManageEvents,
   onClearFilters,
 }: FilterSidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<string[]>(['campaigns', 'people', 'stages', 'events']);
-
   // Only show event titles actually used in the schedule, grouped by stage
   const usedEventsByStage = (events || []).reduce<Record<string, Set<string>>>((acc, e) => {
     if (!acc[e.stage]) acc[e.stage] = new Set();
@@ -65,253 +63,144 @@ export default function FilterSidebar({
     return acc;
   }, {});
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev =>
-      prev.includes(section)
-        ? prev.filter(s => s !== section)
-        : [...prev, section]
-    );
-  };
+  const pillClass = (selected: boolean) =>
+    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+      selected
+        ? 'bg-gray-800 text-white border-gray-800'
+        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+    }`;
+
+  const Toggle = ({ on, onClick, label, icon }: { on: boolean; onClick: () => void; label: string; icon: React.ReactNode }) => (
+    <button onClick={onClick} className="w-full flex items-center justify-between py-1.5">
+      <span className="text-sm text-gray-700 flex items-center gap-2">
+        {icon}
+        {label}
+      </span>
+      <span className={`w-9 h-5 rounded-full relative transition-colors inline-block ${on ? 'bg-gray-800' : 'bg-gray-300'}`}>
+        <span className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform shadow ${on ? 'translate-x-4.5 left-4.5' : 'translate-x-0.5 left-0'}`} style={{ left: on ? 'calc(100% - 18px)' : '2px' }} />
+      </span>
+    </button>
+  );
 
   return (
     <aside className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
-      {/* Clear Filters - shows when any filter is active */}
-      {(selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0) && (
-        <div className="p-4 border-b border-gray-200">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 flex items-center gap-2">
+        <Funnel size={16} className="text-gray-700" />
+        <span className="font-semibold text-gray-800 text-sm">Filters</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        {/* Clear Filters */}
+        {(selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0) && (
           <button
             onClick={onClearFilters}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 text-sm font-medium"
           >
             Clear filters
           </button>
-        </div>
-      )}
+        )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Campaigns */}
         <div>
-          <button
-            onClick={() => toggleSection('campaigns')}
-            className="flex items-center justify-between w-full text-left mb-2"
-          >
-            <div className="flex items-center gap-2">
-              {expandedSections.includes('campaigns') ? (
-                <ChevronDown size={16} className="text-gray-500" />
-              ) : (
-                <ChevronRight size={16} className="text-gray-500" />
-              )}
-              <span className="font-medium text-gray-700 text-sm">CAMPAIGNS</span>
-            </div>
-          </button>
-          {expandedSections.includes('campaigns') && (
-            <div className="ml-4 space-y-2">
-              {campaigns.map((campaign) => (
-                <div key={campaign.id} className="flex items-center justify-between">
+          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">CAMPAIGNS</div>
+          <div className="flex flex-col gap-1.5">
+            {campaigns.map((campaign) => (
+              <div key={campaign.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => onToggleCampaign(campaign.id)}
+                  className={`${pillClass(selectedCampaigns.has(campaign.id))} flex items-center gap-2 flex-1 text-left`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: campaign.color }}
+                  />
+                  <span className="truncate">{campaign.name}</span>
+                </button>
+                {onEditCampaign && (
                   <button
-                    onClick={() => onToggleCampaign(campaign.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium flex-1 ${
-                      selectedCampaigns.has(campaign.id)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditCampaign(campaign);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    title="Edit campaign"
                   >
-                    {campaign.name}
+                    <Settings size={13} />
                   </button>
-                  {onEditCampaign && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditCampaign(campaign);
-                      }}
-                      className="p-1 hover:bg-gray-200 rounded text-gray-500 ml-2"
-                      title="Edit campaign"
-                    >
-                      <Settings size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* People */}
         <div>
-          <button
-            onClick={() => toggleSection('people')}
-            className="flex items-center justify-between w-full text-left mb-2"
-          >
-            <div className="flex items-center gap-2">
-              {expandedSections.includes('people') ? (
-                <ChevronDown size={16} className="text-gray-500" />
-              ) : (
-                <ChevronRight size={16} className="text-gray-500" />
-              )}
-              <span className="font-medium text-gray-700 text-sm">PEOPLE</span>
-            </div>
-          </button>
-          {expandedSections.includes('people') && (
-            <div className="ml-4 flex flex-wrap gap-2">
-              {people.map((person) => (
-                <button
-                  key={person.id}
-                  onClick={() => onTogglePerson(person.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedPeople.has(person.id)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {person.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">PEOPLE</div>
+          <div className="flex flex-wrap gap-1.5">
+            {people.map((person) => (
+              <button
+                key={person.id}
+                onClick={() => onTogglePerson(person.id)}
+                className={pillClass(selectedPeople.has(person.id))}
+              >
+                {person.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Stages */}
         <div>
-          <button
-            onClick={() => toggleSection('stages')}
-            className="flex items-center justify-between w-full text-left mb-2"
-          >
-            <div className="flex items-center gap-2">
-              {expandedSections.includes('stages') ? (
-                <ChevronDown size={16} className="text-gray-500" />
-              ) : (
-                <ChevronRight size={16} className="text-gray-500" />
-              )}
-              <span className="font-medium text-gray-700 text-sm">STAGES</span>
-            </div>
-          </button>
-          {expandedSections.includes('stages') && (
-            <div className="ml-4 flex flex-wrap gap-2">
-              {getAllStages.map((stage) => (
-                <button
-                  key={stage}
-                  onClick={() => onToggleStage(stage)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedStages.has(stage)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {stage}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">STAGES</div>
+          <div className="flex flex-wrap gap-1.5">
+            {getAllStages.map((stage) => (
+              <button
+                key={stage}
+                onClick={() => onToggleStage(stage)}
+                className={pillClass(selectedStages.has(stage))}
+              >
+                {stage}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Events */}
         <div>
-          <button
-            onClick={() => toggleSection('events')}
-            className="flex items-center justify-between w-full text-left mb-2"
-          >
-            <div className="flex items-center gap-2">
-              {expandedSections.includes('events') ? (
-                <ChevronDown size={16} className="text-gray-500" />
-              ) : (
-                <ChevronRight size={16} className="text-gray-500" />
-              )}
-              <span className="font-medium text-gray-700 text-sm">EVENTS</span>
-            </div>
-          </button>
-          {expandedSections.includes('events') && (
-            <div className="ml-4 space-y-2">
-              {Object.entries(usedEventsByStage).map(([stage, titles]) => (
-                <div key={stage}>
-                  <div className="text-xs font-medium text-gray-500 mb-1">{stage}</div>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(titles).map((title) => (
-                      <button
-                        key={title}
-                        onClick={() => onToggleEvent(title)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                          selectedEvents.has(title)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {title}
-                      </button>
-                    ))}
-                  </div>
+          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">EVENTS</div>
+          <div className="space-y-3">
+            {Object.entries(usedEventsByStage).map(([stage, titles]) => (
+              <div key={stage}>
+                <div className="text-xs text-gray-500 mb-1.5">{stage}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Array.from(titles).map((title) => (
+                    <button
+                      key={title}
+                      onClick={() => onToggleEvent(title)}
+                      className={pillClass(selectedEvents.has(title))}
+                    >
+                      {title}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Toggles and Buttons */}
-      <div className="p-4 border-t border-gray-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Misc.</span>
-          <button
-            onClick={onToggleShowMisc}
-            className={`w-12 h-6 rounded-full relative transition-colors ${
-              showMisc ? 'bg-blue-600' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
-                showMisc ? 'translate-x-6' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Event notes.</span>
-          <button
-            onClick={onToggleShowEventNotes}
-            className={`w-12 h-6 rounded-full relative transition-colors ${
-              showEventNotes ? 'bg-blue-600' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
-                showEventNotes ? 'translate-x-6' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">People.</span>
-          <button
-            onClick={onToggleShowPeople}
-            className={`w-12 h-6 rounded-full relative transition-colors ${
-              showPeople ? 'bg-blue-600' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
-                showPeople ? 'translate-x-6' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Hide weekends</span>
-          <button
-            onClick={onToggleShowWeekends}
-            className={`w-12 h-6 rounded-full relative transition-colors ${
-              showWeekends ? 'bg-blue-600' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
-                showWeekends ? 'translate-x-6' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
+      <div className="p-4 border-t border-gray-200">
+        <Toggle on={showMisc} onClick={onToggleShowMisc} label="Misc." icon={<CircleDot size={15} className="text-gray-500" />} />
+        <Toggle on={showEventNotes} onClick={onToggleShowEventNotes} label="Event notes." icon={<StickyNote size={15} className="text-gray-500" />} />
+        <Toggle on={showPeople} onClick={onToggleShowPeople} label="People." icon={<Users size={15} className="text-gray-500" />} />
+        <Toggle on={showWeekends} onClick={onToggleShowWeekends} label="Hide weekends" icon={<CalendarX size={15} className="text-gray-500" />} />
 
         <div className="pt-3 space-y-2">
           <button
             onClick={onNewCampaign}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm font-medium"
+            className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium"
           >
             <Plus size={16} />
             <span>New Campaign</span>

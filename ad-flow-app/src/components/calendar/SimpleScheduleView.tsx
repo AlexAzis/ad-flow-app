@@ -98,6 +98,16 @@ export default function SimpleScheduleView({
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
   };
 
+  const getHeaderTitle = () => {
+    switch (viewMode) {
+      case 'gantt': return 'Gantt Overview';
+      case 'topline': return 'Topline Overview';
+      case 'people': return 'People Overview';
+      case 'vertical': return format(currentDate, 'MMMM yyyy');
+      default: return getDateRangeText();
+    }
+  };
+
   const getDateRangeText = () => {
     const startDate = startOfMonth(currentDate);
     const monthsToShow = viewMode === 'daily-6' ? 5 : viewMode === 'daily-12' ? 11 : 2;
@@ -247,7 +257,7 @@ export default function SimpleScheduleView({
                 <ChevronRight size={20} className="text-gray-600" />
               </button>
               <span className="text-lg font-medium text-gray-800">
-                {getDateRangeText()}
+                {getHeaderTitle()}
               </span>
             </div>
           </div>

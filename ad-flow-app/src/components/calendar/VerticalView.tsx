@@ -48,6 +48,10 @@ export default function VerticalView({
     });
   };
 
+  const visibleCampaigns = campaigns.filter(
+    c => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
+  );
+
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     e.dataTransfer.setData('eventId', eventId);
   };
@@ -71,9 +75,7 @@ export default function VerticalView({
       {/* Header Row */}
       <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0 overflow-x-auto">
         <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
-        {campaigns
-          .filter(campaign => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(campaign.id))
-          .map((campaign) => (
+        {visibleCampaigns.map((campaign) => (
           <div
             key={campaign.id}
             className="flex-1 border-r border-gray-200 flex items-center justify-center px-2 min-w-[200px]"
@@ -99,12 +101,25 @@ export default function VerticalView({
           const isToday = isSameDay(day, new Date());
           const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
 
+          // Uniform row height = max events on any day across visible campaigns
+          const maxEvents = Math.max(
+            1,
+            ...days.map(d =>
+              Math.max(
+                ...visibleCampaigns.map(c => getEventsForCampaignAndDate(c.id, d).length),
+                0
+              )
+            )
+          );
+          const rowHeight = 8 + Math.max(1, maxEvents) * 36;
+
           return (
             <div
               key={day.toISOString()}
-              className={`flex border-b border-gray-200 h-12 ${
-                isWeekend && showWeekends ? 'bg-gray-100' : ''
-              } ${isPast ? 'opacity-50' : ''}`}
+              className={`flex border-b border-gray-200 ${
+                isWeekend || isPast ? 'bg-gray-100' : ''
+              }`}
+              style={{ height: rowHeight }}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}
             >
@@ -114,7 +129,7 @@ export default function VerticalView({
                   <span
                     className={`text-sm font-bold ${
                       isToday
-                        ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center'
+                        ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center'
                         : 'text-gray-700'
                     }`}
                   >
@@ -125,24 +140,23 @@ export default function VerticalView({
               </div>
 
               {/* Campaign Columns */}
-              {campaigns
-                .filter(campaign => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(campaign.id))
-                .map((campaign) => {
+              {visibleCampaigns.map((campaign) => {
                 const dayEvents = getEventsForCampaignAndDate(campaign.id, day);
 
                 return (
                   <div
                     key={campaign.id}
-                    className="flex-1 border-r border-gray-200 flex items-center px-1 min-w-[200px] gap-1 overflow-x-auto"
+                    className="flex-1 border-r border-gray-200 px-1 py-1 min-w-[200px] flex flex-col gap-1"
                   >
                     {dayEvents.map((event) => {
                       const person = event.assignee ? getPersonById(event.assignee) : null;
-                      const eventColor = getStageColor(campaign.color, event.stage);
+                      const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
+                      const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
 
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1 text-xs h-8 cursor-move hover:opacity-80 flex-shrink-0"
+                          className="rounded px-2 py-1 text-xs h-8 cursor-move hover:opacity-80 w-full overflow-hidden"
                           style={{ backgroundColor: eventColor }}
                           draggable
                           onDragStart={(e) => handleDragStart(e, event.id)}
@@ -154,14 +168,11 @@ export default function VerticalView({
                           <div className="font-medium text-gray-800 truncate leading-tight">
                             {event.title}
                           </div>
-                          {showPeople && person && (
+                          {(showPeople || showEventNotes) && (
                             <div className="text-gray-600 truncate text-[9px] leading-tight">
-                              {person.name}
-                            </div>
-                          )}
-                          {showEventNotes && event.notes && (
-                            <div className="text-gray-500 truncate text-[8px] leading-tight">
-                              {event.notes}
+                              {showPeople && person && <span>{person.name}</span>}
+                              {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                              {showEventNotes && event.notes && <span>{event.notes}</span>}
                             </div>
                           )}
                         </div>

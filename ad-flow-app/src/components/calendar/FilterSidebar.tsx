@@ -71,13 +71,19 @@ export default function FilterSidebar({
     }`;
 
   const Toggle = ({ on, onClick, label, icon }: { on: boolean; onClick: () => void; label: string; icon: React.ReactNode }) => (
-    <button onClick={onClick} className="w-full flex items-center justify-between py-1.5">
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between px-3 py-2 bg-gray-100 rounded-lg mb-1.5 hover:bg-gray-200 transition-colors"
+    >
       <span className="text-sm text-gray-700 flex items-center gap-2">
         {icon}
         {label}
       </span>
-      <span className={`w-9 h-5 rounded-full relative transition-colors inline-block ${on ? 'bg-gray-800' : 'bg-gray-300'}`}>
-        <span className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform shadow ${on ? 'translate-x-4.5 left-4.5' : 'translate-x-0.5 left-0'}`} style={{ left: on ? 'calc(100% - 18px)' : '2px' }} />
+      <span className={`w-8 h-4.5 rounded-full relative transition-colors inline-block ${on ? 'bg-gray-800' : 'bg-gray-400'}`} style={{ height: 18, width: 32 }}>
+        <span
+          className="w-3.5 h-3.5 bg-white rounded-full absolute top-1 transition-transform shadow-sm"
+          style={{ left: on ? 'calc(100% - 17px)' : '2px' }}
+        />
       </span>
     </button>
   );

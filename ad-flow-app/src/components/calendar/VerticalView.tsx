@@ -67,9 +67,9 @@ export default function VerticalView({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full max-h-full overflow-hidden">
       {/* Header Row */}
-      <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+      <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0 overflow-x-auto">
         <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
         {campaigns
           .filter(campaign => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(campaign.id))
@@ -92,7 +92,7 @@ export default function VerticalView({
       </div>
 
       {/* Date Rows */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-auto min-h-0">
         {days.map((day) => {
           const dayOfWeek = day.getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

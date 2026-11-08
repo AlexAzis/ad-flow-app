@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Funnel, Plus, Settings, StickyNote, Users, CalendarX, CircleDot } from 'lucide-react';
+import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot } from 'lucide-react';
 import { Campaign, Person } from '@/lib/types';
 import { getAllStages } from '@/lib/eventTypes';
 
@@ -86,7 +86,7 @@ export default function FilterSidebar({
     <aside className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-        <Funnel size={16} className="text-gray-700" />
+        <Filter size={16} className="text-gray-700" />
         <span className="font-semibold text-gray-800 text-sm">Filters</span>
       </div>
 

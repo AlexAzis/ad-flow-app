@@ -122,12 +122,20 @@ export default function CalendarGrid({
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
+  const getEventsForDate = (date: Date) =>
+    events.filter(e => {
+      const s = new Date(e.startDate);
+      const en = new Date(e.endDate);
+      return date >= s && date <= en;
+    });
+
   // Compute positioned events for a week: span across day columns with lane stacking
   const getWeekEvents = (weekDays: Date[]) => {
     const weekStart = weekDays[0];
     const weekEnd = weekDays[6];
 
     const weekEvents = events.filter(e => {
+      if (e.isMisc) return false; // Misc events render inside day cells, not as spanning blocks
       const s = new Date(e.startDate);
       const en = new Date(e.endDate);
       return s <= weekEnd && en >= weekStart;
@@ -232,6 +240,22 @@ export default function CalendarGrid({
                         >
                           {format(day, 'd')}
                         </span>
+                      </div>
+
+                      {/* Misc Events - small grey lozenges next to date number */}
+                      <div className="absolute top-2.5 left-9 right-1 flex flex-wrap gap-x-1 gap-y-0.5">
+                        {getEventsForDate(day).filter(e => e.isMisc).map((event) => (
+                          <div
+                            key={event.id}
+                            className="rounded-full px-1.5 text-[8px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 whitespace-nowrap leading-tight"
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              if (onEventDoubleClick) onEventDoubleClick(event);
+                            }}
+                          >
+                            {event.title}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );

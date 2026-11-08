@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot } from 'lucide-react';
-import { Campaign, Person } from '@/lib/types';
+import { Campaign, Person, Event } from '@/lib/types';
 import { getAllStages } from '@/lib/eventTypes';
 
 interface FilterSidebarProps {
   campaigns: Campaign[];
   people: Person[];
-  events?: { title: string; stage: string }[];
+  events?: Event[];
   selectedCampaigns: Set<string>;
   selectedPeople: Set<string>;
   selectedStages: Set<string>;
@@ -59,11 +59,17 @@ export default function FilterSidebar({
   // Only show event titles actually used in the schedule, grouped by stage
   // Misc events are excluded - controlled only by the Misc toggle
   const usedEventsByStage = (events || []).reduce<Record<string, Set<string>>>((acc, e) => {
-    if (e.stage === 'Misc') return acc;
+    if (e.stage === 'Misc' || e.isMisc) return acc;
     if (!acc[e.stage]) acc[e.stage] = new Set();
     acc[e.stage].add(e.title);
     return acc;
   }, {});
+
+  // Only show people actually assigned to event blocks
+  const usedPeopleIds = new Set(
+    (events || []).flatMap(e => e.assignees?.length ? e.assignees : (e.assignee ? [e.assignee] : []))
+  );
+  const assignedPeople = people.filter(p => usedPeopleIds.has(p.id));
 
   const pillClass = (selected: boolean) =>
     `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
@@ -136,7 +142,7 @@ export default function FilterSidebar({
         <div>
           <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">PEOPLE</div>
           <div className="flex flex-wrap gap-1.5">
-            {people.map((person) => (
+            {assignedPeople.map((person) => (
               <button
                 key={person.id}
                 onClick={() => onTogglePerson(person.id)}

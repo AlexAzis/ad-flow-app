@@ -15,6 +15,8 @@ interface AddEventModalProps {
   campaigns: Campaign[];
   people: Person[];
   selectedCampaigns: Set<string>;
+  customEventTypes?: Record<string, string[]>;
+  onAddPerson?: (name: string) => Person;
 }
 
 export default function AddEventModal({
@@ -25,6 +27,8 @@ export default function AddEventModal({
   campaigns,
   people,
   selectedCampaigns,
+  customEventTypes,
+  onAddPerson,
 }: AddEventModalProps) {
   const [startDate, setStartDate] = useState(format(selectedDate, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(selectedDate, 'yyyy-MM-dd'));
@@ -32,7 +36,8 @@ export default function AddEventModal({
   const [stage, setStage] = useState('Creative Development');
   const [eventTitle, setEventTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [personName, setPersonName] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Reset form when modal opens or selected date changes
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function AddEventModal({
       setStage('Creative Development');
       setEventTitle('');
       setNotes('');
-      setAssigneeId('');
+      setPersonName('');
     }
   }, [isOpen, selectedDate]);
 
@@ -59,6 +64,11 @@ export default function AddEventModal({
     }
   }, [isOpen, availableCampaigns, campaignId]);
 
+  // Filter people suggestions based on typed name
+  const filteredPeople = personName
+    ? people.filter(p => p.name.toLowerCase().includes(personName.toLowerCase()))
+    : people;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -70,13 +80,24 @@ export default function AddEventModal({
     const campaign = campaigns.find(c => c.id === campaignId);
     const eventColor = campaign ? getStageColor(campaign.color, stage) : '#999999';
 
+    // Find or create person by name
+    let assigneeId: string | undefined;
+    if (personName.trim()) {
+      const existing = people.find(p => p.name.toLowerCase() === personName.trim().toLowerCase());
+      if (existing) {
+        assigneeId = existing.id;
+      } else if (onAddPerson) {
+        assigneeId = onAddPerson(personName.trim()).id;
+      }
+    }
+
     const newEvent: Omit<Event, 'id'> = {
       title: eventTitle,
       campaignId,
       stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      assignee: assigneeId || undefined,
+      assignee: assigneeId,
       notes: notes || undefined,
       color: eventColor,
     };
@@ -184,7 +205,7 @@ export default function AddEventModal({
               required
             >
               <option value="">Select event</option>
-              {eventTypesByStage[stage]?.map((event) => (
+              {(customEventTypes?.[stage] || eventTypesByStage[stage])?.map((event) => (
                 <option key={event} value={event}>
                   {event}
                 </option>
@@ -193,22 +214,39 @@ export default function AddEventModal({
           </div>
 
           {/* Person */}
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Person (optional)
             </label>
-            <select
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
+            <input
+              type="text"
+              value={personName}
+              onChange={(e) => {
+                setPersonName(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Type a name..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Unassigned</option>
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
+            />
+            {showSuggestions && filteredPeople.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                {filteredPeople.map((person) => (
+                  <button
+                    key={person.id}
+                    type="button"
+                    onMouseDown={() => {
+                      setPersonName(person.name);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                  >
+                    {person.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Notes */}

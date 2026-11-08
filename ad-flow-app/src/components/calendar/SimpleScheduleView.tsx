@@ -307,6 +307,7 @@ export default function SimpleScheduleView({
         <FilterSidebar
           campaigns={allCampaigns}
           people={allPeople}
+          events={allEvents}
           selectedCampaigns={selectedCampaigns}
           selectedPeople={selectedPeople}
           selectedStages={selectedStages}

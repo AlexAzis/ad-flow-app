@@ -2,7 +2,7 @@
 
 import { format, addDays, startOfWeek, isSameDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor } from '@/lib/colorUtils';
+import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 
 interface PeopleViewProps {
   events: Event[];
@@ -197,11 +197,17 @@ export default function PeopleView({
                         if (onEventDoubleClick) onEventDoubleClick(event);
                       }}
                     >
-                      <div className="font-medium text-gray-800 truncate text-[10px] leading-tight">
+                      <div
+                        className="font-medium truncate text-[10px] leading-tight"
+                        style={{ color: getTextColor(eventColor) }}
+                      >
                         {event.title}
                       </div>
                       {showEventNotes && event.notes && (
-                        <div className="text-gray-600 truncate text-[9px] leading-tight">
+                        <div
+                          className="truncate text-[9px] leading-tight"
+                          style={{ color: getSubTextColor(eventColor) }}
+                        >
                           {event.notes}
                         </div>
                       )}

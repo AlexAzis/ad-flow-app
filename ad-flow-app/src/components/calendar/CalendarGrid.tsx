@@ -47,6 +47,7 @@ export default function CalendarGrid({
     eventId: string;
     edge: 'left' | 'right';
     startX: number;
+    cellWidth: number;
     originalStart: Date;
     originalEnd: Date;
   } | null>(null);
@@ -61,7 +62,7 @@ export default function CalendarGrid({
       if (!state || !onEventResize) return;
 
       const deltaX = e.clientX - state.startX;
-      const daysDelta = Math.round(deltaX / CELL_WIDTH);
+      const daysDelta = Math.round(deltaX / state.cellWidth);
       if (daysDelta === 0) return;
 
       if (state.edge === 'left') {
@@ -93,13 +94,16 @@ export default function CalendarGrid({
     e.dataTransfer.setData('eventId', eventId);
   };
 
-  const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right') => {
+  const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right', colCount: number) => {
     e.preventDefault();
     e.stopPropagation();
+    const parent = (e.currentTarget as HTMLElement).closest('[data-week-row]');
+    const cellWidth = parent ? parent.clientWidth / colCount : 120;
     setResizeState({
       eventId: event.id,
       edge,
       startX: e.clientX,
+      cellWidth,
       originalStart: new Date(event.startDate),
       originalEnd: new Date(event.endDate),
     });
@@ -129,10 +133,10 @@ export default function CalendarGrid({
       return date >= s && date <= en;
     });
 
-  // Compute positioned events for a week: span across day columns with lane stacking
+  // Compute positioned events for a week: span across visible day columns with lane stacking
   const getWeekEvents = (weekDays: Date[]) => {
     const weekStart = weekDays[0];
-    const weekEnd = weekDays[6];
+    const weekEnd = weekDays[weekDays.length - 1];
 
     const weekEvents = events.filter(e => {
       if (e.isMisc) return false; // Misc events render inside day cells, not as spanning blocks
@@ -142,26 +146,27 @@ export default function CalendarGrid({
     });
 
     weekEvents.sort((a, b) => {
-      const aStart = Math.max(0, differenceInDays(new Date(a.startDate), weekStart));
-      const bStart = Math.max(0, differenceInDays(new Date(b.startDate), weekStart));
+      const aStart = differenceInDays(new Date(a.startDate), weekStart);
+      const bStart = differenceInDays(new Date(b.startDate), weekStart);
       const aDuration = differenceInDays(new Date(a.endDate), new Date(a.startDate));
       const bDuration = differenceInDays(new Date(b.endDate), new Date(b.startDate));
       return aStart - bStart || bDuration - aDuration;
     });
 
     const lanes: number[] = [];
-    return weekEvents.map(e => {
+    return weekEvents.flatMap(e => {
       const s = new Date(e.startDate);
       const en = new Date(e.endDate);
-      const startCol = Math.max(0, differenceInDays(s, weekStart));
-      const endCol = Math.min(6, differenceInDays(en, weekStart));
+      const startCol = weekDays.filter(d => d < s).length;
+      const endCol = weekDays.filter(d => d <= en).length - 1;
+      if (endCol < startCol) return []; // Event only falls on hidden (weekend) days
       let lane = lanes.findIndex(end => end < startCol);
       if (lane === -1) {
         lane = lanes.length;
         lanes.push(0);
       }
       lanes[lane] = endCol;
-      return { event: e, startCol, span: endCol - startCol + 1, lane };
+      return [{ event: e, startCol, span: endCol - startCol + 1, lane }];
     });
   };
 
@@ -172,11 +177,13 @@ export default function CalendarGrid({
       {/* Weekday Header */}
       <div className="flex h-10 border-b border-gray-200 flex-shrink-0">
         <div className="w-32 flex-shrink-0"></div>
-        <div className="flex">
-          {days.slice(0, 7).map((day) => (
+        <div className="flex flex-1">
+          {days.slice(0, 7)
+            .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6))
+            .map((day) => (
             <div
               key={day.toISOString()}
-              className="w-[120px] text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
+              className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center"
             >
               <span className="text-sm font-medium text-gray-700">
                 {format(day, 'EEE')}
@@ -189,7 +196,9 @@ export default function CalendarGrid({
       {/* Calendar Grid */}
       <div className="flex-1 overflow-auto">
         {Array.from({ length: weeks }).map((_, weekIndex) => {
-          const weekDays = days.slice(weekIndex * 7, (weekIndex + 1) * 7);
+          const weekDays = days
+            .slice(weekIndex * 7, (weekIndex + 1) * 7)
+            .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6));
           const positionedEvents = getWeekEvents(weekDays);
           const laneCount = Math.max(3, ...positionedEvents.map(e => e.lane + 1), 0);
           const rowHeight = DATE_HEADER_HEIGHT + laneCount * (EVENT_HEIGHT + EVENT_GAP) + 8;
@@ -213,7 +222,7 @@ export default function CalendarGrid({
               })()}
 
               {/* Week Row: day cells background + positioned event blocks */}
-              <div className="flex-1 relative flex">
+              <div className="flex-1 relative flex" data-week-row>
                 {weekDays.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -223,7 +232,7 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={day.toISOString()}
-                      className={`w-[120px] border-r border-gray-200 h-full relative flex-shrink-0 ${
+                      className={`flex-1 border-r border-gray-200 h-full relative ${
                         isWeekend || isPast ? 'bg-gray-100' : ''
                       }`}
                       onDoubleClick={() => onDateClick(day)}
@@ -273,8 +282,8 @@ export default function CalendarGrid({
                       key={`${event.id}-w${weekIndex}`}
                       className="absolute rounded px-2 py-1.5 text-xs cursor-move hover:opacity-80 overflow-hidden group"
                       style={{
-                        left: startCol * CELL_WIDTH + 1,
-                        width: span * CELL_WIDTH - 4,
+                        left: `${(startCol / weekDays.length) * 100}%`,
+                        width: `calc(${(span / weekDays.length) * 100}% - 4px)`,
                         top: DATE_HEADER_HEIGHT + lane * (EVENT_HEIGHT + EVENT_GAP),
                         height: EVENT_HEIGHT,
                         backgroundColor: eventColor,
@@ -290,14 +299,14 @@ export default function CalendarGrid({
                       <div
                         className="absolute left-0 top-0 w-2 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-gray-500/50 transition-opacity z-10"
                         draggable={false}
-                        onMouseDown={(e) => handleResizeStart(e, event, 'left')}
+                        onMouseDown={(e) => handleResizeStart(e, event, 'left', weekDays.length)}
                         onDragStart={(e) => e.preventDefault()}
                       />
                       {/* Right resize handle */}
                       <div
                         className="absolute right-0 top-0 w-2 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-gray-500/50 transition-opacity z-10"
                         draggable={false}
-                        onMouseDown={(e) => handleResizeStart(e, event, 'right')}
+                        onMouseDown={(e) => handleResizeStart(e, event, 'right', weekDays.length)}
                         onDragStart={(e) => e.preventDefault()}
                       />
                       <div className="font-medium text-gray-800 truncate leading-tight">

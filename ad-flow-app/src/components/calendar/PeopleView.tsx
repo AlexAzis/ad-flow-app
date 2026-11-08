@@ -118,7 +118,7 @@ export default function PeopleView({
               </div>
 
               {/* Timeline */}
-              <div className="flex-1 flex relative">
+              <div className="flex-1 min-w-0 flex relative overflow-x-auto">
                 {days.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

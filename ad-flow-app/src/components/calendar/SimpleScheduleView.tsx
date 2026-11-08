@@ -187,7 +187,8 @@ export default function SimpleScheduleView({
 
   // Filter events based on selections
   const filteredEvents = allEvents.filter(event => {
-    if (selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
+    // Misc events bypass campaign filtering - controlled only by the Misc toggle
+    if (!event.isMisc && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
     if (selectedPeople.size > 0 && event.assignee && !selectedPeople.has(event.assignee)) return false;
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
     if (selectedEvents.size > 0 && !selectedEvents.has(event.title)) return false;

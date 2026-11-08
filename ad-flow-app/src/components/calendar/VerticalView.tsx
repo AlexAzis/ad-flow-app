@@ -156,7 +156,8 @@ export default function VerticalView({
                     className="flex-1 border-r border-gray-200 px-1 py-1 min-w-[200px] flex flex-col gap-1"
                   >
                     {dayEvents.map((event) => {
-                      const person = event.assignee ? getPersonById(event.assignee) : null;
+                      const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
+                      const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                       const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
                       const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
 
@@ -183,8 +184,8 @@ export default function VerticalView({
                               className="truncate text-[9px] leading-tight"
                               style={{ color: getSubTextColor(eventColor) }}
                             >
-                              {showPeople && person && <span>{person.name}</span>}
-                              {showPeople && person && showEventNotes && event.notes && <span className="mx-1">·</span>}
+                              {showPeople && personNames && <span>{personNames}</span>}
+                              {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
                               {showEventNotes && event.notes && <span>{event.notes}</span>}
                             </div>
                           )}

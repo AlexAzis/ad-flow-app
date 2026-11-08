@@ -64,9 +64,24 @@ export default function AddEventModal({
     }
   }, [isOpen, availableCampaigns, campaignId]);
 
-  // Filter people suggestions based on typed name
-  const filteredPeople = personName
-    ? people.filter(p => p.name.toLowerCase().includes(personName.toLowerCase()))
+  // When campaign selected, prefill person field with its assigned people
+  useEffect(() => {
+    if (campaignId) {
+      const campaign = campaigns.find(c => c.id === campaignId);
+      if (campaign?.people?.length) {
+        const names = campaign.people
+          .map(id => people.find(p => p.id === id)?.name)
+          .filter(Boolean)
+          .join(', ');
+        if (names) setPersonName(names);
+      }
+    }
+  }, [campaignId, campaigns, people]);
+
+  // Filter suggestions on last comma segment
+  const lastSegment = personName.split(',').pop()?.trim() || '';
+  const filteredPeople = lastSegment
+    ? people.filter(p => p.name.toLowerCase().includes(lastSegment.toLowerCase()))
     : people;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -81,16 +96,16 @@ export default function AddEventModal({
     const campaign = campaigns.find(c => c.id === campaignId);
     const eventColor = isMisc ? '#E5E5E5' : (campaign ? getStageColor(campaign.color, stage) : '#999999');
 
-    // Find or create person by name
-    let assigneeId: string | undefined;
-    if (personName.trim()) {
-      const existing = people.find(p => p.name.toLowerCase() === personName.trim().toLowerCase());
-      if (existing) {
-        assigneeId = existing.id;
-      } else if (onAddPerson) {
-        assigneeId = onAddPerson(personName.trim()).id;
-      }
-    }
+    // Parse comma-separated names → find or create each person
+    const assigneeIds = personName
+      .split(',')
+      .map(n => n.trim())
+      .filter(Boolean)
+      .map(name => {
+        const existing = people.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (existing) return existing.id;
+        return onAddPerson ? onAddPerson(name).id : name;
+      });
 
     const newEvent: Omit<Event, 'id'> = {
       title: eventTitle,
@@ -98,7 +113,8 @@ export default function AddEventModal({
       stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      assignee: assigneeId,
+      assignee: assigneeIds[0],
+      assignees: assigneeIds.length ? assigneeIds : undefined,
       notes: notes || undefined,
       color: eventColor,
       isMisc,
@@ -243,7 +259,7 @@ export default function AddEventModal({
               }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              placeholder="Type a name..."
+              placeholder="Type names, separated by commas..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {showSuggestions && filteredPeople.length > 0 && (
@@ -253,7 +269,10 @@ export default function AddEventModal({
                     key={person.id}
                     type="button"
                     onMouseDown={() => {
-                      setPersonName(person.name);
+                      // Replace the last comma segment with the selected name
+                      const parts = personName.split(',');
+                      parts[parts.length - 1] = ' ' + person.name;
+                      setPersonName(parts.join(',').trim());
                       setShowSuggestions(false);
                     }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"

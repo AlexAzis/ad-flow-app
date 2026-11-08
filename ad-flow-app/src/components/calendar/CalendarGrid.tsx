@@ -251,12 +251,13 @@ export default function CalendarGrid({
                         </span>
                       </div>
 
-                      {/* Misc Events - grey lozenges centered with date number */}
-                      <div className="absolute top-2 left-9 right-1 flex flex-wrap gap-x-1 gap-y-0.5 items-center">
+                      {/* Misc Events - grey lozenges aligned with date number */}
+                      <div className="absolute left-9 right-1 flex flex-wrap gap-x-1 gap-y-0.5 items-center" style={{ top: 10 }}>
                         {getEventsForDate(day).filter(e => e.isMisc).map((event) => (
                           <div
                             key={event.id}
-                            className="rounded-full px-2 py-0.5 text-[12px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 whitespace-nowrap leading-none flex items-center"
+                            className="rounded-full px-1.5 text-[11px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 whitespace-nowrap leading-none flex items-center"
+                            style={{ height: 16 }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
                               if (onEventDoubleClick) onEventDoubleClick(event);

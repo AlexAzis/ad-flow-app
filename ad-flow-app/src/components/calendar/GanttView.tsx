@@ -79,29 +79,30 @@ export default function GanttView({
             {days.map((day) => {
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               const isToday = isSameDay(day, new Date());
-              const showMonth = day.getDate() === 1 || isSameDay(day, days[0]);
+              const showMonth = true;
               return (
                 <div
                   key={day.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-200 flex flex-col items-center justify-center ${
-                    isWeekend && showWeekends ? 'bg-gray-100' : 'bg-white'
+                    isWeekend ? 'bg-[#F6F7F9]' : 'bg-white'
                   }`}
                   style={{ width: DAY_WIDTH }}
                 >
                   {showMonth && (
-                    <span className="text-[9px] font-semibold text-gray-500 uppercase">
+                    <span className="text-[9px] font-semibold text-gray-500 uppercase leading-none mb-0.5">
                       {format(day, 'MMM')}
                     </span>
                   )}
                   <span
                     className={`text-xs font-medium ${
                       isToday
-                        ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center'
+                        ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center'
                         : 'text-gray-700'
                     }`}
                   >
                     {format(day, 'd')}
                   </span>
+                  <span className="text-[9px] text-gray-500 leading-none mt-0.5">{format(day, 'EEE')}</span>
                 </div>
               );
             })}
@@ -112,8 +113,23 @@ export default function GanttView({
         {(() => {
           const miscEvents = events.filter(e => e.isMisc);
           if (miscEvents.length === 0) return null;
+
+          // Stack overlapping misc events in lanes and size the row to fit them
+          const lanes: number[] = [];
+          const miscPositioned = [...miscEvents]
+            .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+            .map(event => {
+              const startOffset = differenceInDays(new Date(event.startDate), startDate);
+              const duration = differenceInDays(new Date(event.endDate), new Date(event.startDate)) + 1;
+              let lane = lanes.findIndex(end => end < startOffset);
+              if (lane === -1) { lane = lanes.length; lanes.push(0); }
+              lanes[lane] = startOffset + duration - 1;
+              return { event, lane, startOffset, duration };
+            });
+          const miscRowHeight = 8 + Math.max(1, lanes.length) * 44 + 8;
+
           return (
-            <div className="flex border-b border-gray-200" style={{ height: 64 }}>
+            <div className="flex border-b border-gray-200" style={{ height: miscRowHeight }}>
               <div
                 className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
                 style={{ width: labelWidth }}
@@ -124,23 +140,28 @@ export default function GanttView({
                 </div>
               </div>
               <div className="flex-1 relative">
-                {days.map((day, index) => (
-                  <div
-                    key={day.toISOString()}
-                    className="absolute top-0 bottom-0 border-r border-gray-100"
-                    style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
-                  />
-                ))}
-                {miscEvents.map((event, idx) => {
-                  const startOffset = differenceInDays(new Date(event.startDate), startDate);
-                  const duration = differenceInDays(new Date(event.endDate), new Date(event.startDate)) + 1;
+                {days.map((day, index) => {
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isBankHoliday = bankHolidays.has(day.toDateString());
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`absolute top-0 bottom-0 border-r border-gray-100 ${
+                        isPast ? 'bg-gray-100' : isWeekend || isBankHoliday ? 'bg-[#F6F7F9]' : ''
+                      }`}
+                      style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
+                    />
+                  );
+                })}
+                {miscPositioned.map(({ event, lane, startOffset, duration }) => {
                   if (startOffset + duration < 0 || startOffset >= days.length) return null;
                   return (
                     <div
                       key={event.id}
-                      className="absolute rounded px-2 py-1 text-xs overflow-hidden bg-gray-200"
+                      className="absolute rounded px-2 text-xs overflow-hidden bg-gray-200 flex flex-col justify-center"
                       style={{
-                        top: 12 + idx * 44,
+                        top: 8 + lane * 44,
                         left: startOffset * DAY_WIDTH + 1,
                         width: duration * DAY_WIDTH - 3,
                         height: 40,
@@ -212,7 +233,7 @@ export default function GanttView({
                     <div
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isWeekend || isPast || isBankHoliday ? 'bg-gray-100' : ''
+                        isPast ? 'bg-gray-100' : isWeekend || isBankHoliday ? 'bg-[#F6F7F9]' : ''
                       } ${isToday ? 'bg-blue-50' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}
@@ -234,7 +255,7 @@ export default function GanttView({
                   return (
                     <div
                       key={event.id}
-                      className="absolute rounded px-2 py-1 text-xs cursor-move hover:opacity-80 overflow-hidden"
+                      className={`absolute rounded px-2 text-xs ${campaign.locked ? 'cursor-default' : 'cursor-move'} hover:opacity-80 overflow-hidden flex flex-col justify-center`}
                       style={{
                         top: 8 + lane * 44,
                         left: startOffset * DAY_WIDTH + 1,
@@ -242,7 +263,7 @@ export default function GanttView({
                         height: 40,
                         backgroundColor: eventColor,
                       }}
-                      draggable
+                      draggable={!campaign.locked}
                       onDragStart={(e) => handleDragStart(e, event.id)}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
@@ -251,14 +272,14 @@ export default function GanttView({
                     >
                       <div
                         className="font-medium truncate leading-tight"
-                        style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
+                        style={{ color: event.stage === 'Delivery' && !eventIsPast ? '#FFFFFF' : getTextColor(eventColor) }}
                       >
                         {event.title}
                       </div>
                       {(showPeople || showEventNotes) && (
                         <div
                           className="truncate text-[9px] leading-tight"
-                          style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
+                          style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                         >
                           {showPeople && personNames && <span>{personNames}</span>}
                           {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}

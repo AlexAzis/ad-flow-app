@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
 import { format } from 'date-fns';
 import { eventTypesByStage } from '@/lib/eventTypes';
+import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
 
 interface EditEventModalProps {
@@ -56,13 +57,15 @@ export default function EditEventModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!event || !campaignId || !eventTitle) {
-      alert('Please select a campaign and event');
+    if (!event) return;
+    const isMisc = !!event.isMisc;
+    if ((!isMisc && !campaignId) || !eventTitle) {
+      alert(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
       return;
     }
 
     const campaign = campaigns.find(c => c.id === campaignId);
-    const eventColor = campaign ? getStageColor(campaign.color, stage) : '#999999';
+    const eventColor = isMisc ? '#E5E5E5' : (campaign ? getStageColor(campaign.color, stage) : '#999999');
 
     // Parse comma-separated names → find or create each person
     const assigneeIds = personName
@@ -77,14 +80,15 @@ export default function EditEventModal({
 
     const updatedEvent: Omit<Event, 'id'> = {
       title: eventTitle,
-      campaignId,
-      stage,
+      campaignId: isMisc ? '' : campaignId,
+      stage: isMisc ? 'Misc' : stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       assignee: assigneeIds[0],
       assignees: assigneeIds.length ? assigneeIds : undefined,
       notes: notes || undefined,
       color: eventColor,
+      isMisc: isMisc || undefined,
     };
 
     onUpdateEvent(event.id, updatedEvent);
@@ -101,13 +105,14 @@ export default function EditEventModal({
   };
 
   if (!isOpen || !event) return null;
+  const isMisc = !!event.isMisc;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Edit Event</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{isMisc ? 'Edit Misc Event' : 'Edit Event'}</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded-lg"
@@ -146,23 +151,29 @@ export default function EditEventModal({
             </div>
           </div>
 
+          {/* Misc events have no campaign or stage - just a name */}
+          {isMisc && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name (e.g. Holiday, Bank Holiday)
+              </label>
+              <input
+                type="text"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+          )}
+
+          {!isMisc && (<>
           {/* Campaign */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Campaign
             </label>
-            <select
-              value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
+            <CampaignSelect campaigns={campaigns} value={campaignId} onChange={setCampaignId} />
           </div>
 
           {/* Stage */}
@@ -205,6 +216,7 @@ export default function EditEventModal({
               ))}
             </select>
           </div>
+          </>)}
 
           {/* Person */}
           <div className="relative">

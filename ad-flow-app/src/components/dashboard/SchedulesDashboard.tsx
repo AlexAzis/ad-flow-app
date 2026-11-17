@@ -93,10 +93,13 @@ export default function SchedulesDashboard({ onOpenSchedule }: SchedulesDashboar
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {schedules.map((schedule) => (
-              <button
+              <div
                 key={schedule.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpenSchedule(schedule.id)}
-                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md transition-shadow h-40 flex flex-col"
+                onKeyDown={(e) => e.key === 'Enter' && onOpenSchedule(schedule.id)}
+                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md transition-shadow h-40 flex flex-col cursor-pointer"
               >
                 {/* Card Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -111,7 +114,10 @@ export default function SchedulesDashboard({ onOpenSchedule }: SchedulesDashboar
                       <ShieldCheck size={11} />
                       Owner
                     </span>
-                    <button className="text-gray-400 hover:text-gray-600">
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
                       <MoreVertical size={16} />
                     </button>
                   </div>
@@ -129,7 +135,7 @@ export default function SchedulesDashboard({ onOpenSchedule }: SchedulesDashboar
                   <span>{schedule.memberCount} members</span>
                   <span className="w-2 h-2 rounded-full bg-red-500 ml-1" />
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>

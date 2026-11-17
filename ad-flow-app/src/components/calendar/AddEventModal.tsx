@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
 import { format, addDays } from 'date-fns';
 import { eventTypesByStage } from '@/lib/eventTypes';
+import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
 
 interface AddEventModalProps {
@@ -89,6 +90,10 @@ export default function AddEventModal({
     }
 
     const campaign = campaigns.find(c => c.id === campaignId);
+    if (!isMisc && campaign?.locked) {
+      alert(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`);
+      return;
+    }
     const eventColor = isMisc ? '#E5E5E5' : (campaign ? getStageColor(campaign.color, stage) : '#999999');
 
     // Parse comma-separated names → find or create each person
@@ -171,19 +176,7 @@ export default function AddEventModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Campaign
               </label>
-              <select
-                value={campaignId}
-                onChange={(e) => setCampaignId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select campaign</option>
-                {availableCampaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.name}
-                  </option>
-                ))}
-              </select>
+              <CampaignSelect campaigns={availableCampaigns} value={campaignId} onChange={setCampaignId} />
             </div>
           )}
 

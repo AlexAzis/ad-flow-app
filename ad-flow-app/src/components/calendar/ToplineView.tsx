@@ -63,12 +63,12 @@ export default function ToplineView({
     endOfWeek(weekStart, { weekStartsOn: 1 }) < new Date(new Date().setHours(0, 0, 0, 0));
 
   // Group weeks by month for the header
-  const monthGroups: { label: string; count: number }[] = [];
+  const monthGroups: { label: string; shortLabel: string; count: number }[] = [];
   weeks.forEach(w => {
     const label = format(w, 'MMM yyyy');
     const last = monthGroups[monthGroups.length - 1];
     if (last && last.label === label) last.count++;
-    else monthGroups.push({ label, count: 1 });
+    else monthGroups.push({ label, shortLabel: format(w, "MMM ''yy"), count: 1 });
   });
 
   // For a campaign + week, return which stages occur
@@ -103,8 +103,8 @@ export default function ToplineView({
 
   const monthHeaderHeight = 28;
   const weekHeaderHeight = 22;
-  // Row height expands to fit stacked stage pills (14px each + 2px gap)
-  const getRowHeight = (maxPills: number) => 8 + Math.max(1, maxPills) * 16 + 4;
+  // Stage blocks fill the row and share its height; the row only grows past 2 stages in a week
+  const getRowHeight = (maxPills: number) => Math.max(44, maxPills * 20 + 4);
 
   return (
     <div className="h-full overflow-auto bg-white">
@@ -124,8 +124,8 @@ export default function ToplineView({
                   className="flex-shrink-0 border-r border-b border-gray-200 flex items-center justify-center bg-gray-50"
                   style={{ width: group.count * WEEK_WIDTH }}
                 >
-                  <span className="text-[10px] font-semibold text-gray-600">
-                    {group.label}
+                  <span className="text-[10px] font-semibold text-gray-600 whitespace-nowrap">
+                    {group.count === 1 ? group.shortLabel : group.label}
                   </span>
                 </div>
               ))}
@@ -144,11 +144,11 @@ export default function ToplineView({
                   <div
                     key={weekStart.toISOString()}
                     className={`flex-shrink-0 border-r border-gray-200 flex items-center justify-center ${
-                      isCurrent ? 'bg-blue-50' : isPastWeek(weekStart) ? 'bg-gray-100' : 'bg-white'
+                      isPastWeek(weekStart) ? 'bg-gray-100' : 'bg-white'
                     }`}
                     style={{ width: WEEK_WIDTH }}
                   >
-                    <span className={`text-[9px] font-medium ${isCurrent ? 'text-blue-700 font-bold' : 'text-gray-600'}`}>
+                    <span className={`text-[9px] font-medium ${isCurrent ? 'w-4 h-4 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold' : 'text-gray-600'}`}>
                       {format(weekStart, 'd')}
                     </span>
                   </div>
@@ -187,8 +187,8 @@ export default function ToplineView({
               return (
                 <div
                   key={weekStart.toISOString()}
-                  className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 justify-center ${
-                    isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast || hasHoliday ? 'bg-gray-100' : ''
+                  className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
+                    isPast ? 'bg-gray-100' : hasHoliday ? 'bg-[#F6F7F9]' : ''
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
@@ -197,15 +197,14 @@ export default function ToplineView({
                     return (
                       <div
                         key={stage}
-                        className="rounded px-1 flex items-center justify-center overflow-hidden"
+                        className="rounded px-1 flex-1 min-h-0 flex items-center justify-center overflow-hidden"
                         style={{
-                          height: 14,
                           backgroundColor: stageColor,
                         }}
                       >
                         <span
                           className="truncate leading-none"
-                          style={{ fontSize: 7, color: stage === 'Delivery' ? '#FFFFFF' : getTextColor(stageColor), fontWeight: 500 }}
+                          style={{ fontSize: 7, color: stage === 'Delivery' && !isPast ? '#FFFFFF' : getTextColor(stageColor), fontWeight: 500 }}
                         >
                           {stageAbbr[stage] || stage.slice(0, 4)}
                         </span>
@@ -220,7 +219,7 @@ export default function ToplineView({
         })}
 
         {/* Misc Row */}
-        <div className="flex border-b border-gray-200" style={{ height: getRowHeight(Math.max(1, ...weeks.map(w => getMiscForWeek(w).length))) }}>
+        <div className="flex border-b border-gray-200" style={{ height: getRowHeight(1) }}>
           <div
             className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
             style={{ width: labelWidth }}
@@ -237,22 +236,18 @@ export default function ToplineView({
             return (
               <div
                 key={weekStart.toISOString()}
-                className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 justify-center ${
-                  isCurrentWeek(weekStart) ? 'bg-blue-50' : isPast || hasHoliday ? 'bg-gray-100' : ''
+                className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
+                  isPast ? 'bg-gray-100' : hasHoliday ? 'bg-[#F6F7F9]' : ''
                 }`}
                 style={{ width: WEEK_WIDTH }}
               >
-                {miscEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="rounded px-1 flex items-center justify-center bg-gray-300 overflow-hidden"
-                    style={{ height: 14 }}
-                  >
+                {miscEvents.length > 0 && (
+                  <div className="rounded px-1 flex-1 min-h-0 flex items-center justify-center bg-gray-300 overflow-hidden">
                     <span className="truncate leading-none text-gray-600" style={{ fontSize: 7, fontWeight: 500 }}>
                       Misc
                     </span>
                   </div>
-                ))}
+                )}
               </div>
             );
           })}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
@@ -18,13 +18,14 @@ interface CalendarGridProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
-  viewMode?: 'daily-6' | 'daily-12';
 }
 
 const CELL_WIDTH = 120;
 const EVENT_HEIGHT = 34;
 const EVENT_GAP = 4;
 const DATE_HEADER_HEIGHT = 32;
+const MISC_PILL_HEIGHT = 16;
+const MISC_ROW_PITCH = MISC_PILL_HEIGHT + 2;
 
 export default function CalendarGrid({
   events,
@@ -38,10 +39,9 @@ export default function CalendarGrid({
   showWeekends,
   showEventNotes,
   showPeople,
-  viewMode = 'daily-6',
 }: CalendarGridProps) {
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const daysToShow = viewMode === 'daily-6' ? 182 : 371; // full weeks
+  const daysToShow = 371; // 12 months in full weeks
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
 
   // UK bank holidays for the visible range
@@ -90,6 +90,35 @@ export default function CalendarGrid({
     };
   }, [resizeState, onEventResize]);
 
+  // Measure how many lines the misc pills actually wrap onto in each week (depends on cell width)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [miscRowsByWeek, setMiscRowsByWeek] = useState<Record<number, number>>({});
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (!gridRef.current) return;
+      const next: Record<number, number> = {};
+      gridRef.current.querySelectorAll<HTMLElement>('[data-misc-week]').forEach(node => {
+        const week = Number(node.dataset.miscWeek);
+        // Ratio of container height to one pill's height, so the count holds at any zoom level
+        const pill = node.firstElementChild as HTMLElement | null;
+        const pillHeight = pill ? pill.getBoundingClientRect().height : 0;
+        const gapRatio = (MISC_ROW_PITCH - MISC_PILL_HEIGHT) / MISC_PILL_HEIGHT;
+        const rows = pillHeight
+          ? Math.max(1, Math.round((node.getBoundingClientRect().height / pillHeight + gapRatio) / (1 + gapRatio)))
+          : 1;
+        next[week] = Math.max(next[week] || 1, rows);
+      });
+      setMiscRowsByWeek(prev => {
+        const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]));
+        return keys.every(k => (prev[+k] || 1) === (next[+k] || 1)) ? prev : next;
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (gridRef.current) observer.observe(gridRef.current);
+    return () => observer.disconnect();
+  }, [events, showWeekends, currentDate]);
+
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     if (resizeState) {
       e.preventDefault();
@@ -102,7 +131,7 @@ export default function CalendarGrid({
     e.preventDefault();
     e.stopPropagation();
     const parent = (e.currentTarget as HTMLElement).closest('[data-week-row]');
-    const cellWidth = parent ? parent.clientWidth / colCount : 120;
+    const cellWidth = parent ? parent.getBoundingClientRect().width / colCount : 120;
     setResizeState({
       eventId: event.id,
       edge,
@@ -176,11 +205,52 @@ export default function CalendarGrid({
 
   const weeks = Math.ceil(days.length / 7);
 
+  const weekRows = Array.from({ length: weeks }, (_, weekIndex) => {
+    const weekDays = days
+      .slice(weekIndex * 7, (weekIndex + 1) * 7)
+      .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6));
+    const positionedEvents = getWeekEvents(weekDays);
+    const laneCount = Math.max(3, ...positionedEvents.map(e => e.lane + 1), 0);
+    // Misc pills wrap onto extra lines when they don't fit; measured line count pushes events down
+    const maxMiscRows = miscRowsByWeek[weekIndex] || 1;
+    const headerHeight = DATE_HEADER_HEIGHT + (maxMiscRows - 1) * MISC_ROW_PITCH;
+    const rowHeight = headerHeight + laneCount * (EVENT_HEIGHT + EVENT_GAP) + 8;
+    const hasEvents = positionedEvents.length > 0 || weekDays.some(d => getEventsForDate(d).some(e => e.isMisc));
+    return { weekIndex, weekDays, positionedEvents, rowHeight, headerHeight, hasEvents };
+  });
+
+  // Month column segments: one merged block per month, plus a split cell for weeks spanning two months
+  type MonthSegment =
+    | { kind: 'month'; date: Date; height: number }
+    | { kind: 'split'; from: Date; to: Date; height: number };
+  const monthSegments: MonthSegment[] = [];
+  weekRows.forEach(({ weekDays, rowHeight }) => {
+    const first = weekDays[0];
+    const last = weekDays[weekDays.length - 1];
+    const prev = monthSegments[monthSegments.length - 1];
+    if (!isSameMonth(first, last)) {
+      monthSegments.push({ kind: 'split', from: first, to: last, height: rowHeight });
+    } else if (prev && prev.kind === 'month' && isSameMonth(prev.date, first)) {
+      prev.height += rowHeight;
+    } else {
+      monthSegments.push({ kind: 'month', date: first, height: rowHeight });
+    }
+  });
+  const monthsWithBlock = new Set(
+    monthSegments.flatMap(s => (s.kind === 'month' ? [format(s.date, 'yyyy-MM')] : []))
+  );
+  const monthLabel = (date: Date, small?: boolean) => (
+    <span className="flex flex-col items-center leading-tight">
+      <span className={`${small ? 'text-[8px]' : 'text-[11px]'} font-medium text-gray-700`}>{format(date, 'MMM')}</span>
+      <span className={`${small ? 'text-[7px]' : 'text-[9px]'} text-gray-500`}>{format(date, 'yyyy')}</span>
+    </span>
+  );
+
   return (
-    <div className="flex flex-col min-w-0 h-full">
+    <div className="flex flex-col min-w-0 h-full pr-3">
       {/* Weekday Header */}
       <div className="flex h-10 border-b border-gray-200 flex-shrink-0">
-        <div className="w-32 flex-shrink-0"></div>
+        <div className="w-9 flex-shrink-0"></div>
         <div className="flex flex-1">
           {days.slice(0, 7)
             .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6))
@@ -198,35 +268,50 @@ export default function CalendarGrid({
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 overflow-auto">
-        {Array.from({ length: weeks }).map((_, weekIndex) => {
-          const weekDays = days
-            .slice(weekIndex * 7, (weekIndex + 1) * 7)
-            .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6));
-          const positionedEvents = getWeekEvents(weekDays);
-          const laneCount = Math.max(3, ...positionedEvents.map(e => e.lane + 1), 0);
-          const rowHeight = DATE_HEADER_HEIGHT + laneCount * (EVENT_HEIGHT + EVENT_GAP) + 8;
-
-          return (
-            <div key={weekIndex} className="flex border-b border-gray-200" style={{ height: rowHeight }}>
-              {/* Month Column */}
-              {(() => {
-                const weekMonth = format(weekDays[0], 'MMMM yyyy');
-                const prevWeekMonth = weekIndex > 0 ? format(days[(weekIndex - 1) * 7], 'MMMM yyyy') : '';
-                const showMonth = weekMonth !== prevWeekMonth;
+      <div className="flex-1 overflow-auto" ref={gridRef}>
+        <div className="flex">
+          {/* Month Column: merged per month, diagonal split where a week spans two months */}
+          <div className="w-9 flex-shrink-0 border-r border-gray-200 bg-gray-50">
+            {monthSegments.map((seg, i) => {
+              const prev = monthSegments[i - 1];
+              const isLast = i === monthSegments.length - 1;
+              if (seg.kind === 'month') {
                 return (
-                  <div className="w-32 flex-shrink-0 border-r border-gray-200 bg-gray-50 flex items-center justify-center">
-                    {showMonth && (
-                      <span className="text-sm font-medium text-gray-700">
-                        {weekMonth}
-                      </span>
-                    )}
+                  <div
+                    key={i}
+                    className={`flex items-center justify-center border-gray-200 ${
+                      prev && prev.kind === 'month' ? 'border-t' : ''
+                    } ${isLast ? 'border-b' : ''}`}
+                    style={{ height: seg.height }}
+                  >
+                    {monthLabel(seg.date)}
                   </div>
                 );
-              })()}
+              }
+              return (
+                <div
+                  key={i}
+                  className={`relative border-gray-200 ${isLast ? 'border-b' : ''}`}
+                  style={{ height: seg.height }}
+                >
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <line x1="0" y1="100" x2="100" y2="0" stroke="#D1D5DB" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                  </svg>
+                  {!monthsWithBlock.has(format(seg.from, 'yyyy-MM')) && (
+                    <div className="absolute top-1 left-0.5">{monthLabel(seg.from, true)}</div>
+                  )}
+                  {!monthsWithBlock.has(format(seg.to, 'yyyy-MM')) && (
+                    <div className="absolute bottom-1 right-0.5">{monthLabel(seg.to, true)}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-              {/* Week Row: day cells background + positioned event blocks */}
-              <div className="flex-1 relative flex" data-week-row>
+          <div className="flex-1 min-w-0">
+        {weekRows.map(({ weekIndex, weekDays, positionedEvents, rowHeight, headerHeight, hasEvents }) => {
+          return (
+              <div key={weekIndex} className="relative flex border-b border-gray-200" style={{ height: rowHeight }} data-week-row data-has-events={hasEvents}>
                 {weekDays.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -238,41 +323,53 @@ export default function CalendarGrid({
                     <div
                       key={day.toISOString()}
                       className={`flex-1 border-r border-gray-200 h-full relative ${
-                        isWeekend || isPast || bankHolidayName ? 'bg-gray-100' : ''
+                        isPast ? 'bg-gray-100' : isWeekend || bankHolidayName ? 'bg-[#F6F7F9]' : ''
                       }`}
                       onDoubleClick={() => onDateClick(day)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
                     >
                       {/* Date number + misc lozenges on one aligned row */}
-                      <div className="absolute top-2 left-2 right-1 flex items-center gap-1.5 flex-wrap">
+                      <div className="absolute top-1.5 left-2 right-1 flex items-start gap-1.5">
                         <span
-                          className={`text-sm ${
+                          className={`text-sm h-6 flex items-center justify-center flex-shrink-0 ${
                             isToday
-                              ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold'
+                              ? 'w-6 bg-gray-900 text-white rounded-full font-bold'
                               : 'text-gray-700'
                           }`}
                         >
                           {format(day, 'd')}
                         </span>
-                        {getEventsForDate(day).filter(e => e.isMisc).map((event) => (
-                          <div
-                            key={event.id}
-                            className="rounded-full px-1.5 text-[11px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 whitespace-nowrap leading-none flex items-center"
-                            style={{ height: 16 }}
-                            onDoubleClick={(e) => {
-                              e.stopPropagation();
-                              if (onEventDoubleClick) onEventDoubleClick(event);
-                            }}
-                          >
-                            {event.title}
-                          </div>
-                        ))}
+                        {(() => {
+                          const miscEvents = getEventsForDate(day).filter(e => e.isMisc);
+                          if (miscEvents.length === 0) return null;
+                          return (
+                            <div
+                              className="flex-1 min-w-0 mt-1 flex flex-wrap gap-x-[3px] gap-y-0.5"
+                              data-misc-week={weekIndex}
+                            >
+                              {miscEvents.map((event) => (
+                                <div
+                                  key={event.id}
+                                  className="rounded-full px-1.5 text-[11px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 truncate max-w-full"
+                                  style={{ height: MISC_PILL_HEIGHT, lineHeight: `${MISC_PILL_HEIGHT}px` }}
+                                  title={event.title}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onEventDoubleClick) onEventDoubleClick(event);
+                                  }}
+                                >
+                                  {event.title}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Bank Holiday label - centered, in line with date number */}
                       {bankHolidayName && (
-                        <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ top: 13 }}>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <span className="text-[9px] text-gray-400 whitespace-nowrap">
                             {bankHolidayName}
                           </span>
@@ -293,21 +390,22 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`${event.id}-w${weekIndex}`}
-                      className="absolute rounded px-2 text-xs cursor-move hover:opacity-80 overflow-hidden group"
+                      className={`absolute rounded px-2 text-xs ${campaign?.locked ? 'cursor-default' : 'cursor-move'} hover:opacity-80 overflow-hidden group`}
                       style={{
                         left: `calc(${(startCol / weekDays.length) * 100}% + 2px)`,
                         width: `calc(${(span / weekDays.length) * 100}% - 4px)`,
-                        top: DATE_HEADER_HEIGHT + lane * (EVENT_HEIGHT + EVENT_GAP),
+                        top: headerHeight + lane * (EVENT_HEIGHT + EVENT_GAP),
                         height: EVENT_HEIGHT,
                         backgroundColor: eventColor,
                       }}
-                      draggable={!resizeState}
+                      draggable={!resizeState && !campaign?.locked}
                       onDragStart={(e) => handleDragStart(e, event.id)}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);
                       }}
                     >
+                      {!campaign?.locked && (<>
                       {/* Left resize handle */}
                       <div
                         className="absolute left-0 top-0 w-2 h-full cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-gray-500/50 transition-opacity z-10"
@@ -322,17 +420,18 @@ export default function CalendarGrid({
                         onMouseDown={(e) => handleResizeStart(e, event, 'right', weekDays.length)}
                         onDragStart={(e) => e.preventDefault()}
                       />
+                      </>)}
                       <div className="h-full flex flex-col justify-center">
                         <div
                           className="font-medium truncate leading-tight"
-                          style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
+                          style={{ color: event.stage === 'Delivery' && !eventIsPast ? '#FFFFFF' : getTextColor(eventColor) }}
                         >
                           {event.title}
                         </div>
                         {(showPeople || showEventNotes) && (
                           <div
                             className="truncate text-[10px] leading-tight"
-                            style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
+                            style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                           >
                             {showPeople && personNames && <span>{personNames}</span>}
                             {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
@@ -344,9 +443,10 @@ export default function CalendarGrid({
                   );
                 })}
               </div>
-            </div>
           );
         })}
+          </div>
+        </div>
       </div>
     </div>
   );

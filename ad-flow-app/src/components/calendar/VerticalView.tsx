@@ -111,23 +111,14 @@ export default function VerticalView({
           const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
           const bankHolidayName = bankHolidays.get(day.toDateString());
 
-          // Uniform row height = max events on any day across visible campaigns
-          const maxEvents = Math.max(
-            1,
-            ...days.map(d =>
-              Math.max(
-                ...visibleCampaigns.map(c => getEventsForCampaignAndDate(c.id, d).length),
-                0
-              )
-            )
-          );
-          const rowHeight = 8 + Math.max(1, maxEvents) * 36;
+          // Fixed row height: multiple events on a day share the row side by side
+          const rowHeight = 44;
 
           return (
             <div
               key={day.toISOString()}
               className={`flex border-b border-gray-200 ${
-                isWeekend || isPast || bankHolidayName ? 'bg-gray-100' : ''
+                isPast ? 'bg-gray-100' : isWeekend || bankHolidayName ? 'bg-[#F6F7F9]' : ''
               }`}
               style={{ height: rowHeight }}
               onDragOver={handleDragOver}
@@ -137,15 +128,14 @@ export default function VerticalView({
               <div className="w-24 flex-shrink-0 border-r border-gray-200 flex items-center justify-center">
                 <div className="text-center">
                   <span
-                    className={`text-sm font-bold ${
+                    className={`inline-block text-xs font-medium whitespace-nowrap ${
                       isToday
-                        ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center'
+                        ? 'bg-gray-900 text-white rounded-full px-2.5 py-1'
                         : 'text-gray-700'
                     }`}
                   >
-                    {format(day, 'd')}
+                    {format(day, 'd MMM')}
                   </span>
-                  <span className="text-[10px] text-gray-500">{format(day, 'MMM')}</span>
                   {bankHolidayName && (
                     <span className="text-[9px] text-gray-400 block mt-0.5">{bankHolidayName}</span>
                   )}
@@ -159,7 +149,7 @@ export default function VerticalView({
                 return (
                   <div
                     key={campaign.id}
-                    className="flex-1 border-r border-gray-200 px-1 py-1 min-w-[200px] flex flex-col gap-1"
+                    className="flex-1 border-r border-gray-200 px-1 min-w-[200px] flex items-center gap-1"
                   >
                     {dayEvents.map((event) => {
                       const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
@@ -170,9 +160,10 @@ export default function VerticalView({
                       return (
                         <div
                           key={event.id}
-                          className="rounded px-2 py-1 text-xs h-8 cursor-move hover:opacity-80 w-full overflow-hidden"
+                          className={`rounded px-2 text-xs h-8 ${campaign.locked ? 'cursor-default' : 'cursor-move'} hover:opacity-80 flex-1 min-w-0 overflow-hidden flex flex-col justify-center`}
                           style={{ backgroundColor: eventColor }}
-                          draggable
+                          title={event.title}
+                          draggable={!campaign.locked}
                           onDragStart={(e) => handleDragStart(e, event.id)}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
@@ -181,14 +172,14 @@ export default function VerticalView({
                         >
                           <div
                             className="font-medium truncate leading-tight"
-                            style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
+                            style={{ color: event.stage === 'Delivery' && !eventIsPast ? '#FFFFFF' : getTextColor(eventColor) }}
                           >
                             {event.title}
                           </div>
                           {(showPeople || showEventNotes) && (
                             <div
                               className="truncate text-[9px] leading-tight"
-                              style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
+                              style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                             >
                               {showPeople && personNames && <span>{personNames}</span>}
                               {showPeople && personNames && showEventNotes && event.notes && <span className="mx-1">·</span>}
@@ -203,13 +194,14 @@ export default function VerticalView({
               })}
 
               {/* Misc Column */}
-              <div className="w-36 flex-shrink-0 px-1 py-1 flex flex-col gap-1">
+              <div className="w-36 flex-shrink-0 px-1 flex items-center gap-1">
                 {events
                   .filter(e => e.isMisc && day >= new Date(e.startDate) && day <= new Date(e.endDate))
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="rounded px-2 py-1 text-xs bg-gray-200 w-full overflow-hidden"
+                      className="rounded px-2 text-xs h-8 bg-gray-200 flex-1 min-w-0 overflow-hidden flex flex-col justify-center"
+                      title={event.title}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);

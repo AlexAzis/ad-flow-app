@@ -29,4 +29,4 @@ export interface Person {
   avatar?: string;
 }
 
-export type ViewMode = 'daily-6' | 'daily-12' | 'vertical' | 'gantt' | 'topline' | 'people';
+export type ViewMode = 'daily' | 'vertical' | 'gantt' | 'topline' | 'people';

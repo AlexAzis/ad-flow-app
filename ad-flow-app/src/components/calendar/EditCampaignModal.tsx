@@ -68,7 +68,11 @@ export default function EditCampaignModal({
     }
   };
 
+  // Only the person who locked a campaign can unlock it
+  const canUnlock = !campaign?.locked || !campaign.lockedBy || campaign.lockedBy === currentUser;
+
   const handleLockToggle = () => {
+    if (isLocked && !canUnlock) return;
     if (isLocked) {
       setIsLocked(false);
       setLockedBy('');
@@ -105,7 +109,8 @@ export default function EditCampaignModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              disabled={isLocked}
               required
             />
           </div>
@@ -119,7 +124,8 @@ export default function EditCampaignModal({
               type="text"
               value={client}
               onChange={(e) => setClient(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              disabled={isLocked}
               required
             />
           </div>
@@ -140,7 +146,8 @@ export default function EditCampaignModal({
                     key={colorOption}
                     type="button"
                     onClick={() => setColor(colorOption)}
-                    className={`relative w-10 h-10 rounded-full transition-transform hover:scale-110 ${
+                    disabled={isLocked}
+                    className={`relative w-10 h-10 rounded-full transition-transform enabled:hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
                       isSelected ? 'ring-2 ring-offset-2 ring-gray-800' : ''
                     }`}
                     style={{ backgroundColor: colorOption }}
@@ -180,12 +187,18 @@ export default function EditCampaignModal({
                     Locked by {lockedBy}
                   </div>
                 )}
+                {isLocked && (
+                  <div className="text-xs text-gray-500">
+                    {canUnlock ? 'Unlock to make changes.' : `Only ${lockedBy} can unlock this campaign.`}
+                  </div>
+                )}
               </div>
             </div>
             <button
               type="button"
               onClick={handleLockToggle}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
+              disabled={isLocked && !canUnlock}
+              className={`relative w-12 h-6 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 isLocked ? 'bg-red-500' : 'bg-gray-300'
               }`}
             >
@@ -202,7 +215,8 @@ export default function EditCampaignModal({
             <button
               type="button"
               onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              disabled={isLocked}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600"
             >
               Delete Campaign
             </button>

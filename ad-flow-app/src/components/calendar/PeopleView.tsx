@@ -81,60 +81,69 @@ export default function PeopleView({
             {days.map((day) => {
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               const isToday = isSameDay(day, new Date());
-              const showMonth = day.getDate() === 1 || isSameDay(day, days[0]);
+              const showMonth = true;
               return (
                 <div
                   key={day.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-200 flex flex-col items-center justify-center ${
-                    isWeekend && showWeekends ? 'bg-gray-100' : 'bg-white'
+                    isWeekend ? 'bg-[#F6F7F9]' : 'bg-white'
                   }`}
                   style={{ width: DAY_WIDTH }}
                 >
                   {showMonth && (
-                    <span className="text-[9px] font-semibold text-gray-500 uppercase">
+                    <span className="text-[9px] font-semibold text-gray-500 uppercase leading-none mb-0.5">
                       {format(day, 'MMM')}
                     </span>
                   )}
                   <span
                     className={`text-xs font-medium ${
                       isToday
-                        ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center'
+                        ? 'w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center'
                         : 'text-gray-700'
                     }`}
                   >
                     {format(day, 'd')}
                   </span>
+                  <span className="text-[9px] text-gray-500 leading-none mt-0.5">{format(day, 'EEE')}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Person Rows */}
+        {/* Person Rows: one sub-row per campaign so labels line up with their event blocks */}
         {people.map((person) => {
           const personEvents = getEventsForPerson(person.id);
-          const personCampaigns = Array.from(new Set(personEvents.map(e => e.campaignId)));
 
-          // Assign lanes to overlapping events so they stack instead of overlap
-          const sorted = [...personEvents].sort((a, b) => {
-            const aStart = differenceInDays(new Date(a.startDate), startDate);
-            const bStart = differenceInDays(new Date(b.startDate), startDate);
-            return aStart - bStart;
+          const groupKeys = [
+            ...campaigns.filter(c => personEvents.some(e => e.campaignId === c.id)).map(c => c.id),
+            ...(personEvents.some(e => !getCampaignById(e.campaignId)) ? [''] : []),
+          ];
+          const groups = (groupKeys.length ? groupKeys : [null]).map(key => {
+            const campaign = key ? getCampaignById(key) : undefined;
+            const groupEvents = key === null
+              ? []
+              : personEvents.filter(e => (campaign ? e.campaignId === campaign.id : !getCampaignById(e.campaignId)));
+
+            // Assign lanes to overlapping events so they stack instead of overlap
+            const sorted = [...groupEvents].sort((a, b) =>
+              differenceInDays(new Date(a.startDate), startDate) - differenceInDays(new Date(b.startDate), startDate)
+            );
+            const lanes: number[] = [];
+            const positioned = sorted.map(e => {
+              const s = differenceInDays(new Date(e.startDate), startDate);
+              const d = differenceInDays(new Date(e.endDate), new Date(e.startDate)) + 1;
+              let lane = lanes.findIndex(end => end < s);
+              if (lane === -1) { lane = lanes.length; lanes.push(0); }
+              lanes[lane] = s + d - 1;
+              return { event: e, lane, startOffset: s, duration: d };
+            });
+            const laneCount = Math.max(1, ...positioned.map(p => p.lane + 1));
+            return { key: key ?? 'empty', campaign, hasEvents: key !== null, positioned, rowHeight: laneCount * 44 + 12 };
           });
-          const lanes: number[] = [];
-          const positioned = sorted.map(e => {
-            const s = differenceInDays(new Date(e.startDate), startDate);
-            const d = differenceInDays(new Date(e.endDate), new Date(e.startDate)) + 1;
-            let lane = lanes.findIndex(end => end < s);
-            if (lane === -1) { lane = lanes.length; lanes.push(0); }
-            lanes[lane] = s + d - 1;
-            return { event: e, lane, startOffset: s, duration: d };
-          });
-          const laneCount = Math.max(1, ...positioned.map(p => p.lane + 1));
-          const rowHeight = 8 + laneCount * 44 + 8;
 
           return (
-            <div key={person.id} className="flex border-b border-gray-200" style={{ height: rowHeight }}>
+            <div key={person.id} className="flex border-b border-gray-200">
               {/* Sticky Person Column */}
               <div
                 className="sticky left-0 z-10 bg-white border-r border-gray-200 flex items-center px-3 flex-shrink-0"
@@ -145,94 +154,98 @@ export default function PeopleView({
                 </span>
               </div>
 
-              {/* Sticky Campaign Column */}
-              <div
-                className="sticky z-10 bg-white border-r border-gray-200 flex items-center px-2 flex-shrink-0"
-                style={{ width: CAMPAIGN_COL_WIDTH, left: NAME_COL_WIDTH }}
-              >
-                <div className="flex flex-col gap-1">
-                  {personCampaigns.map((campaignId) => {
-                    const campaign = getCampaignById(campaignId);
-                    if (!campaign) return null;
-                    return (
-                      <div key={campaignId} className="flex items-center gap-1">
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: campaign.color }}
-                        />
-                        <span className="text-[10px] text-gray-600 truncate">
-                          {campaign.name}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="flex-1 relative">
-                {days.map((day, index) => {
-                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                  const isToday = isSameDay(day, new Date());
-                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
-                  const isBankHoliday = bankHolidays.has(day.toDateString());
-                  return (
+              <div className="flex-1">
+                {groups.map((group, groupIndex) => (
+                  <div
+                    key={group.key}
+                    className={`flex ${groupIndex > 0 ? 'border-t border-gray-100' : ''}`}
+                    style={{ height: group.rowHeight }}
+                  >
+                    {/* Sticky Campaign Column - centred against this campaign's event blocks */}
                     <div
-                      key={day.toISOString()}
-                      className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                        isWeekend || isPast || isBankHoliday ? 'bg-gray-100' : ''
-                      } ${isToday ? 'bg-blue-50' : ''}`}
-                      style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, day)}
-                    />
-                  );
-                })}
-
-                {/* Event Blocks */}
-                {positioned.map(({ event, lane, startOffset, duration }) => {
-                  const campaign = getCampaignById(event.campaignId);
-                  const eventEnd = new Date(event.endDate);
-                  const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
-                  const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#999999');
-
-                  if (startOffset + duration < 0 || startOffset >= days.length) return null;
-
-                  return (
-                    <div
-                      key={event.id}
-                      className="absolute rounded px-2 py-1 text-xs cursor-move hover:opacity-80 overflow-hidden"
-                      style={{
-                        top: 8 + lane * 44,
-                        left: startOffset * DAY_WIDTH + 1,
-                        width: duration * DAY_WIDTH - 3,
-                        height: 40,
-                        backgroundColor: eventColor,
-                      }}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, event.id)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        if (onEventDoubleClick) onEventDoubleClick(event);
-                      }}
+                      className="sticky z-10 bg-white border-r border-gray-200 flex items-center px-2 flex-shrink-0"
+                      style={{ width: CAMPAIGN_COL_WIDTH, left: NAME_COL_WIDTH }}
                     >
-                      <div
-                        className="font-medium truncate text-[10px] leading-tight"
-                        style={{ color: event.stage === 'Delivery' ? '#FFFFFF' : getTextColor(eventColor) }}
-                      >
-                        {event.title}
-                      </div>
-                      {showEventNotes && event.notes && (
-                        <div
-                          className="truncate text-[9px] leading-tight"
-                          style={{ color: event.stage === 'Delivery' ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
-                        >
-                          {event.notes}
+                      {group.hasEvents && (
+                        <div className="flex items-center gap-1 min-w-0">
+                          <div
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: group.campaign ? group.campaign.color : '#D1D5DB' }}
+                          />
+                          <span className="text-[10px] text-gray-600 truncate">
+                            {group.campaign ? group.campaign.name : 'Misc.'}
+                          </span>
                         </div>
                       )}
                     </div>
-                  );
-                })}
+
+                    {/* Timeline */}
+                    <div className="flex-1 relative">
+                      {days.map((day, index) => {
+                        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                        const isToday = isSameDay(day, new Date());
+                        const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                        const isBankHoliday = bankHolidays.has(day.toDateString());
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            className={`absolute top-0 bottom-0 border-r border-gray-100 ${
+                              isPast ? 'bg-gray-100' : isWeekend || isBankHoliday ? 'bg-[#F6F7F9]' : ''
+                            } ${isToday ? 'bg-blue-50' : ''}`}
+                            style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, day)}
+                          />
+                        );
+                      })}
+
+                      {/* Event Blocks */}
+                      {group.positioned.map(({ event, lane, startOffset, duration }) => {
+                        const campaign = group.campaign;
+                        const eventEnd = new Date(event.endDate);
+                        const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
+                        const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#999999');
+
+                        if (startOffset + duration < 0 || startOffset >= days.length) return null;
+
+                        return (
+                          <div
+                            key={event.id}
+                            className={`absolute rounded px-2 text-xs ${campaign?.locked ? 'cursor-default' : 'cursor-move'} hover:opacity-80 overflow-hidden flex flex-col justify-center`}
+                            style={{
+                              top: 8 + lane * 44,
+                              left: startOffset * DAY_WIDTH + 1,
+                              width: duration * DAY_WIDTH - 3,
+                              height: 40,
+                              backgroundColor: eventColor,
+                            }}
+                            draggable={!campaign?.locked}
+                            onDragStart={(e) => handleDragStart(e, event.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              if (onEventDoubleClick) onEventDoubleClick(event);
+                            }}
+                          >
+                            <div
+                              className="font-medium truncate text-[10px] leading-tight"
+                              style={{ color: event.stage === 'Delivery' && !eventIsPast ? '#FFFFFF' : getTextColor(eventColor) }}
+                            >
+                              {event.title}
+                            </div>
+                            {showEventNotes && event.notes && (
+                              <div
+                                className="truncate text-[9px] leading-tight"
+                                style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
+                              >
+                                {event.notes}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );

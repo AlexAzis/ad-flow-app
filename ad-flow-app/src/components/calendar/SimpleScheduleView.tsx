@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Download, Plus, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
 import CalendarGrid from './CalendarGrid';
@@ -23,6 +23,18 @@ interface SimpleScheduleViewProps {
   onBack?: () => void;
 }
 
+const STORAGE_VERSION = '2';
+
+function loadSaved<T>(key: string, reviver?: (key: string, value: any) => any): T | null {
+  if (typeof window === 'undefined') return null;
+  if (localStorage.getItem('storageVersion') !== STORAGE_VERSION) {
+    ['campaigns', 'events', 'people'].forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('storageVersion', STORAGE_VERSION);
+  }
+  const saved = localStorage.getItem(key);
+  return saved ? JSON.parse(saved, reviver) : null;
+}
+
 export default function SimpleScheduleView({
   events,
   campaigns,
@@ -30,11 +42,15 @@ export default function SimpleScheduleView({
   onBack,
 }: SimpleScheduleViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
-  const [viewMode, setViewMode] = useState<'daily-6' | 'daily-12' | 'gantt' | 'vertical' | 'topline' | 'people'>('daily-6');
+  const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
   const [showPeople, setShowPeople] = useState(true);
   const [showMisc, setShowMisc] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set());
@@ -47,38 +63,31 @@ export default function SimpleScheduleView({
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
-  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('campaigns');
-      if (saved) return JSON.parse(saved);
-    }
-    return campaigns;
-  });
-  const [allEvents, setAllEvents] = useState<Event[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('events');
-      if (saved) {
-        return JSON.parse(saved, (key, value) =>
-          key === 'startDate' || key === 'endDate' ? new Date(value) : value
-        );
-      }
-    }
-    return events;
-  });
-  const [allPeople, setAllPeople] = useState<Person[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('people');
-      if (saved) return JSON.parse(saved);
-    }
-    return people;
-  });
-  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('customEventTypes');
-      if (saved) return JSON.parse(saved);
-    }
-    return {};
-  });
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(
+    () => loadSaved<Campaign[]>('campaigns') ?? campaigns
+  );
+  const [allEvents, setAllEvents] = useState<Event[]>(
+    () => loadSaved<Event[]>('events', (key, value) =>
+      key === 'startDate' || key === 'endDate' ? new Date(value) : value
+    ) ?? events
+  );
+  const [allPeople, setAllPeople] = useState<Person[]>(
+    () => loadSaved<Person[]>('people') ?? people
+  );
+  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(
+    () => loadSaved<Record<string, string[]>>('customEventTypes') ?? {}
+  );
+
+  // Drop people from the filter once they are no longer assigned to any event
+  useEffect(() => {
+    const assigned = new Set(
+      allEvents.flatMap(e => (e.assignees?.length ? e.assignees : e.assignee ? [e.assignee] : []))
+    );
+    setSelectedPeople(prev => {
+      const next = new Set(Array.from(prev).filter(id => assigned.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [allEvents]);
 
   // Persist to localStorage on changes
   useEffect(() => {
@@ -98,6 +107,25 @@ export default function SimpleScheduleView({
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
   };
 
+  const handleExport = async (exportFormat: 'jpeg' | 'pdf') => {
+    setIsExportMenuOpen(false);
+    if (!exportRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      const { exportSchedule } = await import('@/lib/exportUtils');
+      await exportSchedule(
+        exportRef.current,
+        exportFormat,
+        `Sky-TV-Products_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`
+      );
+    } catch (error) {
+      console.error('Export failed', error);
+      alert('Sorry, the export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const getHeaderTitle = () => {
     switch (viewMode) {
       case 'gantt': return 'Gantt Overview';
@@ -110,7 +138,7 @@ export default function SimpleScheduleView({
 
   const getDateRangeText = () => {
     const startDate = startOfMonth(currentDate);
-    const monthsToShow = viewMode === 'daily-6' ? 5 : viewMode === 'daily-12' ? 11 : 2;
+    const monthsToShow = viewMode === 'daily' ? 11 : 2;
     const endDate = addMonths(startDate, monthsToShow);
     return `${format(startDate, 'MMM')} - ${format(endDate, 'MMM yyyy')}`;
   };
@@ -120,7 +148,15 @@ export default function SimpleScheduleView({
     setIsAddEventModalOpen(true);
   };
 
+  // A locked campaign is frozen: its events can't be added, edited, moved, resized or deleted
+  const getLockedCampaign = (campaignId: string) =>
+    allCampaigns.find(c => c.id === campaignId && c.locked);
+  const warnLocked = (campaign: Campaign) =>
+    alert(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`);
+
   const handleAddEvent = (newEvent: Omit<Event, 'id'>) => {
+    const locked = getLockedCampaign(newEvent.campaignId);
+    if (locked) return warnLocked(locked);
     const eventWithId: Event = {
       ...newEvent,
       id: Date.now().toString(),
@@ -129,17 +165,25 @@ export default function SimpleScheduleView({
   };
 
   const handleEventDoubleClick = (event: Event) => {
+    const locked = getLockedCampaign(event.campaignId);
+    if (locked) return warnLocked(locked);
     setSelectedEventToEdit(event);
     setIsEditEventModalOpen(true);
   };
 
   const handleUpdateEvent = (id: string, updatedEvent: Omit<Event, 'id'>) => {
+    const current = allEvents.find(e => e.id === id);
+    const locked = (current && getLockedCampaign(current.campaignId)) || getLockedCampaign(updatedEvent.campaignId);
+    if (locked) return warnLocked(locked);
     setAllEvents(allEvents.map(event =>
       event.id === id ? { ...updatedEvent, id } : event
     ));
   };
 
   const handleDeleteEvent = (id: string) => {
+    const current = allEvents.find(e => e.id === id);
+    const locked = current && getLockedCampaign(current.campaignId);
+    if (locked) return warnLocked(locked);
     setAllEvents(allEvents.filter(event => event.id !== id));
   };
 
@@ -185,7 +229,7 @@ export default function SimpleScheduleView({
       peopleIds = ids;
     }
     setAllCampaigns(allCampaigns.map(campaign =>
-      campaign.id === id ? { ...updatedCampaign, id, people: peopleIds } : campaign
+      campaign.id === id ? { ...updatedCampaign, id, people: peopleIds ?? campaign.people } : campaign
     ));
   };
 
@@ -195,6 +239,8 @@ export default function SimpleScheduleView({
   };
 
   const handleDeleteCampaign = (id: string) => {
+    const locked = getLockedCampaign(id);
+    if (locked) return warnLocked(locked);
     setAllCampaigns(allCampaigns.filter(c => c.id !== id));
     setAllEvents(allEvents.filter(e => e.campaignId !== id));
   };
@@ -218,7 +264,7 @@ export default function SimpleScheduleView({
 
   const handleEventDrop = (eventId: string, newDate: Date) => {
     const event = allEvents.find(e => e.id === eventId);
-    if (!event) return;
+    if (!event || getLockedCampaign(event.campaignId)) return;
 
     const startDate = new Date(event.startDate);
     const endDate = new Date(event.endDate);
@@ -234,6 +280,8 @@ export default function SimpleScheduleView({
   };
 
   const handleEventResize = (eventId: string, newStartDate: Date, newEndDate: Date) => {
+    const current = allEvents.find(e => e.id === eventId);
+    if (!current || getLockedCampaign(current.campaignId)) return;
     setAllEvents(allEvents.map(event =>
       event.id === eventId
         ? { ...event, startDate: newStartDate, endDate: newEndDate }
@@ -247,7 +295,9 @@ export default function SimpleScheduleView({
     if (!event.isMisc && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
     if (selectedPeople.size > 0) {
       const eventAssignees = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
-      if (eventAssignees.length && !eventAssignees.some(id => selectedPeople.has(id))) return false;
+      // Only events assigned to a selected person; unassigned Misc events stay under the Misc toggle
+      const isUnassignedMisc = event.isMisc && eventAssignees.length === 0;
+      if (!isUnassignedMisc && !eventAssignees.some(id => selectedPeople.has(id))) return false;
     }
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
     if (selectedEvents.size > 0 && !selectedEvents.has(event.title)) return false;
@@ -280,19 +330,19 @@ export default function SimpleScheduleView({
             <div className="flex items-center gap-2 ml-8">
               <button
                 onClick={() => setCurrentDate(new Date())}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 rounded-lg font-medium"
               >
                 Today
               </button>
               <button
                 onClick={() => navigateDate('prev')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
               >
                 <ChevronLeft size={20} className="text-gray-600" />
               </button>
               <button
                 onClick={() => navigateDate('next')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
               >
                 <ChevronRight size={20} className="text-gray-600" />
               </button>
@@ -303,30 +353,76 @@ export default function SimpleScheduleView({
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-              <Download size={16} />
-              <span>Export</span>
-            </button>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
               <button
-                onClick={() => setViewMode('daily-6')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'daily-6'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
+                onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}
+                disabled={zoom <= 0.5}
+                className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                title="Zoom out"
               >
-                Daily 6
+                <Minus size={16} />
               </button>
               <button
-                onClick={() => setViewMode('daily-12')}
+                onClick={() => setZoom(1)}
+                className="px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 w-14 text-center border-x border-gray-300"
+                title="Reset zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => setZoom(z => Math.min(1.5, Math.round((z + 0.1) * 10) / 10))}
+                disabled={zoom >= 1.5}
+                className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                title="Zoom in"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setIsExportMenuOpen(open => !open)}
+                disabled={isExporting}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+              >
+                <Download size={16} />
+                <span>{isExporting ? 'Exporting…' : 'Export'}</span>
+              </button>
+              {isExportMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                    <button
+                      onClick={() => handleExport('pdf')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Export PDF
+                    </button>
+                    <button
+                      onClick={() => handleExport('jpeg')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Export JPEG
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-2">
+                <span className="h-px w-5 bg-gray-300" />
+                <span className="text-xs font-semibold text-gray-500 tracking-wider">VIEWS</span>
+                <span className="h-px w-5 bg-gray-300" />
+              </div>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('daily')}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'daily-12'
+                  viewMode === 'daily'
                     ? 'bg-white text-gray-800 shadow-sm'
                     : 'text-gray-600 hover:text-gray-800'
                 }`}
               >
-                Daily 12
+                Daily
               </button>
               <button
                 onClick={() => setViewMode('gantt')}
@@ -368,6 +464,7 @@ export default function SimpleScheduleView({
               >
                 People
               </button>
+            </div>
             </div>
           </div>
         </div>
@@ -418,6 +515,7 @@ export default function SimpleScheduleView({
         />
 
         <div className="flex-1 min-w-0 overflow-hidden bg-white flex flex-col">
+          <div ref={exportRef} className="w-full h-full flex flex-col bg-white" style={{ zoom }}>
           {viewMode === 'gantt' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <GanttView
@@ -495,9 +593,9 @@ export default function SimpleScheduleView({
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}
-              viewMode={viewMode as 'daily-6' | 'daily-12'}
             />
           )}
+          </div>
         </div>
       </div>
 

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot } from 'lucide-react';
+import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot, Lock } from 'lucide-react';
 import { Campaign, Person, Event } from '@/lib/types';
 import { getAllStages } from '@/lib/eventTypes';
+import { getTextColor } from '@/lib/colorUtils';
 
 interface FilterSidebarProps {
   campaigns: Campaign[];
@@ -97,7 +98,7 @@ export default function FilterSidebar({
   );
 
   return (
-    <aside className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
+    <aside className="w-[230px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -118,29 +119,43 @@ export default function FilterSidebar({
 
         {/* Campaigns */}
         <div>
-          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">CAMPAIGNS</div>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="h-px w-5 bg-gray-300" />
+            <span className="text-xs font-semibold text-gray-500 tracking-wider">CAMPAIGNS</span>
+            <span className="h-px w-5 bg-gray-300" />
+          </div>
           <div className="flex flex-col gap-1.5">
-            {campaigns.map((campaign) => (
+            {campaigns.map((campaign) => {
+              const selected = selectedCampaigns.has(campaign.id);
+              const selectedText = getTextColor(campaign.color);
+              return (
               <button
                 key={campaign.id}
                 onClick={() => onToggleCampaign(campaign.id)}
                 onDoubleClick={() => onEditCampaign && onEditCampaign(campaign)}
-                className={`${pillClass(selectedCampaigns.has(campaign.id))} flex items-center gap-2 w-full text-left`}
+                className={`${pillClass(false)} flex items-center gap-2 w-full text-left`}
+                style={selected ? { backgroundColor: campaign.color, borderColor: campaign.color, color: selectedText } : undefined}
                 title="Double-click to edit"
               >
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: campaign.color }}
+                  style={{ backgroundColor: selected ? selectedText : campaign.color }}
                 />
                 <span className="truncate">{campaign.name}</span>
+                {campaign.locked && <Lock size={11} className="flex-shrink-0 ml-auto" />}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* People */}
         <div>
-          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">PEOPLE</div>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="h-px w-5 bg-gray-300" />
+            <span className="text-xs font-semibold text-gray-500 tracking-wider">PEOPLE</span>
+            <span className="h-px w-5 bg-gray-300" />
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {assignedPeople.map((person) => (
               <button
@@ -156,7 +171,11 @@ export default function FilterSidebar({
 
         {/* Stages */}
         <div>
-          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">STAGES</div>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="h-px w-5 bg-gray-300" />
+            <span className="text-xs font-semibold text-gray-500 tracking-wider">STAGES</span>
+            <span className="h-px w-5 bg-gray-300" />
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {getAllStages.map((stage) => (
               <button
@@ -172,7 +191,11 @@ export default function FilterSidebar({
 
         {/* Events */}
         <div>
-          <div className="text-xs font-semibold text-gray-500 tracking-wider mb-2">EVENTS</div>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="h-px w-5 bg-gray-300" />
+            <span className="text-xs font-semibold text-gray-500 tracking-wider">EVENTS</span>
+            <span className="h-px w-5 bg-gray-300" />
+          </div>
           <div className="space-y-3">
             {Object.entries(usedEventsByStage).map(([stage, titles]) => (
               <div key={stage}>

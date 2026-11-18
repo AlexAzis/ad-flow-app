@@ -107,6 +107,26 @@ export async function removeScheduleLogo(scheduleId: string): Promise<void> {
   if (paths.length) await supabase.storage.from(LOGO_BUCKET).remove(paths);
 }
 
+// Deletes the schedule and everything hanging off it. Logo files have to go
+// first: once the schedule row is gone, storage policies can no longer prove
+// the caller owns that folder.
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  try {
+    const { data: files, error: listError } = await supabase.storage.from(LOGO_BUCKET).list(scheduleId);
+    if (listError) throw listError;
+    const paths = (files ?? []).map(f => `${scheduleId}/${f.name}`);
+    if (paths.length) {
+      const { error: removeError } = await supabase.storage.from(LOGO_BUCKET).remove(paths);
+      if (removeError) throw removeError;
+    }
+  } catch (err) {
+    console.warn('Could not remove schedule logo files before delete', err);
+  }
+
+  const { error } = await supabase.from('schedules').delete().eq('id', scheduleId);
+  if (error) throw error;
+}
+
 // ------------------------------------------------------------ members
 
 export interface ScheduleMember {

@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import MembersPanel from '@/components/common/MembersPanel';
 import { scheduleColor } from '@/lib/colorUtils';
 import {
+  deleteSchedule,
   removeScheduleLogo,
   ScheduleSummary,
   updateScheduleDetails,
@@ -18,8 +19,8 @@ interface ScheduleSettingsModalProps {
   onChanged: () => void;
 }
 
-// Per-schedule settings: company logo, name/description and member access.
-// Editing is owner-only; editors and viewers see everything read-only.
+// Per-schedule settings: company logo, name/description, member access and deletion.
+// Editing and deleting are owner-only; editors and viewers see everything read-only.
 export default function ScheduleSettingsModal({
   schedule,
   currentUser,
@@ -33,6 +34,7 @@ export default function ScheduleSettingsModal({
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoRemoved, setLogoRemoved] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -68,6 +70,27 @@ export default function ScheduleSettingsModal({
       setError('Those changes couldn’t be saved. Please try again.');
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!canEdit) return;
+    const confirmed = window.confirm(
+      `Delete "${schedule.name}"? This permanently removes the schedule, its campaigns, events, people, members and invites. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setError('');
+    setIsDeleting(true);
+    try {
+      await deleteSchedule(schedule.id);
+      onChanged();
+      onClose();
+    } catch (err) {
+      console.error('Could not delete schedule', err);
+      setError('The schedule couldn’t be deleted. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -174,6 +197,22 @@ export default function ScheduleSettingsModal({
           <div className="pt-4 border-t border-gray-200">
             <MembersPanel scheduleId={schedule.id} role={schedule.role} currentUser={currentUser} />
           </div>
+
+          {canEdit && (
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-red-600 mb-2">Danger zone</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Deleting this schedule permanently removes its campaigns, events, people, members and invites.
+              </p>
+              <button
+                onClick={handleDelete}
+                disabled={isBusy || isDeleting}
+                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting…' : 'Delete schedule'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -187,7 +226,7 @@ export default function ScheduleSettingsModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={isBusy || !name.trim()}
+              disabled={isBusy || isDeleting || !name.trim()}
               className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium disabled:opacity-50"
             >
               {isBusy ? 'Saving…' : 'Save changes'}

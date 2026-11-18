@@ -41,7 +41,15 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
   const [actionError, setActionError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
-  const [menuKey, setMenuKey] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<{ key: string; up: boolean } | null>(null);
+
+  // Opens a row's actions menu, flipping it upward when there isn't room below.
+  const toggleMenu = (e: React.MouseEvent, key: string) => {
+    const bottom = e.currentTarget.getBoundingClientRect().bottom;
+    setOpenMenu(prev =>
+      prev?.key === key ? null : { key, up: bottom > window.innerHeight - 180 }
+    );
+  };
 
   const refresh = () => {
     if (presetData) return;
@@ -73,7 +81,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
 
   const runAction = (action: () => Promise<void>) => {
     setActionError('');
-    setMenuKey(null);
+    setOpenMenu(null);
     setIsBusy(true);
     action()
       .then(refresh)
@@ -147,7 +155,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
       disabled={isBusy}
       onClick={() => {
         if (!window.confirm(`Permanently delete ${email} and remove them from Argus? Their memberships will be removed. This cannot be undone.`)) {
-          setMenuKey(null);
+          setOpenMenu(null);
           return;
         }
         runAction(() => adminDeleteUser(userId));
@@ -164,20 +172,20 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
     return (
       <div className="relative flex-shrink-0">
         <button
-          onClick={() => setMenuKey(prev => (prev === key ? null : key))}
+          onClick={e => toggleMenu(e, key)}
           className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
         >
           <MoreVertical size={15} />
         </button>
-        {menuKey === key && (
+        {openMenu?.key === key && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
-            <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+            <div className={`absolute right-0 ${openMenu.up ? 'bottom-full mb-1' : 'mt-1'} w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1`}>
               <button
                 disabled={isBusy}
                 onClick={() => {
                   if (!window.confirm(`Remove ${member.email} from "${schedule.name}"? They will lose access to this schedule.`)) {
-                    setMenuKey(null);
+                    setOpenMenu(null);
                     return;
                   }
                   runAction(() => adminRemoveMember(schedule.id, member.userId));
@@ -277,7 +285,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
           </div>
         </div>
 
-        <div className="overflow-auto px-6 py-4">
+        <div className="flex-1 min-h-0 overflow-auto px-6 pt-4 pb-28">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {actionError && <p className="text-sm text-red-600 mb-4">{actionError}</p>}
           {!overview && !error && <p className="text-sm text-gray-500">Loading overview…</p>}
@@ -304,9 +312,9 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                 <p className="text-sm text-gray-500 mb-6">No schedules have been created yet.</p>
               )}
               {ownerSections.map(({ user, schedules: owned }) => (
-                <div key={user.id} className="border border-gray-200 rounded-xl mb-4 overflow-hidden">
+                <div key={user.id} className="border border-gray-200 rounded-xl mb-4">
                   {/* Owner header */}
-                  <div className="bg-gray-50 px-4 py-3 flex items-center gap-3">
+                  <div className="bg-gray-50 px-4 py-3 flex items-center gap-3 rounded-t-xl">
                     <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">{user.email.charAt(0).toUpperCase()}</span>
                     </div>
@@ -323,15 +331,15 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                     {!isSelf(user.email) && (
                       <div className="relative flex-shrink-0">
                         <button
-                          onClick={() => setMenuKey(prev => (prev === `u:${user.id}` ? null : `u:${user.id}`))}
+                          onClick={e => toggleMenu(e, `u:${user.id}`)}
                           className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
                         >
                           <MoreVertical size={15} />
                         </button>
-                        {menuKey === `u:${user.id}` && (
+                        {openMenu?.key === `u:${user.id}` && (
                           <>
-                            <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
-                            <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                            <div className={`absolute right-0 ${openMenu.up ? 'bottom-full mb-1' : 'mt-1'} w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1`}>
                               {deleteAccountItem(user.id, user.email)}
                             </div>
                           </>
@@ -349,8 +357,8 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
 
               {/* Schedules with no owner */}
               {orphanSchedules.length > 0 && (
-                <div className="border border-amber-200 rounded-xl mb-4 overflow-hidden">
-                  <div className="bg-amber-50 px-4 py-3">
+                <div className="border border-amber-200 rounded-xl mb-4">
+                  <div className="bg-amber-50 px-4 py-3 rounded-t-xl">
                     <span className="text-sm font-semibold text-amber-800">Schedules with no owner</span>
                   </div>
                   <div className="divide-y divide-gray-100">
@@ -376,15 +384,15 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                         {!isSelf(user.email) && (
                           <div className="relative flex-shrink-0">
                             <button
-                              onClick={() => setMenuKey(prev => (prev === `u:${user.id}` ? null : `u:${user.id}`))}
+                              onClick={e => toggleMenu(e, `u:${user.id}`)}
                               className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
                             >
                               <MoreVertical size={15} />
                             </button>
-                            {menuKey === `u:${user.id}` && (
+                            {openMenu?.key === `u:${user.id}` && (
                               <>
-                                <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
-                                <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                                <div className={`absolute right-0 ${openMenu.up ? 'bottom-full mb-1' : 'mt-1'} w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1`}>
                                   {deleteAccountItem(user.id, user.email)}
                                 </div>
                               </>

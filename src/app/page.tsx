@@ -15,8 +15,21 @@ export default function Home() {
   const [openSchedule, setOpenSchedule] = useState<ScheduleSummary | null>(null);
   // True while the user is in the password-reset flow from a recovery email
   const [isRecovery, setIsRecovery] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
+    // Auth links carry their payload in the URL. Check it directly rather than
+    // relying only on the PASSWORD_RECOVERY event, which can fire before the
+    // listener below is attached.
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const type = params.get('type') || hashParams.get('type');
+    const errorCode = params.get('error_code') || hashParams.get('error_code');
+    if (type === 'recovery') setIsRecovery(true);
+    if (errorCode === 'otp_expired' || errorCode === 'access_denied' || params.get('error') || hashParams.get('error')) {
+      setAuthError('That link is invalid or has expired — request a new one below.');
+    }
+
     const update = (next: User | null) =>
       setUser(prev => (prev && next && prev.id === next.id ? prev : next));
     supabase.auth.getSession().then(({ data }) => update(data.session?.user ?? null));
@@ -39,7 +52,7 @@ export default function Home() {
         {user === undefined ? null : isRecovery && user ? (
           <UpdatePasswordPage onDone={() => setIsRecovery(false)} />
         ) : user === null ? (
-          <LoginPage />
+          <LoginPage notice={authError} />
         ) : openSchedule ? (
           <ScheduleLoader
             key={openSchedule.id}

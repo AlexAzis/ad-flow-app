@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 type Mode = 'signin' | 'forgot' | 'sent';
 
-export default function LoginPage() {
+export default function LoginPage({ notice }: { notice?: string }) {
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -118,6 +118,11 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm mx-4 space-y-4">
         {logo}
         <h1 className="text-lg font-semibold text-gray-800">Sign in</h1>
+        {notice && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            {notice}
+          </p>
+        )}
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input

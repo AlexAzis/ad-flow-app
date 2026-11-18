@@ -1,10 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { format, addDays, subDays, isSameDay, isBefore, startOfDay } from 'date-fns';
+import { useLayoutEffect, useRef } from 'react';
+import { format, addDays, isSameDay, isBefore, startOfDay } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
+import { anchorDay, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
+import {
+  getEventDragData,
+  getEventDragDetails,
+  setEventDragData,
+  type EventSelectionAction,
+} from '@/lib/eventDrag';
 
 interface VerticalViewProps {
   events: Event[];
@@ -13,7 +20,9 @@ interface VerticalViewProps {
   currentDate: Date;
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
-  onEventDrop?: (eventId: string, newDate: Date) => void;
+  selectedEventIds?: Set<string>;
+  onEventSelect?: (eventId: string, action: EventSelectionAction) => void;
+  onEventsDrop?: (draggedEventId: string, eventIds: string[], newDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -27,17 +36,37 @@ export default function VerticalView({
   currentDate,
   onDateClick,
   onEventDoubleClick,
-  onEventDrop,
+  selectedEventIds,
+  onEventSelect,
+  onEventsDrop,
   showWeekends,
   showEventNotes,
   showPeople,
   selectedCampaigns,
 }: VerticalViewProps) {
-  const [scrollDate, setScrollDate] = useState(currentDate);
-  const minDate = subDays(new Date(), 7); // Can only scroll back 7 days
+  // Two weeks of history render before the anchor so they can be scrolled back
+  // to, but nothing earlier is ever shown
+  const anchor = anchorDay(currentDate);
+  const rangeStart = addDays(anchor, -LOOKBACK_DAYS);
 
-  const days = Array.from({ length: 60 }, (_, i) => addDays(scrollDate, i)); // Show 60 days
+  const days = Array.from({ length: 60 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
+
+  // Export markers: image starts at the current date and ends a week after the
+  // last filtered event block
+  const exportStartIdx = LOOKBACK_DAYS;
+  const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'day');
+
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const anchorKey = anchor.getTime();
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
+    if (scroller && start && first) {
+      scroller.scrollTop = start.getBoundingClientRect().top - first.getBoundingClientRect().top;
+    }
+  }, [anchorKey]);
 
   const getCampaignById = (id: string) => campaigns.find(c => c.id === id);
   const getPersonById = (id: string) => people.find(p => p.id === id);
@@ -54,8 +83,12 @@ export default function VerticalView({
     c => !selectedCampaigns || selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
   );
 
-  const handleDragStart = (e: React.DragEvent, eventId: string) => {
-    e.dataTransfer.setData('eventId', eventId);
+  const handleDragStart = (e: React.DragEvent, event: Event) => {
+    const details = getEventDragDetails(event.id, events, selectedEventIds, e.shiftKey);
+    if (details.selectionAction && onEventSelect) {
+      onEventSelect(event.id, details.selectionAction);
+    }
+    setEventDragData(e.dataTransfer, details);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -66,9 +99,9 @@ export default function VerticalView({
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
-    const eventId = e.dataTransfer.getData('eventId');
-    if (eventId && onEventDrop) {
-      onEventDrop(eventId, date);
+    const payload = getEventDragData(e.dataTransfer);
+    if (payload && onEventsDrop) {
+      onEventsDrop(payload.draggedEventId, payload.eventIds, date);
     }
   };
 
@@ -103,8 +136,8 @@ export default function VerticalView({
       </div>
 
       {/* Date Rows */}
-      <div className="flex-1 overflow-auto min-h-0">
-        {days.map((day) => {
+      <div className="flex-1 overflow-auto min-h-0" ref={scrollerRef}>
+        {days.map((day, index) => {
           const dayOfWeek = day.getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
           const isToday = isSameDay(day, new Date());
@@ -121,6 +154,9 @@ export default function VerticalView({
                 isPast ? 'bg-gray-100' : isWeekend || bankHolidayName ? 'bg-[#F6F7F9]' : ''
               }`}
               style={{ height: rowHeight }}
+              data-export-cell
+              data-export-start={index === exportStartIdx ? true : undefined}
+              data-export-end={index === exportEndIdx ? true : undefined}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}
             >
@@ -156,15 +192,23 @@ export default function VerticalView({
                       const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                       const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
                       const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
+                      const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                       return (
                         <div
                           key={event.id}
                           className={`rounded px-2 text-xs h-8 ${campaign.locked ? 'cursor-default' : 'cursor-move'} hover:opacity-80 flex-1 min-w-0 overflow-hidden flex flex-col justify-center`}
-                          style={{ backgroundColor: eventColor }}
+                          style={{
+                            backgroundColor: eventColor,
+                            boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
+                          }}
                           title={event.title}
+                          data-selected-event={isSelected || undefined}
                           draggable={!campaign.locked}
-                          onDragStart={(e) => handleDragStart(e, event.id)}
+                          onDragStart={(e) => handleDragStart(e, event)}
+                          onClick={(e) => {
+                            if (onEventSelect) onEventSelect(event.id, e.shiftKey ? 'toggle' : 'select');
+                          }}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (onEventDoubleClick) onEventDoubleClick(event);

@@ -1,9 +1,17 @@
 'use client';
 
-import { format, addDays, startOfWeek, isSameDay, isSameMonth, differenceInDays } from 'date-fns';
+import { useLayoutEffect, useRef } from 'react';
+import { format, addDays, isSameDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
+import { anchorDay, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
+import {
+  getEventDragData,
+  getEventDragDetails,
+  setEventDragData,
+  type EventSelectionAction,
+} from '@/lib/eventDrag';
 
 interface GanttViewProps {
   events: Event[];
@@ -12,7 +20,9 @@ interface GanttViewProps {
   currentDate: Date;
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
-  onEventDrop?: (eventId: string, newDate: Date) => void;
+  selectedEventIds?: Set<string>;
+  onEventSelect?: (eventId: string, action: EventSelectionAction) => void;
+  onEventsDrop?: (draggedEventId: string, eventIds: string[], newDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -28,23 +38,48 @@ export default function GanttView({
   currentDate,
   onDateClick,
   onEventDoubleClick,
-  onEventDrop,
+  selectedEventIds,
+  onEventSelect,
+  onEventsDrop,
   showWeekends,
   showEventNotes,
   showPeople,
   selectedCampaigns,
 }: GanttViewProps) {
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = Array.from({ length: 90 }, (_, i) => addDays(startDate, i));
+  // Two weeks of history render before the anchor so they can be scrolled back
+  // to, but nothing earlier is ever shown
+  const anchor = anchorDay(currentDate);
+  const rangeStart = addDays(anchor, -LOOKBACK_DAYS);
+  const days = Array.from({ length: 90 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
+
+  // Export markers: image starts at the current date and ends a week after the
+  // last filtered event block
+  const exportStartIdx = LOOKBACK_DAYS;
+  const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'day');
+
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const anchorKey = anchor.getTime();
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
+    if (scroller && start && first) {
+      scroller.scrollLeft = start.getBoundingClientRect().left - first.getBoundingClientRect().left;
+    }
+  }, [anchorKey]);
 
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
   const getEventsForCampaign = (campaignId: string) =>
     events.filter(e => e.campaignId === campaignId);
 
-  const handleDragStart = (e: React.DragEvent, eventId: string) => {
-    e.dataTransfer.setData('eventId', eventId);
+  const handleDragStart = (e: React.DragEvent, event: Event) => {
+    const details = getEventDragDetails(event.id, events, selectedEventIds, e.shiftKey);
+    if (details.selectionAction && onEventSelect) {
+      onEventSelect(event.id, details.selectionAction);
+    }
+    setEventDragData(e.dataTransfer, details);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -55,8 +90,10 @@ export default function GanttView({
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
-    const eventId = e.dataTransfer.getData('eventId');
-    if (eventId && onEventDrop) onEventDrop(eventId, date);
+    const payload = getEventDragData(e.dataTransfer);
+    if (payload && onEventsDrop) {
+      onEventsDrop(payload.draggedEventId, payload.eventIds, date);
+    }
   };
 
   const visibleCampaigns = campaigns.filter(
@@ -67,7 +104,7 @@ export default function GanttView({
   const labelWidth = Math.max(200, ...visibleCampaigns.map(c => c.name.length * 7.5 + 40), 220);
 
   return (
-    <div className="h-full overflow-auto bg-white">
+    <div className="h-full overflow-auto bg-white" ref={scrollerRef}>
       <div style={{ width: labelWidth + days.length * DAY_WIDTH, minWidth: '100%' }}>
         {/* Sticky Date Header */}
         <div className="sticky top-0 z-20 flex h-14 bg-white border-b border-gray-200">
@@ -76,7 +113,7 @@ export default function GanttView({
             style={{ width: labelWidth }}
           />
           <div className="flex">
-            {days.map((day) => {
+            {days.map((day, index) => {
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               const isToday = isSameDay(day, new Date());
               const showMonth = true;
@@ -87,6 +124,9 @@ export default function GanttView({
                     isWeekend ? 'bg-[#F6F7F9]' : 'bg-white'
                   }`}
                   style={{ width: DAY_WIDTH }}
+                  data-export-cell
+                  data-export-start={index === exportStartIdx ? true : undefined}
+                  data-export-end={index === exportEndIdx ? true : undefined}
                 >
                   {showMonth && (
                     <span className="text-[9px] font-semibold text-gray-500 uppercase leading-none mb-0.5">
@@ -119,7 +159,7 @@ export default function GanttView({
           const miscPositioned = [...miscEvents]
             .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
             .map(event => {
-              const startOffset = differenceInDays(new Date(event.startDate), startDate);
+              const startOffset = differenceInDays(new Date(event.startDate), rangeStart);
               const duration = differenceInDays(new Date(event.endDate), new Date(event.startDate)) + 1;
               let lane = lanes.findIndex(end => end < startOffset);
               if (lane === -1) { lane = lanes.length; lanes.push(0); }
@@ -188,13 +228,13 @@ export default function GanttView({
 
           // Assign lanes to overlapping events so they stack instead of overlap
           const sorted = [...campaignEvents].sort((a, b) => {
-            const aStart = differenceInDays(new Date(a.startDate), startDate);
-            const bStart = differenceInDays(new Date(b.startDate), startDate);
+            const aStart = differenceInDays(new Date(a.startDate), rangeStart);
+            const bStart = differenceInDays(new Date(b.startDate), rangeStart);
             return aStart - bStart;
           });
           const lanes: number[] = [];
           const positioned = sorted.map(e => {
-            const s = differenceInDays(new Date(e.startDate), startDate);
+            const s = differenceInDays(new Date(e.startDate), rangeStart);
             const d = differenceInDays(new Date(e.endDate), new Date(e.startDate)) + 1;
             let lane = lanes.findIndex(end => end < s);
             if (lane === -1) { lane = lanes.length; lanes.push(0); }
@@ -249,6 +289,7 @@ export default function GanttView({
                   const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                   const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
+                  const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                   if (startOffset + duration < 0 || startOffset >= days.length) return null;
 
@@ -262,9 +303,14 @@ export default function GanttView({
                         width: duration * DAY_WIDTH - 3,
                         height: 40,
                         backgroundColor: eventColor,
+                        boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                       }}
+                      data-selected-event={isSelected || undefined}
                       draggable={!campaign.locked}
-                      onDragStart={(e) => handleDragStart(e, event.id)}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onClick={(e) => {
+                        if (onEventSelect) onEventSelect(event.id, e.shiftKey ? 'toggle' : 'select');
+                      }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);

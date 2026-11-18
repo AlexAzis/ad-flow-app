@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
-import { format, addMonths, startOfMonth } from 'date-fns';
+import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
 import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
+import type { EventSelectionAction } from '@/lib/eventDrag';
 import CalendarGrid from './CalendarGrid';
 import GanttView from './GanttView';
 import VerticalView from './VerticalView';
@@ -57,6 +58,7 @@ export default function SimpleScheduleView({
   const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set());
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(new Date());
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
@@ -121,7 +123,11 @@ export default function SimpleScheduleView({
     };
   }, [sync, saveNow]);
 
+  // Views anchor on the current date and only show the previous 2 weeks, so
+  // navigating back before the current month has nothing to show
+  const canNavigatePrev = startOfMonth(addMonths(currentDate, -1)) >= startOfMonth(new Date());
   const navigateDate = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && !canNavigatePrev) return;
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
   };
 
@@ -131,10 +137,19 @@ export default function SimpleScheduleView({
     setIsExporting(true);
     try {
       const { exportSchedule } = await import('@/lib/exportUtils');
+      // Legend shows the campaigns currently visible under the filters
+      const legendCampaigns = allCampaigns.filter(
+        c => selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
+      );
       await exportSchedule(
         exportRef.current,
         exportFormat,
-        `${scheduleName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`
+        `${scheduleName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`,
+        {
+          title: scheduleName,
+          date: format(new Date(), 'd MMM yyyy'),
+          campaigns: legendCampaigns.map(c => ({ name: c.name, color: c.color })),
+        }
       );
     } catch (error) {
       console.error('Export failed', error);
@@ -187,6 +202,25 @@ export default function SimpleScheduleView({
     if (locked) return warnLocked(locked);
     setSelectedEventToEdit(event);
     setIsEditEventModalOpen(true);
+  };
+
+  const handleEventSelect = (eventId: string, action: EventSelectionAction) => {
+    const event = allEvents.find(e => e.id === eventId);
+    if (!event || getLockedCampaign(event.campaignId)) return;
+
+    setSelectedEventIds(prev => {
+      const next = new Set(prev);
+      if (action === 'toggle') {
+        if (next.has(eventId)) next.delete(eventId);
+        else next.add(eventId);
+      } else if (action === 'select') {
+        next.clear();
+        next.add(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
   };
 
   const handleUpdateEvent = (id: string, updatedEvent: Omit<Event, 'id'>) => {
@@ -280,21 +314,22 @@ export default function SimpleScheduleView({
     setSelectedEvents(new Set());
   };
 
-  const handleEventDrop = (eventId: string, newDate: Date) => {
-    const event = allEvents.find(e => e.id === eventId);
-    if (!event || getLockedCampaign(event.campaignId)) return;
+  const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
+    const draggedEvent = allEvents.find(e => e.id === draggedEventId);
+    if (!draggedEvent || getLockedCampaign(draggedEvent.campaignId)) return;
 
-    const startDate = new Date(event.startDate);
-    const endDate = new Date(event.endDate);
-    const duration = endDate.getTime() - startDate.getTime();
+    const dayOffset = differenceInCalendarDays(newDate, new Date(draggedEvent.startDate));
+    if (dayOffset === 0) return;
 
-    const updatedEvent = {
-      ...event,
-      startDate: newDate,
-      endDate: new Date(newDate.getTime() + duration),
-    };
-
-    setAllEvents(allEvents.map(e => e.id === eventId ? updatedEvent : e));
+    const ids = new Set([draggedEventId, ...eventIds]);
+    setAllEvents(allEvents.map(event => {
+      if (!ids.has(event.id) || getLockedCampaign(event.campaignId)) return event;
+      return {
+        ...event,
+        startDate: addDays(new Date(event.startDate), dayOffset),
+        endDate: addDays(new Date(event.endDate), dayOffset),
+      };
+    }));
   };
 
   const handleEventResize = (eventId: string, newStartDate: Date, newEndDate: Date) => {
@@ -322,6 +357,15 @@ export default function SimpleScheduleView({
     if (!showMisc && event.isMisc) return false;
     return true;
   });
+
+  // Keep the move selection limited to events that are currently visible
+  useEffect(() => {
+    const visibleIds = new Set(filteredEvents.map(event => event.id));
+    setSelectedEventIds(prev => {
+      const next = new Set(Array.from(prev).filter(id => visibleIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filteredEvents]);
 
   return (
     <div className="flex flex-col h-full min-w-0 w-full">
@@ -363,7 +407,8 @@ export default function SimpleScheduleView({
               </button>
               <button
                 onClick={() => navigateDate('prev')}
-                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
+                disabled={!canNavigatePrev}
+                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 <ChevronLeft size={20} className="text-gray-600" />
               </button>
@@ -552,7 +597,9 @@ export default function SimpleScheduleView({
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
-                onEventDrop={handleEventDrop}
+                selectedEventIds={selectedEventIds}
+                onEventSelect={handleEventSelect}
+                onEventsDrop={handleEventsDrop}
                 showWeekends={showWeekends}
                 showEventNotes={showEventNotes}
                 showPeople={showPeople}
@@ -568,7 +615,9 @@ export default function SimpleScheduleView({
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
-                onEventDrop={handleEventDrop}
+                selectedEventIds={selectedEventIds}
+                onEventSelect={handleEventSelect}
+                onEventsDrop={handleEventsDrop}
                 showWeekends={showWeekends}
                 showEventNotes={showEventNotes}
                 showPeople={showPeople}
@@ -584,7 +633,6 @@ export default function SimpleScheduleView({
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
-                onEventDrop={handleEventDrop}
                 showWeekends={showWeekends}
                 showEventNotes={showEventNotes}
                 showPeople={showPeople}
@@ -600,7 +648,9 @@ export default function SimpleScheduleView({
                 currentDate={currentDate}
                 onDateClick={handleDateClick}
                 onEventDoubleClick={handleEventDoubleClick}
-                onEventDrop={handleEventDrop}
+                selectedEventIds={selectedEventIds}
+                onEventSelect={handleEventSelect}
+                onEventsDrop={handleEventsDrop}
                 showWeekends={showWeekends}
                 showEventNotes={showEventNotes}
                 showPeople={showPeople}
@@ -615,7 +665,9 @@ export default function SimpleScheduleView({
               currentDate={currentDate}
               onDateClick={handleDateClick}
               onEventDoubleClick={handleEventDoubleClick}
-              onEventDrop={handleEventDrop}
+              selectedEventIds={selectedEventIds}
+              onEventSelect={handleEventSelect}
+              onEventsDrop={handleEventsDrop}
               onEventResize={handleEventResize}
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}

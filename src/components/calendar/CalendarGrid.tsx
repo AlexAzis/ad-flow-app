@@ -1,10 +1,17 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { format, addDays, startOfWeek, differenceInDays, isSameDay, isSameMonth } from 'date-fns';
+import { format, addDays, differenceInDays, differenceInWeeks, isSameDay, isSameMonth } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
+import { anchorWeek, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
+import {
+  getEventDragData,
+  getEventDragDetails,
+  setEventDragData,
+  type EventSelectionAction,
+} from '@/lib/eventDrag';
 
 interface CalendarGridProps {
   events: Event[];
@@ -13,7 +20,9 @@ interface CalendarGridProps {
   currentDate: Date;
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
-  onEventDrop?: (eventId: string, newDate: Date) => void;
+  selectedEventIds?: Set<string>;
+  onEventSelect?: (eventId: string, action: EventSelectionAction) => void;
+  onEventsDrop?: (draggedEventId: string, eventIds: string[], newDate: Date) => void;
   onEventResize?: (eventId: string, newStartDate: Date, newEndDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
@@ -34,15 +43,25 @@ export default function CalendarGrid({
   currentDate,
   onDateClick,
   onEventDoubleClick,
-  onEventDrop,
+  selectedEventIds,
+  onEventSelect,
+  onEventsDrop,
   onEventResize,
   showWeekends,
   showEventNotes,
   showPeople,
 }: CalendarGridProps) {
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const daysToShow = 371; // 12 months in full weeks
+  // Two weeks of history render before the anchor so they can be scrolled back
+  // to, but nothing earlier is ever shown
+  const anchor = anchorWeek(currentDate);
+  const startDate = addDays(anchor, -LOOKBACK_DAYS);
+  const daysToShow = 385; // 12 months in full weeks, plus the 2-week look-back
   const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+
+  // Export markers: image starts at the current week and ends a week after the
+  // last filtered event block
+  const exportStartIdx = differenceInWeeks(anchor, startDate);
+  const exportEndIdx = exportEndIndex(events, anchor, startDate, 'week');
 
   // UK bank holidays for the visible range
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
@@ -119,12 +138,28 @@ export default function CalendarGrid({
     return () => observer.disconnect();
   }, [events, showWeekends, currentDate]);
 
-  const handleDragStart = (e: React.DragEvent, eventId: string) => {
+  // Opening the view (or changing month) lands on the current week; the previous
+  // two weeks sit above it, reachable by scrolling up
+  const anchorKey = anchor.getTime();
+  useLayoutEffect(() => {
+    const scroller = gridRef.current;
+    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
+    if (scroller && start && first) {
+      scroller.scrollTop = start.getBoundingClientRect().top - first.getBoundingClientRect().top;
+    }
+  }, [anchorKey, miscRowsByWeek]);
+
+  const handleDragStart = (e: React.DragEvent, event: Event) => {
     if (resizeState) {
       e.preventDefault();
       return;
     }
-    e.dataTransfer.setData('eventId', eventId);
+    const details = getEventDragDetails(event.id, events, selectedEventIds, e.shiftKey);
+    if (details.selectionAction && onEventSelect) {
+      onEventSelect(event.id, details.selectionAction);
+    }
+    setEventDragData(e.dataTransfer, details);
   };
 
   const handleResizeStart = (e: React.MouseEvent, event: Event, edge: 'left' | 'right', colCount: number) => {
@@ -150,9 +185,9 @@ export default function CalendarGrid({
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
-    const eventId = e.dataTransfer.getData('eventId');
-    if (eventId && onEventDrop) {
-      onEventDrop(eventId, date);
+    const payload = getEventDragData(e.dataTransfer);
+    if (payload && onEventsDrop) {
+      onEventsDrop(payload.draggedEventId, payload.eventIds, date);
     }
   };
 
@@ -311,7 +346,16 @@ export default function CalendarGrid({
           <div className="flex-1 min-w-0">
         {weekRows.map(({ weekIndex, weekDays, positionedEvents, rowHeight, headerHeight, hasEvents }) => {
           return (
-              <div key={weekIndex} className="relative flex border-b border-gray-200" style={{ height: rowHeight }} data-week-row data-has-events={hasEvents}>
+              <div
+                key={weekIndex}
+                className="relative flex border-b border-gray-200"
+                style={{ height: rowHeight }}
+                data-week-row
+                data-has-events={hasEvents}
+                data-export-cell
+                data-export-start={weekIndex === exportStartIdx ? true : undefined}
+                data-export-end={weekIndex === exportEndIdx ? true : undefined}
+              >
                 {weekDays.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -386,6 +430,7 @@ export default function CalendarGrid({
                   const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                   const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : event.color);
+                  const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                   return (
                     <div
@@ -397,9 +442,14 @@ export default function CalendarGrid({
                         top: headerHeight + lane * (EVENT_HEIGHT + EVENT_GAP),
                         height: EVENT_HEIGHT,
                         backgroundColor: eventColor,
+                        boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                       }}
+                      data-selected-event={isSelected || undefined}
                       draggable={!resizeState && !campaign?.locked}
-                      onDragStart={(e) => handleDragStart(e, event.id)}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onClick={(e) => {
+                        if (onEventSelect) onEventSelect(event.id, e.shiftKey ? 'toggle' : 'select');
+                      }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);

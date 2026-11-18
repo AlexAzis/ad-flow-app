@@ -1,9 +1,11 @@
 'use client';
 
-import { format, addWeeks, addDays, startOfWeek, endOfWeek, isWithinInterval, differenceInWeeks, isSameMonth } from 'date-fns';
+import { useLayoutEffect, useRef } from 'react';
+import { format, addWeeks, addDays, endOfWeek, isWithinInterval } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
+import { anchorWeek, exportEndIndex } from '@/lib/visibleRange';
 
 interface ToplineViewProps {
   events: Event[];
@@ -12,7 +14,6 @@ interface ToplineViewProps {
   currentDate: Date;
   onDateClick: (date: Date) => void;
   onEventDoubleClick?: (event: Event) => void;
-  onEventDrop?: (eventId: string, newDate: Date) => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -37,16 +38,33 @@ export default function ToplineView({
   currentDate,
   onDateClick,
   onEventDoubleClick,
-  onEventDrop,
   showWeekends,
   showEventNotes,
   showPeople,
   selectedCampaigns,
 }: ToplineViewProps) {
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekCount = 24;
-  const weeks = Array.from({ length: weekCount }, (_, i) => addWeeks(startDate, i));
+  // Two weeks of history render before the anchor so they can be scrolled back
+  // to, but nothing earlier is ever shown
+  const anchor = anchorWeek(currentDate);
+  const rangeStart = addWeeks(anchor, -2);
+  const weeks = Array.from({ length: 26 }, (_, i) => addWeeks(rangeStart, i));
   const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
+
+  // Export markers: image starts at the current week and ends a week after the
+  // last filtered event block
+  const exportStartIdx = 2;
+  const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
+
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const anchorKey = anchor.getTime();
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
+    if (scroller && start && first) {
+      scroller.scrollLeft = start.getBoundingClientRect().left - first.getBoundingClientRect().left;
+    }
+  }, [anchorKey]);
 
   // Does a bank holiday fall within this week?
   const weekHasBankHoliday = (weekStart: Date) => {
@@ -107,7 +125,7 @@ export default function ToplineView({
   const getRowHeight = (maxPills: number) => Math.max(44, maxPills * 20 + 4);
 
   return (
-    <div className="h-full overflow-auto bg-white">
+    <div className="h-full overflow-auto bg-white" ref={scrollerRef}>
       <div style={{ width: labelWidth + weeks.length * WEEK_WIDTH, minWidth: '100%' }}>
         {/* Sticky Header - Month row + Week row */}
         <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
@@ -138,7 +156,7 @@ export default function ToplineView({
               style={{ width: labelWidth }}
             />
             <div className="flex">
-              {weeks.map((weekStart) => {
+              {weeks.map((weekStart, index) => {
                 const isCurrent = isCurrentWeek(weekStart);
                 return (
                   <div
@@ -147,6 +165,9 @@ export default function ToplineView({
                       isPastWeek(weekStart) ? 'bg-gray-100' : 'bg-white'
                     }`}
                     style={{ width: WEEK_WIDTH }}
+                    data-export-cell
+                    data-export-start={index === exportStartIdx ? true : undefined}
+                    data-export-end={index === exportEndIdx ? true : undefined}
                   >
                     <span className={`text-[9px] font-medium ${isCurrent ? 'w-4 h-4 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold' : 'text-gray-600'}`}>
                       {format(weekStart, 'd')}

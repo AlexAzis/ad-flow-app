@@ -2,6 +2,54 @@ const MAX_CANVAS_SIDE = 16000;
 
 const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
+interface AxisCrop {
+  axis: 'x' | 'y';
+  keep: number; // leading region kept before the cut (weekday header / label columns)
+  from: number; // where the visible range starts (current date / week)
+  to: number; // where it ends (week after the last event block)
+}
+
+export interface ExportHeaderData {
+  title: string;
+  date: string;
+  campaigns: { name: string; color: string }[];
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// Stitches the kept leading region and the current-date-onwards range into one image
+async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, height: number, pixelRatio: number) {
+  if (crop.to - crop.from <= 0) return { dataUrl, width, height };
+  const img = await loadImage(dataUrl);
+  const r = pixelRatio;
+  const outWidth = crop.axis === 'x' ? crop.keep + (crop.to - crop.from) : width;
+  const outHeight = crop.axis === 'y' ? crop.keep + (crop.to - crop.from) : height;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(outWidth * r));
+  canvas.height = Math.max(1, Math.round(outHeight * r));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { dataUrl, width, height };
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (crop.axis === 'y') {
+    ctx.drawImage(img, 0, 0, img.width, crop.keep * r, 0, 0, img.width, crop.keep * r);
+    ctx.drawImage(img, 0, crop.from * r, img.width, (crop.to - crop.from) * r, 0, crop.keep * r, img.width, (crop.to - crop.from) * r);
+  } else {
+    ctx.drawImage(img, 0, 0, crop.keep * r, img.height, 0, 0, crop.keep * r, img.height);
+    ctx.drawImage(img, crop.from * r, 0, (crop.to - crop.from) * r, img.height, crop.keep * r, 0, (crop.to - crop.from) * r, img.height);
+  }
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.95), width: outWidth, height: outHeight };
+}
+
 // Renders the whole schedule (not just the part scrolled into view) to a JPEG data URL.
 // The element is temporarily expanded so nothing inside it needs to scroll, then restored.
 async function captureFullElement(element: HTMLElement) {
@@ -32,11 +80,18 @@ async function captureFullElement(element: HTMLElement) {
     element.style.width = `${width}px`;
     element.style.height = `${height}px`;
     element.style.flexShrink = '0';
+    // The captured clone always renders unscrolled, so measurements must match
+    scrollers.forEach(el => {
+      el.scrollTop = 0;
+      el.scrollLeft = 0;
+    });
     await nextFrame();
     await nextFrame();
 
+    const elRect = element.getBoundingClientRect();
+    const { top, left } = elRect;
+
     // Trim empty space below the last row when the schedule is shorter than the window
-    const top = element.getBoundingClientRect().top;
     const contentBottom = Math.max(
       0,
       ...Array.from(element.querySelectorAll<HTMLElement>('*'))
@@ -46,12 +101,30 @@ async function captureFullElement(element: HTMLElement) {
     );
     if (contentBottom > 0) height = Math.min(height, Math.ceil(contentBottom) + 1);
 
-    // Daily views: crop one week below the last week that has any events
-    const weekRows = Array.from(element.querySelectorAll<HTMLElement>('[data-week-row]'));
-    const lastWithEvents = weekRows.map(row => row.dataset.hasEvents === 'true').lastIndexOf(true);
-    if (lastWithEvents >= 0) {
-      const cutRow = weekRows[Math.min(lastWithEvents + 1, weekRows.length - 1)];
-      height = Math.min(height, Math.ceil(cutRow.getBoundingClientRect().bottom - top));
+    // Crop to the visible range: views mark their time-axis cells with
+    // data-export-cell, the current date/week with data-export-start, and the
+    // week after the last filtered event with data-export-end.
+    const cells = Array.from(element.querySelectorAll<HTMLElement>('[data-export-cell]'));
+    const startCell = element.querySelector<HTMLElement>('[data-export-start]');
+    let crop: AxisCrop | null = null;
+    if (cells.length > 0 && startCell) {
+      const first = cells[0].getBoundingClientRect();
+      const start = startCell.getBoundingClientRect();
+      const second = cells[1]?.getBoundingClientRect();
+      const vertical = !second || Math.abs(second.top - first.top) > Math.abs(second.left - first.left);
+      const endCell = element.querySelector<HTMLElement>('[data-export-end]') ?? cells[cells.length - 1];
+      const end = endCell.getBoundingClientRect();
+      if (vertical) {
+        const keep = Math.max(0, first.top - top);
+        const from = Math.max(keep, start.top - top);
+        const to = Math.min(height, Math.max(end.bottom, start.bottom) - top);
+        if (to > keep) crop = { axis: 'y', keep, from, to };
+      } else {
+        const keep = Math.max(0, first.left - left);
+        const from = Math.max(keep, start.left - left);
+        const to = Math.min(width, Math.max(end.right, start.right) - left);
+        if (to > keep) crop = { axis: 'x', keep, from, to };
+      }
     }
 
     const pixelRatio = Math.min(2, MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height);
@@ -62,6 +135,7 @@ async function captureFullElement(element: HTMLElement) {
       quality: 0.95,
       backgroundColor: '#ffffff',
     });
+    if (crop) return cropCapture(dataUrl, crop, width, height, pixelRatio);
     return { dataUrl, width, height };
   } finally {
     element.style.width = saved.width;
@@ -77,8 +151,107 @@ async function captureFullElement(element: HTMLElement) {
   }
 }
 
-export async function exportSchedule(element: HTMLElement, format: 'jpeg' | 'pdf', fileName: string) {
-  const { dataUrl, width, height } = await captureFullElement(element);
+// Draws a header band (schedule title, export date, campaign colour legend)
+// above the captured schedule image.
+async function applyHeader(dataUrl: string, header: ExportHeaderData, width: number, height: number) {
+  const img = await loadImage(dataUrl);
+  const r = img.width / width;
+
+  const padX = 16;
+  const padTop = 12;
+  const titleBaseline = padTop + 14;
+  const legendBaseline0 = titleBaseline + 18;
+  const legendLineHeight = 18;
+  const legendBottomPad = 10;
+  const swatchSize = 10;
+  const itemGap = 14;
+
+  const measure = document.createElement('canvas').getContext('2d');
+  if (!measure) return { dataUrl, width, height };
+  measure.font = '400 12px Arial, sans-serif';
+
+  const maxLegendWidth = width - padX * 2;
+  const items = header.campaigns.map(c => {
+    let name = c.name;
+    let nameWidth = measure.measureText(name).width;
+    const maxNameWidth = maxLegendWidth - swatchSize - itemGap * 2;
+    while (nameWidth > maxNameWidth && name.length > 1) {
+      name = name.slice(0, -1);
+      nameWidth = measure.measureText(`${name}…`).width;
+      if (nameWidth <= maxNameWidth) name += '…';
+    }
+    return { ...c, name, width: swatchSize + itemGap + nameWidth + itemGap };
+  });
+
+  // Wrap legend items onto as many lines as needed
+  const legendLines: typeof items[] = [];
+  let line: typeof items = [];
+  let lineWidth = 0;
+  for (const item of items) {
+    if (line.length > 0 && lineWidth + item.width > maxLegendWidth) {
+      legendLines.push(line);
+      line = [];
+      lineWidth = 0;
+    }
+    line.push(item);
+    lineWidth += item.width;
+  }
+  if (line.length > 0) legendLines.push(line);
+
+  const contentBottom = legendLines.length > 0
+    ? legendBaseline0 + (legendLines.length - 1) * legendLineHeight + legendBottomPad
+    : titleBaseline + 8;
+  const headerHeight = Math.ceil(contentBottom) + 1;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * r);
+  canvas.height = Math.round((headerHeight + height) * r);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { dataUrl, width, height };
+  ctx.scale(r, r);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, headerHeight + height);
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillRect(0, headerHeight - 1, width, 1);
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = '700 15px Arial, sans-serif';
+  ctx.fillStyle = '#111827';
+  ctx.fillText(header.title, padX, titleBaseline);
+
+  ctx.font = '400 12px Arial, sans-serif';
+  ctx.fillStyle = '#6b7280';
+  ctx.textAlign = 'right';
+  ctx.fillText(`Exported ${header.date}`, width - padX, titleBaseline);
+  ctx.textAlign = 'left';
+
+  legendLines.forEach((legendLine, i) => {
+    const baseline = legendBaseline0 + i * legendLineHeight;
+    let x = padX;
+    legendLine.forEach(item => {
+      ctx.fillStyle = item.color;
+      ctx.beginPath();
+      ctx.roundRect(x, baseline - swatchSize - 1, swatchSize, swatchSize, 2);
+      ctx.fill();
+      ctx.fillStyle = '#374151';
+      ctx.fillText(item.name, x + swatchSize + itemGap, baseline);
+      x += item.width;
+    });
+  });
+
+  ctx.drawImage(img, 0, headerHeight, width, height);
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.95), width, height: headerHeight + height };
+}
+
+export async function exportSchedule(
+  element: HTMLElement,
+  format: 'jpeg' | 'pdf',
+  fileName: string,
+  header?: ExportHeaderData
+) {
+  let { dataUrl, width, height } = await captureFullElement(element);
+  if (header) ({ dataUrl, width, height } = await applyHeader(dataUrl, header, width, height));
 
   if (format === 'jpeg') {
     const link = document.createElement('a');

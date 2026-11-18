@@ -21,7 +21,7 @@ export default function EditCampaignModal({
   onUpdateCampaign,
   onDeleteCampaign,
   campaign,
-  currentUser = 'Alex Azis',
+  currentUser = '',
   allCampaigns = [],
 }: EditCampaignModalProps) {
   const [name, setName] = useState('');

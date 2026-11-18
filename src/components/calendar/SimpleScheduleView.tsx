@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addMonths, startOfMonth } from 'date-fns';
+import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
 import CalendarGrid from './CalendarGrid';
 import GanttView from './GanttView';
 import VerticalView from './VerticalView';
@@ -17,31 +18,32 @@ import ManageEventsModal from './ManageEventsModal';
 import EditCampaignModal from './EditCampaignModal';
 
 interface SimpleScheduleViewProps {
+  scheduleId: string;
+  scheduleName: string;
+  role: ScheduleRole;
+  currentUser: string;
   events: Event[];
   campaigns: Campaign[];
   people: Person[];
+  customEventTypes: Record<string, string[]>;
   onBack?: () => void;
 }
 
-const STORAGE_VERSION = '2';
-
-function loadSaved<T>(key: string, reviver?: (key: string, value: any) => any): T | null {
-  if (typeof window === 'undefined') return null;
-  if (localStorage.getItem('storageVersion') !== STORAGE_VERSION) {
-    ['campaigns', 'events', 'people'].forEach(k => localStorage.removeItem(k));
-    localStorage.setItem('storageVersion', STORAGE_VERSION);
-  }
-  const saved = localStorage.getItem(key);
-  return saved ? JSON.parse(saved, reviver) : null;
-}
+const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+const SAVE_DELAY_MS = 400;
 
 export default function SimpleScheduleView({
+  scheduleId,
+  scheduleName,
+  role,
+  currentUser,
   events,
   campaigns,
   people,
+  customEventTypes: initialCustomEventTypes,
   onBack,
 }: SimpleScheduleViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date('2026-11-01'));
+  const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
@@ -63,20 +65,10 @@ export default function SimpleScheduleView({
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
-  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(
-    () => loadSaved<Campaign[]>('campaigns') ?? campaigns
-  );
-  const [allEvents, setAllEvents] = useState<Event[]>(
-    () => loadSaved<Event[]>('events', (key, value) =>
-      key === 'startDate' || key === 'endDate' ? new Date(value) : value
-    ) ?? events
-  );
-  const [allPeople, setAllPeople] = useState<Person[]>(
-    () => loadSaved<Person[]>('people') ?? people
-  );
-  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(
-    () => loadSaved<Record<string, string[]>>('customEventTypes') ?? {}
-  );
+  const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
+  const [allEvents, setAllEvents] = useState<Event[]>(events);
+  const [allPeople, setAllPeople] = useState<Person[]>(people);
+  const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(initialCustomEventTypes);
 
   // Drop people from the filter once they are no longer assigned to any event
   useEffect(() => {
@@ -89,19 +81,45 @@ export default function SimpleScheduleView({
     });
   }, [allEvents]);
 
-  // Persist to localStorage on changes
+  // Save changes to the database shortly after they happen
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [sync] = useState(() =>
+    createScheduleSync(scheduleId, { campaigns, events, people, customEventTypes: initialCustomEventTypes })
+  );
+  const latestContent = useRef({ campaigns: allCampaigns, events: allEvents, people: allPeople, customEventTypes });
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const isMounted = useRef(true);
+
+  const saveNow = useCallback(() => {
+    saveQueue.current = saveQueue.current
+      .then(() => sync.save(latestContent.current))
+      .then(
+        () => {
+          if (isMounted.current) setSaveState(sync.isDirty(latestContent.current) ? 'saving' : 'saved');
+        },
+        error => {
+          console.error('Could not save schedule', error);
+          if (isMounted.current) setSaveState('error');
+        }
+      );
+  }, [sync]);
+
   useEffect(() => {
-    localStorage.setItem('campaigns', JSON.stringify(allCampaigns));
-  }, [allCampaigns]);
+    latestContent.current = { campaigns: allCampaigns, events: allEvents, people: allPeople, customEventTypes };
+    if (!sync.isDirty(latestContent.current)) return;
+    setSaveState('saving');
+    const timer = setTimeout(saveNow, SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [allCampaigns, allEvents, allPeople, customEventTypes, sync, saveNow]);
+
+  // Leaving the schedule: save anything still waiting
   useEffect(() => {
-    localStorage.setItem('events', JSON.stringify(allEvents));
-  }, [allEvents]);
-  useEffect(() => {
-    localStorage.setItem('people', JSON.stringify(allPeople));
-  }, [allPeople]);
-  useEffect(() => {
-    localStorage.setItem('customEventTypes', JSON.stringify(customEventTypes));
-  }, [customEventTypes]);
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      if (sync.isDirty(latestContent.current)) saveNow();
+    };
+  }, [sync, saveNow]);
 
   const navigateDate = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => addMonths(prev, direction === 'next' ? 1 : -1));
@@ -116,7 +134,7 @@ export default function SimpleScheduleView({
       await exportSchedule(
         exportRef.current,
         exportFormat,
-        `Sky-TV-Products_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`
+        `${scheduleName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`
       );
     } catch (error) {
       console.error('Export failed', error);
@@ -159,7 +177,7 @@ export default function SimpleScheduleView({
     if (locked) return warnLocked(locked);
     const eventWithId: Event = {
       ...newEvent,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
     };
     setAllEvents([...allEvents, eventWithId]);
   };
@@ -197,7 +215,7 @@ export default function SimpleScheduleView({
       if (existing) {
         ids.push(existing.id);
       } else {
-        const newPerson: Person = { id: `${Date.now()}-${name}`, name, role: 'Team Member' };
+        const newPerson: Person = { id: crypto.randomUUID(), name, role: 'Team Member' };
         newPeople.push(newPerson);
         ids.push(newPerson.id);
       }
@@ -210,12 +228,12 @@ export default function SimpleScheduleView({
     let peopleIds = newCampaign.people;
     if (newCampaign.people?.length) {
       const { ids, newPeople } = resolveNamesToIds(newCampaign.people, allPeople);
-      if (newPeople.length) setAllPeople([...allPeople, ...newPeople]);
+      if (newPeople.length) setAllPeople(prev => [...prev, ...newPeople]);
       peopleIds = ids;
     }
     const campaignWithId: Campaign = {
       ...newCampaign,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       people: peopleIds,
     };
     setAllCampaigns([...allCampaigns, campaignWithId]);
@@ -225,7 +243,7 @@ export default function SimpleScheduleView({
     let peopleIds = updatedCampaign.people;
     if (updatedCampaign.people?.length) {
       const { ids, newPeople } = resolveNamesToIds(updatedCampaign.people, allPeople);
-      if (newPeople.length) setAllPeople([...allPeople, ...newPeople]);
+      if (newPeople.length) setAllPeople(prev => [...prev, ...newPeople]);
       peopleIds = ids;
     }
     setAllCampaigns(allCampaigns.map(campaign =>
@@ -247,11 +265,11 @@ export default function SimpleScheduleView({
 
   const handleAddPerson = (name: string): Person => {
     const newPerson: Person = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       name,
       role: 'Team Member',
     };
-    setAllPeople([...allPeople, newPerson]);
+    setAllPeople(prev => [...prev, newPerson]);
     return newPerson;
   };
 
@@ -321,11 +339,20 @@ export default function SimpleScheduleView({
               </button>
             )}
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-gray-800">Sky - TV Products</h1>
+              <h1 className="text-xl font-semibold text-gray-800">{scheduleName}</h1>
               <span className="text-xs font-medium text-white bg-gray-900 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <ShieldCheck size={11} />
-                Owner
+                {roleLabel[role]}
               </span>
+              {saveState === 'error' ? (
+                <button onClick={saveNow} className="text-xs text-red-600 underline whitespace-nowrap">
+                  Couldn’t save. Retry
+                </button>
+              ) : (
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {saveState === 'saving' ? 'Saving…' : 'Saved'}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 ml-8">
               <button
@@ -646,6 +673,7 @@ export default function SimpleScheduleView({
         onClose={() => setIsEditCampaignModalOpen(false)}
         onUpdateCampaign={handleUpdateCampaign}
         onDeleteCampaign={handleDeleteCampaign}
+        currentUser={currentUser}
         campaign={selectedCampaignToEdit}
         allCampaigns={allCampaigns}
       />

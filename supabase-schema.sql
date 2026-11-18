@@ -32,6 +32,7 @@ create table public.campaigns (
   name text not null,
   client text not null default '',
   color text not null,
+  logo_url text,
   locked boolean not null default false,
   locked_by uuid references auth.users(id) on delete set null,
   locked_by_name text,
@@ -313,3 +314,7 @@ create policy "owners can remove schedule logos" on storage.objects
     and (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     and public.schedule_role((storage.foldername(name))[1]::uuid) = 'owner'
   );
+
+-- ---------------------------------------------------------- migrations
+-- Run against databases created before the column was added:
+--   alter table public.campaigns add column if not exists logo_url text;

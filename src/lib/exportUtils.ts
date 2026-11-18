@@ -12,7 +12,8 @@ interface AxisCrop {
 export interface ExportHeaderData {
   title: string;
   date: string;
-  campaigns: { name: string; color: string }[];
+  scheduleLogoUrl?: string;
+  campaigns: { name: string; color: string; logoUrl?: string }[];
 }
 
 function loadImage(src: string) {
@@ -22,6 +23,24 @@ function loadImage(src: string) {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+// Loads a logo without tainting the export canvas: data URLs load directly,
+// remote URLs are fetched into a same-origin blob. Failures just drop the logo.
+async function loadLogo(url: string): Promise<HTMLImageElement | null> {
+  try {
+    if (url.startsWith('data:')) return await loadImage(url);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const objectUrl = URL.createObjectURL(await res.blob());
+    try {
+      return await loadImage(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
+    return null;
+  }
 }
 
 // Stitches the kept leading region and the current-date-onwards range into one image
@@ -159,7 +178,32 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
 
   const padX = 16;
   const padTop = 12;
-  const titleBaseline = padTop + 14;
+
+  // Centered logo band: schedule logo first, then each visible campaign's logo
+  const logoUrls = [
+    ...(header.scheduleLogoUrl ? [header.scheduleLogoUrl] : []),
+    ...header.campaigns.map(c => c.logoUrl).filter((u): u is string => !!u),
+  ].filter((u, i, arr) => arr.indexOf(u) === i);
+  const logoImgs = (await Promise.all(logoUrls.map(loadLogo))).filter(
+    (img): img is HTMLImageElement => !!img
+  );
+
+  const logoBandH = 36;
+  const logoMaxW = 140;
+  const logoGap = 16;
+  const availableW = width - padX * 2;
+  let totalLogoW = 0;
+  const logoBoxes = logoImgs.map(img => {
+    const s = Math.min(logoBandH / img.height, logoMaxW / img.width);
+    const w = img.width * s;
+    totalLogoW += w;
+    return { img, w, h: img.height * s };
+  });
+  totalLogoW += logoGap * Math.max(0, logoBoxes.length - 1);
+  const logoScale = Math.min(1, availableW / Math.max(1, totalLogoW));
+  const logoBand = logoBoxes.length > 0 ? logoBandH * logoScale + 12 : 0;
+
+  const titleBaseline = padTop + logoBand + 14;
   const legendBaseline0 = titleBaseline + 18;
   const legendLineHeight = 18;
   const legendBottomPad = 10;
@@ -214,6 +258,17 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   ctx.fillRect(0, 0, width, headerHeight + height);
   ctx.fillStyle = '#e5e7eb';
   ctx.fillRect(0, headerHeight - 1, width, 1);
+
+  // Logos, centered across the export width
+  if (logoBoxes.length > 0) {
+    let logoX = (width - totalLogoW * logoScale) / 2;
+    logoBoxes.forEach(box => {
+      const w = box.w * logoScale;
+      const h = box.h * logoScale;
+      ctx.drawImage(box.img, logoX, padTop + (logoBandH * logoScale - h) / 2, w, h);
+      logoX += w + logoGap * logoScale;
+    });
+  }
 
   ctx.textBaseline = 'alphabetic';
   ctx.font = '700 15px Arial, sans-serif';

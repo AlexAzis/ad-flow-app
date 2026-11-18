@@ -235,6 +235,40 @@ export async function inviteNewUser(email: string): Promise<PlatformInviteOutcom
   return (data?.status ?? 'error') as PlatformInviteOutcome;
 }
 
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  createdAt: string;
+  lastSignInAt: string | null;
+  invitedAt: string | null;
+  ownedSchedules: number;
+}
+
+export interface AdminScheduleRow {
+  id: string;
+  name: string;
+  createdAt: string;
+  ownerEmail: string;
+  editors: number;
+  viewers: number;
+  totalMembers: number;
+  pendingInvites: { email: string; role: 'editor' | 'viewer' }[];
+}
+
+export interface AdminOverview {
+  users: AdminUserRow[];
+  schedules: AdminScheduleRow[];
+}
+
+// Read-only platform stats for site admins (admin-overview function). Only
+// returns account and schedule metadata - never schedule contents.
+export async function loadAdminOverview(): Promise<AdminOverview> {
+  const { data, error } = await supabase.functions.invoke('admin-overview', { method: 'GET' });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data as AdminOverview;
+}
+
 // Supabase returns at most 1000 rows per request, so page through larger tables
 async function fetchAll(table: string, scheduleId: string) {
   const rows: any[] = [];
@@ -266,6 +300,7 @@ export async function loadSchedule(scheduleId: string): Promise<ScheduleContent>
     name: row.name,
     client: row.client,
     color: row.color,
+    logoUrl: row.logo_url ?? undefined,
     locked: row.locked || undefined,
     lockedBy: row.locked_by_name ?? undefined,
     people: row.people ?? [],
@@ -312,6 +347,7 @@ function toRows(scheduleId: string, content: ScheduleContent) {
       name: c.name,
       client: c.client,
       color: c.color,
+      logo_url: c.logoUrl ?? null,
       locked: !!c.locked,
       locked_by_name: c.locked ? c.lockedBy ?? null : null,
       people: c.people ?? [],

@@ -57,9 +57,13 @@ export default function FilterSidebar({
   onManageEvents,
   onClearFilters,
 }: FilterSidebarProps) {
-  // Only show event titles actually used in the schedule, grouped by stage
+  // Only show event titles used by the selected campaigns, grouped by stage.
+  // With no campaign filter selected, every used event title remains available.
   // Misc events are excluded - controlled only by the Misc toggle
-  const usedEventsByStage = (events || []).reduce<Record<string, Set<string>>>((acc, e) => {
+  const campaignScopedEvents = selectedCampaigns.size > 0
+    ? (events || []).filter(e => selectedCampaigns.has(e.campaignId))
+    : events || [];
+  const usedEventsByStage = campaignScopedEvents.reduce<Record<string, Set<string>>>((acc, e) => {
     if (e.stage === 'Misc' || e.isMisc) return acc;
     if (!acc[e.stage]) acc[e.stage] = new Set();
     acc[e.stage].add(e.title);

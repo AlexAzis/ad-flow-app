@@ -48,6 +48,7 @@ export default function ScheduleLoader({ schedule, currentUser, onBack }: Schedu
     <SimpleScheduleView
       scheduleId={schedule.id}
       scheduleName={schedule.name}
+      scheduleLogoUrl={schedule.logoUrl ?? undefined}
       role={schedule.role}
       currentUser={currentUser}
       events={content.events}

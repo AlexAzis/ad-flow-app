@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Lock, Unlock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Lock, Unlock, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Campaign } from '@/lib/types';
 import { campaignColors } from '@/lib/colorUtils';
 
@@ -27,8 +27,10 @@ export default function EditCampaignModal({
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [color, setColor] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState('');
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Populate form when campaign changes
   useEffect(() => {
@@ -36,10 +38,34 @@ export default function EditCampaignModal({
       setName(campaign.name);
       setClient(campaign.client);
       setColor(campaign.color);
+      setLogoUrl(campaign.logoUrl || '');
       setIsLocked(campaign.locked || false);
       setLockedBy(campaign.lockedBy || '');
     }
   }, [campaign, isOpen]);
+
+  // Store the logo as a small data URL so it saves with the campaign and
+  // always renders in exports without cross-origin issues
+  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_SIDE = 96;
+        const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setLogoUrl(canvas.toDataURL('image/png'));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +76,7 @@ export default function EditCampaignModal({
       name,
       client,
       color,
+      logoUrl: logoUrl || undefined,
       locked: isLocked,
       lockedBy: isLocked ? (lockedBy || currentUser) : undefined,
     };
@@ -128,6 +155,52 @@ export default function EditCampaignModal({
               disabled={isLocked}
               required
             />
+          </div>
+
+          {/* Client Logo */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Client Logo
+            </label>
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Client logo"
+                  className="h-12 w-12 rounded-lg object-contain bg-white border border-gray-200"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-lg border border-dashed border-gray-300 flex items-center justify-center">
+                  <ImageIcon size={18} className="text-gray-400" />
+                </div>
+              )}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoFile}
+              />
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={isLocked}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {logoUrl ? 'Change logo' : 'Upload logo'}
+              </button>
+              {logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl('')}
+                  disabled={isLocked}
+                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg disabled:opacity-50"
+                  title="Remove logo"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Color */}

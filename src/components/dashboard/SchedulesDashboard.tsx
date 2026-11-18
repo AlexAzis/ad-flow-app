@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings } from 'lucide-react';
+import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings, LayoutDashboard } from 'lucide-react';
 import { scheduleColor } from '@/lib/colorUtils';
 import { acceptScheduleInvites, checkIsSiteAdmin, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
+import AdminOverviewModal from './AdminOverviewModal';
 import InviteUserModal from './InviteUserModal';
 import NewScheduleModal from './NewScheduleModal';
 import ScheduleSettingsModal from './ScheduleSettingsModal';
@@ -23,6 +24,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+  const [isAdminOverviewOpen, setIsAdminOverviewOpen] = useState(false);
   const [isNewScheduleOpen, setIsNewScheduleOpen] = useState(false);
   const [menuScheduleId, setMenuScheduleId] = useState<string | null>(null);
   const [settingsSchedule, setSettingsSchedule] = useState<ScheduleSummary | null>(null);
@@ -109,6 +111,16 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <h1 className="text-lg font-semibold text-gray-800">Schedules</h1>
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <button
+                onClick={() => setIsAdminOverviewOpen(true)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
+                title="Platform stats across all accounts and schedules"
+              >
+                <LayoutDashboard size={16} />
+                <span>Admin</span>
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={() => setIsInviteUserOpen(true)}
@@ -245,6 +257,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
         </div>
       </div>
 
+      <AdminOverviewModal isOpen={isAdminOverviewOpen} onClose={() => setIsAdminOverviewOpen(false)} />
       <InviteUserModal isOpen={isInviteUserOpen} onClose={() => setIsInviteUserOpen(false)} />
       <NewScheduleModal
         isOpen={isNewScheduleOpen}

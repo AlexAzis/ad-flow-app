@@ -22,6 +22,7 @@ import MembersModal from './MembersModal';
 interface SimpleScheduleViewProps {
   scheduleId: string;
   scheduleName: string;
+  scheduleLogoUrl?: string;
   role: ScheduleRole;
   currentUser: string;
   events: Event[];
@@ -40,6 +41,7 @@ const canEdit = (role: ScheduleRole) => role !== 'viewer';
 export default function SimpleScheduleView({
   scheduleId,
   scheduleName,
+  scheduleLogoUrl,
   role,
   currentUser,
   events,
@@ -154,7 +156,8 @@ export default function SimpleScheduleView({
         {
           title: scheduleName,
           date: format(new Date(), 'd MMM yyyy'),
-          campaigns: legendCampaigns.map(c => ({ name: c.name, color: c.color })),
+          scheduleLogoUrl,
+          campaigns: legendCampaigns.map(c => ({ name: c.name, color: c.color, logoUrl: c.logoUrl })),
         }
       );
     } catch (error) {
@@ -321,6 +324,28 @@ export default function SimpleScheduleView({
     setSelectedPeople(new Set());
     setSelectedStages(new Set());
     setSelectedEvents(new Set());
+  };
+
+  const getEventTitlesForCampaigns = (campaignIds: Set<string>) => {
+    const titles = new Set<string>();
+    allEvents.forEach(event => {
+      if (event.isMisc || event.stage === 'Misc') return;
+      if (campaignIds.size === 0 || campaignIds.has(event.campaignId)) titles.add(event.title);
+    });
+    return titles;
+  };
+
+  const handleToggleCampaign = (id: string) => {
+    const nextCampaigns = new Set(selectedCampaigns);
+    if (nextCampaigns.has(id)) nextCampaigns.delete(id);
+    else nextCampaigns.add(id);
+    setSelectedCampaigns(nextCampaigns);
+
+    const allowedTitles = getEventTitlesForCampaigns(nextCampaigns);
+    setSelectedEvents(prev => {
+      const next = new Set(Array.from(prev).filter(title => allowedTitles.has(title)));
+      return next.size === prev.size ? prev : next;
+    });
   };
 
   const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
@@ -576,11 +601,7 @@ export default function SimpleScheduleView({
           showEventNotes={showEventNotes}
           showPeople={showPeople}
           showMisc={showMisc}
-          onToggleCampaign={(id) => {
-            const newSet = new Set(selectedCampaigns);
-            newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-            setSelectedCampaigns(newSet);
-          }}
+          onToggleCampaign={handleToggleCampaign}
           onTogglePerson={(id) => {
             const newSet = new Set(selectedPeople);
             newSet.has(id) ? newSet.delete(id) : newSet.add(id);

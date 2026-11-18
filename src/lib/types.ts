@@ -3,6 +3,7 @@ export interface Campaign {
   name: string;
   client: string;
   color: string;
+  logoUrl?: string;
   locked?: boolean;
   lockedBy?: string;
   people?: string[];

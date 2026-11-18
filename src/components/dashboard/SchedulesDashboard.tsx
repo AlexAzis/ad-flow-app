@@ -53,7 +53,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
   const handleNewSchedule = () => setIsNewScheduleOpen(true);
 
   return (
-    <div className="h-full flex bg-gray-50">
+    <div className="h-full w-full flex bg-gray-50">
       {/* Left Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import {
   adminCancelInvite,
+  adminDeleteSchedule,
   adminDeleteUser,
   adminRemoveMember,
   adminSetMemberRole,
@@ -232,9 +233,22 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
     );
     return (
       <div key={schedule.id} className="px-4 py-3">
-        <div className="text-xs font-semibold text-gray-500 mb-1.5">
-          {schedule.name}
-          <span className="font-normal text-gray-400"> · created {fmtDate(schedule.createdAt)}</span>
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-1.5">
+          <span className="flex-1 min-w-0 truncate">
+            {schedule.name}
+            <span className="font-normal text-gray-400"> · created {fmtDate(schedule.createdAt)}</span>
+          </span>
+          <button
+            disabled={isBusy || membersMissing}
+            onClick={() => {
+              if (!window.confirm(`Permanently delete "${schedule.name}"? This removes the schedule and all its campaigns, events, people, members and invites. This cannot be undone.`)) return;
+              runAction(() => adminDeleteSchedule(schedule.id));
+            }}
+            className="p-1 hover:bg-red-100 rounded text-red-500 disabled:opacity-50 flex-shrink-0"
+            title="Delete schedule"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
         {members.length === 0 && schedule.pendingInvites.length === 0 && (
           <p className="text-xs text-gray-400">No members.</p>

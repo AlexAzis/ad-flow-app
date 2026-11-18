@@ -172,23 +172,32 @@ async function handlePost(admin: ReturnType<typeof createClient>, req: Request) 
       return json({ status: 'ok' });
     }
 
+    case 'delete-schedule': {
+      if (!body.scheduleId) return json({ error: 'scheduleId is required' }, 400);
+      // All schedule content cascades from the schedules row. Storage logo
+      // files are left behind harmlessly.
+      const { error } = await admin
+        .from('schedules')
+        .delete()
+        .eq('id', body.scheduleId);
+      if (error) return json({ error: error.message }, 500);
+      return json({ status: 'ok' });
+    }
+
     case 'delete-user': {
       if (!body.userId) return json({ error: 'userId is required' }, 400);
 
       // schedules.created_by references auth.users without a cascade, so an
-      // account that owns schedules can't be deleted until they're dealt with.
-      const { data: owned } = await admin
-        .from('schedule_members')
-        .select('schedule_id, schedules(name)')
-        .eq('user_id', body.userId)
-        .eq('role', 'owner');
-      if (owned && owned.length > 0) {
-        const names = owned
-          .map(o => (o.schedules as unknown as { name: string } | null)?.name)
-          .filter(Boolean)
-          .join(', ');
+      // account that created schedules can't be deleted while they exist -
+      // whether or not the account still holds a member role on them.
+      const { data: created } = await admin
+        .from('schedules')
+        .select('id, name')
+        .eq('created_by', body.userId);
+      if (created && created.length > 0) {
+        const names = created.map(s => s.name).filter(Boolean).join(', ');
         return json(
-          { error: `They own ${owned.length} schedule(s)${names ? ` (${names})` : ''}. Transfer ownership or delete those schedules first.` },
+          { error: `They created ${created.length} schedule(s)${names ? ` (${names})` : ''}. Delete those schedules from this overview first.` },
           400
         );
       }

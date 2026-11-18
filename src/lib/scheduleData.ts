@@ -338,6 +338,10 @@ export async function adminDeleteUser(userId: string): Promise<void> {
   await adminAction({ action: 'delete-user', userId });
 }
 
+export async function adminDeleteSchedule(scheduleId: string): Promise<void> {
+  await adminAction({ action: 'delete-schedule', scheduleId });
+}
+
 // Supabase returns at most 1000 rows per request, so page through larger tables
 async function fetchAll(table: string, scheduleId: string) {
   const rows: any[] = [];

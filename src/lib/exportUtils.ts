@@ -188,8 +188,8 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
     (img): img is HTMLImageElement => !!img
   );
 
-  const logoBandH = 36;
-  const logoMaxW = 140;
+  const logoBandH = 72;
+  const logoMaxW = 280;
   const logoGap = 16;
   const availableW = width - padX * 2;
   let totalLogoW = 0;

@@ -16,6 +16,10 @@ export const campaignColors = [
   '#9860D8', // Deep purple
 ];
 
+// Stable colour per schedule, picked from the campaign palette
+export const scheduleColor = (id: string) =>
+  campaignColors[Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % campaignColors.length];
+
 export interface ColorShades {
   base: string;
   creativeDev: string;

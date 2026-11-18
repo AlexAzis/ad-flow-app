@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus } from 'lucide-react';
-import { campaignColors } from '@/lib/colorUtils';
-import { acceptScheduleInvites, checkIsSiteAdmin, createSchedule, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
+import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings } from 'lucide-react';
+import { scheduleColor } from '@/lib/colorUtils';
+import { acceptScheduleInvites, checkIsSiteAdmin, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
 import InviteUserModal from './InviteUserModal';
+import NewScheduleModal from './NewScheduleModal';
+import ScheduleSettingsModal from './ScheduleSettingsModal';
 
 interface SchedulesDashboardProps {
   userId: string;
@@ -15,16 +17,15 @@ interface SchedulesDashboardProps {
 
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
 
-// Stable colour per schedule, picked from the campaign palette
-const scheduleColor = (id: string) =>
-  campaignColors[Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % campaignColors.length];
-
 export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSignOut }: SchedulesDashboardProps) {
   const [schedules, setSchedules] = useState<ScheduleSummary[] | null>(null);
   const [error, setError] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+  const [isNewScheduleOpen, setIsNewScheduleOpen] = useState(false);
+  const [menuScheduleId, setMenuScheduleId] = useState<string | null>(null);
+  const [settingsSchedule, setSettingsSchedule] = useState<ScheduleSummary | null>(null);
 
   useEffect(() => {
     checkIsSiteAdmin().then(setIsAdmin);
@@ -47,17 +48,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
 
   useEffect(refresh, [refresh]);
 
-  const handleNewSchedule = async () => {
-    const name = window.prompt('Name for the new schedule')?.trim();
-    if (!name) return;
-    try {
-      await createSchedule(name);
-      refresh();
-    } catch (err) {
-      console.error('Could not create schedule', err);
-      alert('Sorry, the schedule couldn’t be created. Please try again.');
-    }
-  };
+  const handleNewSchedule = () => setIsNewScheduleOpen(true);
 
   return (
     <div className="h-full flex bg-gray-50">
@@ -90,12 +81,20 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
               onClick={() => onOpenSchedule(schedule)}
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100 text-left"
             >
-              <div
-                className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: scheduleColor(schedule.id) }}
-              >
-                <span className="text-white text-[10px] font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
-              </div>
+              {schedule.logoUrl ? (
+                <img
+                  src={schedule.logoUrl}
+                  alt=""
+                  className="w-6 h-6 rounded object-contain bg-white border border-gray-200 flex-shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: scheduleColor(schedule.id) }}
+                >
+                  <span className="text-white text-[10px] font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
+                </div>
+              )}
               <span className="text-sm text-gray-800 font-medium truncate">
                 {schedule.name}
               </span>
@@ -172,23 +171,60 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
               >
                 {/* Card Header */}
                 <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: scheduleColor(schedule.id) }}
-                  >
-                    <span className="text-white font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
-                  </div>
+                  {schedule.logoUrl ? (
+                    <img
+                      src={schedule.logoUrl}
+                      alt={`${schedule.name} logo`}
+                      className="w-12 h-12 rounded-lg object-contain bg-white border border-gray-200"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: scheduleColor(schedule.id) }}
+                    >
+                      <span className="text-white font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1 bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded-full">
                       <ShieldCheck size={11} />
                       {roleLabel[schedule.role]}
                     </span>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuScheduleId(prev => (prev === schedule.id ? null : schedule.id));
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {menuScheduleId === schedule.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuScheduleId(null);
+                            }}
+                          />
+                          <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuScheduleId(null);
+                                setSettingsSchedule(schedule);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <Settings size={14} />
+                              Schedule settings
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -210,6 +246,19 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
       </div>
 
       <InviteUserModal isOpen={isInviteUserOpen} onClose={() => setIsInviteUserOpen(false)} />
+      <NewScheduleModal
+        isOpen={isNewScheduleOpen}
+        onClose={() => setIsNewScheduleOpen(false)}
+        onCreated={refresh}
+      />
+      {settingsSchedule && (
+        <ScheduleSettingsModal
+          schedule={settingsSchedule}
+          currentUser={email}
+          onClose={() => setSettingsSchedule(null)}
+          onChanged={refresh}
+        />
+      )}
     </div>
   );
 }

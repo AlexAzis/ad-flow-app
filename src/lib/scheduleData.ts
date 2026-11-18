@@ -9,6 +9,7 @@ export interface ScheduleSummary {
   id: string;
   name: string;
   description: string | null;
+  logoUrl: string | null;
   role: ScheduleRole;
   memberCount: number;
 }
@@ -25,7 +26,7 @@ const PAGE_SIZE = 1000;
 export async function listSchedules(userId: string): Promise<ScheduleSummary[]> {
   const { data, error } = await supabase
     .from('schedules')
-    .select('id, name, description, schedule_members(user_id, role)')
+    .select('id, name, description, logo_url, schedule_members(user_id, role)')
     .order('created_at');
   if (error) throw error;
   return (data ?? []).map(row => {
@@ -34,15 +35,76 @@ export async function listSchedules(userId: string): Promise<ScheduleSummary[]> 
       id: row.id,
       name: row.name,
       description: row.description,
+      logoUrl: row.logo_url,
       role: members.find(m => m.user_id === userId)?.role ?? 'viewer',
       memberCount: members.length,
     };
   });
 }
 
-export async function createSchedule(name: string): Promise<void> {
-  const { error } = await supabase.from('schedules').insert({ name });
+// Returns the new schedule's id so a logo can be uploaded straight after.
+export async function createSchedule(name: string): Promise<string> {
+  const { data, error } = await supabase.from('schedules').insert({ name }).select('id').single();
   if (error) throw error;
+  return data.id as string;
+}
+
+export async function updateScheduleDetails(
+  scheduleId: string,
+  fields: { name: string; description: string | null }
+): Promise<void> {
+  const { error } = await supabase
+    .from('schedules')
+    .update({ name: fields.name, description: fields.description })
+    .eq('id', scheduleId);
+  if (error) throw error;
+}
+
+// ------------------------------------------------------------- logos
+
+const LOGO_BUCKET = 'schedule-logos';
+
+// Uploads a logo under <schedule_id>/<uuid>.<ext> and stores its public URL on
+// the schedule. Older logo files for the schedule are cleared out best-effort.
+export async function uploadScheduleLogo(scheduleId: string, file: File): Promise<string> {
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const path = `${scheduleId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(LOGO_BUCKET)
+    .upload(path, file, { contentType: file.type || undefined });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
+  const { error: updateError } = await supabase
+    .from('schedules')
+    .update({ logo_url: data.publicUrl })
+    .eq('id', scheduleId);
+  if (updateError) throw updateError;
+
+  supabase.storage
+    .from(LOGO_BUCKET)
+    .list(scheduleId)
+    .then(({ data: files }) => {
+      const stale = (files ?? [])
+        .map(f => `${scheduleId}/${f.name}`)
+        .filter(p => p !== path);
+      if (stale.length) supabase.storage.from(LOGO_BUCKET).remove(stale);
+    })
+    .catch(() => {});
+
+  return data.publicUrl;
+}
+
+export async function removeScheduleLogo(scheduleId: string): Promise<void> {
+  const { error } = await supabase
+    .from('schedules')
+    .update({ logo_url: null })
+    .eq('id', scheduleId);
+  if (error) throw error;
+
+  const { data: files } = await supabase.storage.from(LOGO_BUCKET).list(scheduleId);
+  const paths = (files ?? []).map(f => `${scheduleId}/${f.name}`);
+  if (paths.length) await supabase.storage.from(LOGO_BUCKET).remove(paths);
 }
 
 // ------------------------------------------------------------ members

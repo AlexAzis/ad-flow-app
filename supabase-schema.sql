@@ -12,6 +12,7 @@ create table public.schedules (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
+  logo_url text,
   created_by uuid not null default auth.uid() references auth.users(id),
   created_at timestamptz not null default now()
 );
@@ -279,3 +280,36 @@ create policy "editors can change event types" on public.custom_event_types
 create policy "editors can delete event types" on public.custom_event_types
   for delete to authenticated
   using (public.schedule_role(schedule_id) in ('owner', 'editor'));
+
+-- ---------------------------------------------------------- logo storage
+
+-- Logos live in a public bucket so schedule cards can render them directly.
+-- Files are stored under <schedule_id>/<filename>; only schedule owners can
+-- write, matching the update policy on public.schedules.
+insert into storage.buckets (id, name, public)
+values ('schedule-logos', 'schedule-logos', true)
+on conflict (id) do nothing;
+
+create policy "owners can upload schedule logos" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'schedule-logos'
+    and (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.schedule_role((storage.foldername(name))[1]::uuid) = 'owner'
+  );
+
+create policy "owners can change schedule logos" on storage.objects
+  for update to authenticated
+  using (
+    bucket_id = 'schedule-logos'
+    and (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.schedule_role((storage.foldername(name))[1]::uuid) = 'owner'
+  );
+
+create policy "owners can remove schedule logos" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'schedule-logos'
+    and (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.schedule_role((storage.foldername(name))[1]::uuid) = 'owner'
+  );

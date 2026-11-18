@@ -30,7 +30,10 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData }
       })
       .catch(err => {
         console.error('Could not load admin overview', err);
-        setError('The overview couldn’t be loaded. Please try again.');
+        setError(
+          `The overview couldn’t be loaded${err?.message ? ` (${err.message})` : ''}. ` +
+            'If this persists, check that the admin-overview function is deployed.'
+        );
       })
       .finally(() => setIsLoading(false));
   };

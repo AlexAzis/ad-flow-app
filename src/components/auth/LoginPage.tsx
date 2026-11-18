@@ -9,6 +9,7 @@ export default function LoginPage({ notice }: { notice?: string }) {
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,6 +43,25 @@ export default function LoginPage({ notice }: { notice?: string }) {
     setIsSubmitting(false);
   };
 
+  // The reset email carries a 6-digit code rather than a link — corporate mail
+  // scanners consume one-time links before the user ever clicks them.
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'recovery',
+    });
+    if (verifyError) {
+      setError('That code didn’t work — it may have expired. Request a new one.');
+      setIsSubmitting(false);
+    }
+    // On success the PASSWORD_RECOVERY event moves the app to the
+    // update-password screen automatically
+  };
+
   const logo = (
     <div className="flex items-center gap-2 mb-2">
       <div className="w-7 h-7 bg-gray-900 rounded flex items-center justify-center">
@@ -54,20 +74,53 @@ export default function LoginPage({ notice }: { notice?: string }) {
   if (mode === 'sent') {
     return (
       <div className="h-full w-full flex items-center justify-center bg-gray-50">
-        <div className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm mx-4 space-y-4">
+        <form onSubmit={handleVerifyCode} className="bg-white border border-gray-200 rounded-xl p-8 w-full max-w-sm mx-4 space-y-4">
           {logo}
           <h1 className="text-lg font-semibold text-gray-800">Check your email</h1>
           <p className="text-sm text-gray-600">
-            If an account exists for {email}, a password reset link is on its way.
-            Open it on this device to choose a new password.
+            If an account exists for {email}, a 6-digit reset code is on its way.
+            Enter it below.
           </p>
+          <div>
+            <label htmlFor="reset-code" className="block text-sm font-medium text-gray-700 mb-1">Reset code</label>
+            <input
+              id="reset-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="123456"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center text-lg tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <button
-            onClick={() => setMode('signin')}
-            className="text-sm text-gray-600 hover:text-gray-900 underline"
+            type="submit"
+            disabled={isSubmitting || code.trim().length !== 6}
+            className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium disabled:opacity-60"
           >
-            Back to sign in
+            {isSubmitting ? 'Checking…' : 'Confirm code'}
           </button>
-        </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={handleResetRequest}
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Resend code
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('signin'); setError(''); setCode(''); }}
+              className="text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Back to sign in
+            </button>
+          </div>
+        </form>
       </div>
     );
   }

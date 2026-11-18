@@ -290,11 +290,27 @@ export interface AdminOverview {
   schedules: AdminScheduleRow[];
 }
 
+// On a non-2xx reply supabase-js gives a generic "non-2xx status code" error
+// and the function's real {error: ...} body is only on error.context. Pull it
+// out so admin actions show the actual reason.
+async function functionErrorMessage(error: unknown): Promise<Error> {
+  try {
+    const context = (error as { context?: unknown })?.context;
+    if (context instanceof Response) {
+      const payload = await context.json();
+      if (payload?.error) return new Error(payload.error);
+    }
+  } catch {
+    // fall through to the generic message
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 // Read-only platform stats for site admins (admin-overview function). Only
 // returns account and schedule metadata - never schedule contents.
 export async function loadAdminOverview(): Promise<AdminOverview> {
   const { data, error } = await supabase.functions.invoke('admin-overview', { method: 'GET' });
-  if (error) throw error;
+  if (error) throw await functionErrorMessage(error);
   if (data?.error) throw new Error(data.error);
   return data as AdminOverview;
 }
@@ -302,7 +318,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
 // Management actions for site admins, all POSTed to admin-overview.
 async function adminAction(body: Record<string, string>): Promise<void> {
   const { data, error } = await supabase.functions.invoke('admin-overview', { body });
-  if (error) throw error;
+  if (error) throw await functionErrorMessage(error);
   if (data?.error) throw new Error(data.error);
 }
 

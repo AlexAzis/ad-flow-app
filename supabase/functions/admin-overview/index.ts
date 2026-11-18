@@ -1,7 +1,13 @@
-// admin-overview: read-only platform stats for site admins.
-// Returns every account and every schedule with member counts by role, so an
-// admin can see who owns what and how many seats each customer is using.
-// Only metadata is returned - never schedule contents.
+// admin-overview: read-only platform stats and member management for site admins.
+//
+// GET  - every account and every schedule with its members, invites and role
+//        counts. Only metadata is returned - never schedule contents.
+// POST - { action: 'set-role',       scheduleId, userId, role } change a member's role
+//        { action: 'remove-member',  scheduleId, userId }       remove from a schedule
+//        { action: 'cancel-invite',  scheduleId, email }        cancel a pending invite
+//        { action: 'delete-user',    userId }                   delete the Argus account
+//
+// Only site admins (ADMIN_EMAILS secret, comma-separated) may call either.
 //
 // Deploy:  supabase functions deploy admin-overview
 // Secrets: same ADMIN_EMAILS used by invite-user.
@@ -26,6 +32,7 @@ const adminEmails = () =>
     .filter(Boolean);
 
 const PAGE_SIZE = 1000;
+const ROLES = ['owner', 'editor', 'viewer'];
 
 // PostgREST caps responses at 1000 rows - page through to get everything.
 async function fetchAll(admin: ReturnType<typeof createClient>, table: string, columns: string) {
@@ -34,6 +41,7 @@ async function fetchAll(admin: ReturnType<typeof createClient>, table: string, c
     const { data, error } = await admin
       .from(table)
       .select(columns)
+      .order('created_at')
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(`${table}: ${error.message}`);
     rows.push(...(data ?? []));
@@ -41,28 +49,7 @@ async function fetchAll(admin: ReturnType<typeof createClient>, table: string, c
   }
 }
 
-Deno.serve(async req => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
-
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return json({ error: 'Missing authorization' }, 401);
-
-  const url = Deno.env.get('SUPABASE_URL')!;
-  const caller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const { data: { user } } = await caller.auth.getUser();
-  if (!user?.email) return json({ error: 'Not signed in' }, 401);
-  if (!adminEmails().includes(user.email.toLowerCase())) {
-    return json({ error: 'Not a site admin' }, 403);
-  }
-
-  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-    auth: { persistSession: false },
-  });
-
+async function handleGet(admin: ReturnType<typeof createClient>) {
   // Every auth account, paged (listUsers maxes at 1000 per call).
   const authUsers: { id: string; email?: string; created_at: string; last_sign_in_at?: string; invited_at?: string }[] = [];
   for (let page = 1; ; page++) {
@@ -104,10 +91,16 @@ Deno.serve(async req => {
       id: s.id,
       name: s.name,
       createdAt: s.created_at,
+      ownerUserId: owner?.user_id ?? null,
       ownerEmail,
       editors: scheduleMembers.filter(m => m.role === 'editor').length,
       viewers: scheduleMembers.filter(m => m.role === 'viewer').length,
       totalMembers: scheduleMembers.length,
+      members: scheduleMembers.map(m => ({
+        userId: m.user_id,
+        email: m.email ?? emailById.get(m.user_id as string) ?? '',
+        role: m.role,
+      })),
       pendingInvites: scheduleInvites.map(i => ({ email: i.email, role: i.role })),
     };
   });
@@ -122,4 +115,116 @@ Deno.serve(async req => {
   }));
 
   return json({ users: userRows, schedules: scheduleRows });
+}
+
+async function handlePost(admin: ReturnType<typeof createClient>, req: Request) {
+  let body: {
+    action?: string;
+    scheduleId?: string;
+    userId?: string;
+    email?: string;
+    role?: string;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  switch (body.action) {
+    case 'set-role': {
+      if (!body.scheduleId || !body.userId || !ROLES.includes(body.role ?? '')) {
+        return json({ error: 'scheduleId, userId and role (owner|editor|viewer) are required' }, 400);
+      }
+      const { error } = await admin
+        .from('schedule_members')
+        .update({ role: body.role })
+        .eq('schedule_id', body.scheduleId)
+        .eq('user_id', body.userId);
+      if (error) return json({ error: error.message }, 500);
+      return json({ status: 'ok' });
+    }
+
+    case 'remove-member': {
+      if (!body.scheduleId || !body.userId) {
+        return json({ error: 'scheduleId and userId are required' }, 400);
+      }
+      const { error } = await admin
+        .from('schedule_members')
+        .delete()
+        .eq('schedule_id', body.scheduleId)
+        .eq('user_id', body.userId);
+      if (error) return json({ error: error.message }, 500);
+      return json({ status: 'ok' });
+    }
+
+    case 'cancel-invite': {
+      const email = body.email?.trim().toLowerCase() ?? '';
+      if (!body.scheduleId || !email) {
+        return json({ error: 'scheduleId and email are required' }, 400);
+      }
+      const { error } = await admin
+        .from('schedule_invites')
+        .delete()
+        .eq('schedule_id', body.scheduleId)
+        .eq('email', email);
+      if (error) return json({ error: error.message }, 500);
+      return json({ status: 'ok' });
+    }
+
+    case 'delete-user': {
+      if (!body.userId) return json({ error: 'userId is required' }, 400);
+
+      // schedules.created_by references auth.users without a cascade, so an
+      // account that owns schedules can't be deleted until they're dealt with.
+      const { data: owned } = await admin
+        .from('schedule_members')
+        .select('schedule_id, schedules(name)')
+        .eq('user_id', body.userId)
+        .eq('role', 'owner');
+      if (owned && owned.length > 0) {
+        const names = owned
+          .map(o => (o.schedules as unknown as { name: string } | null)?.name)
+          .filter(Boolean)
+          .join(', ');
+        return json(
+          { error: `They own ${owned.length} schedule(s)${names ? ` (${names})` : ''}. Transfer ownership or delete those schedules first.` },
+          400
+        );
+      }
+
+      const { error } = await admin.auth.admin.deleteUser(body.userId);
+      if (error) return json({ error: error.message }, 500);
+      return json({ status: 'ok' });
+    }
+
+    default:
+      return json({ error: 'Unknown action' }, 400);
+  }
+}
+
+Deno.serve(async req => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return json({ error: 'Missing authorization' }, 401);
+
+  const url = Deno.env.get('SUPABASE_URL')!;
+  const caller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: { user } } = await caller.auth.getUser();
+  if (!user?.email) return json({ error: 'Not signed in' }, 401);
+  if (!adminEmails().includes(user.email.toLowerCase())) {
+    return json({ error: 'Not a site admin' }, 403);
+  }
+
+  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    auth: { persistSession: false },
+  });
+
+  if (req.method === 'GET') return handleGet(admin);
+  if (req.method === 'POST') return handlePost(admin, req);
+  return json({ error: 'Method not allowed' }, 405);
 });

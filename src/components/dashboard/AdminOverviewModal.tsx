@@ -2,8 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { X, RefreshCw, Users, CalendarDays, UserCheck, MailPlus } from 'lucide-react';
-import { AdminOverview, loadAdminOverview } from '@/lib/scheduleData';
+import {
+  X, RefreshCw, Users, CalendarDays, UserCheck, MailPlus,
+  MoreVertical, Trash2, Clock,
+} from 'lucide-react';
+import {
+  adminCancelInvite,
+  adminDeleteUser,
+  adminRemoveMember,
+  adminSetMemberRole,
+  AdminOverview,
+  AdminScheduleMember,
+  AdminScheduleRow,
+  AdminUserRow,
+  loadAdminOverview,
+  ScheduleRole,
+} from '@/lib/scheduleData';
 
 interface AdminOverviewModalProps {
   isOpen: boolean;
@@ -11,14 +25,23 @@ interface AdminOverviewModalProps {
   // When provided (e.g. the /admin-preview page), this data is shown instead of
   // calling the admin-overview function.
   data?: AdminOverview;
+  // The signed-in admin's email - used to hide "delete account" on their own row.
+  currentUserEmail?: string;
 }
 
-// Site-admin view of the whole platform: every account and every schedule with
-// seat counts by role. Metadata only - schedule contents are never returned.
-export default function AdminOverviewModal({ isOpen, onClose, data: presetData }: AdminOverviewModalProps) {
+const roleRank: Record<ScheduleRole, number> = { owner: 0, editor: 1, viewer: 2 };
+
+// Site-admin view of the whole platform, grouped by schedule owner. Lets the
+// admin change any member's role, remove them from a schedule, cancel pending
+// invites or delete an account entirely. Metadata only - schedule contents are
+// never returned.
+export default function AdminOverviewModal({ isOpen, onClose, data: presetData, currentUserEmail }: AdminOverviewModalProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(presetData ?? null);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [menuKey, setMenuKey] = useState<string | null>(null);
 
   const refresh = () => {
     if (presetData) return;
@@ -48,13 +71,68 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData }
 
   if (!isOpen) return null;
 
+  const runAction = (action: () => Promise<void>) => {
+    setActionError('');
+    setMenuKey(null);
+    setIsBusy(true);
+    action()
+      .then(refresh)
+      .catch(err => {
+        console.error('Admin action failed', err);
+        setActionError(err?.message || 'That change couldn’t be saved. Please try again.');
+      })
+      .finally(() => setIsBusy(false));
+  };
+
   const fmtDate = (iso: string | null | undefined) =>
     iso ? format(parseISO(iso), 'd MMM yyyy') : '—';
 
-  const users = [...(overview?.users ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const schedules = [...(overview?.schedules ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const users = overview?.users ?? [];
+  const schedules = overview?.schedules ?? [];
+  const usersById = new Map(users.map(u => [u.id, u]));
+  const ownerIds = new Set(schedules.map(s => s.ownerUserId).filter(Boolean) as string[]);
+  const membersMissing = schedules.length > 0 && schedules.some(s => s.members === undefined);
+
+  const ownerSections = users
+    .filter(u => ownerIds.has(u.id))
+    .map(u => ({
+      user: u,
+      schedules: schedules
+        .filter(s => s.ownerUserId === u.id)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    }))
+    .sort((a, b) => a.user.email.localeCompare(b.user.email));
+
+  const orphanSchedules = schedules
+    .filter(s => !s.ownerUserId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const otherAccounts = users
+    .filter(u => !ownerIds.has(u.id))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
   const totalSeats = schedules.reduce((sum, s) => sum + s.totalMembers, 0);
   const totalPending = schedules.reduce((sum, s) => sum + s.pendingInvites.length, 0);
+  const membershipsByUser = new Map<string, number>();
+  for (const s of schedules) {
+    for (const m of s.members ?? []) {
+      membershipsByUser.set(m.userId, (membershipsByUser.get(m.userId) ?? 0) + 1);
+    }
+  }
+
+  const isSelf = (email: string) =>
+    !!currentUserEmail && email.toLowerCase() === currentUserEmail.toLowerCase();
+
+  const statusChip = (user: AdminUserRow | undefined) =>
+    user?.lastSignInAt ? (
+      <span className="inline-block bg-green-50 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
+        Active
+      </span>
+    ) : (
+      <span className="inline-block bg-amber-50 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
+        Invited — not signed in
+      </span>
+    );
 
   const stat = (icon: React.ReactNode, value: number, label: string) => (
     <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -63,6 +141,118 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData }
       <span className="text-xs text-gray-500">{label}</span>
     </div>
   );
+
+  const deleteAccountItem = (userId: string, email: string) => (
+    <button
+      disabled={isBusy}
+      onClick={() => {
+        if (!window.confirm(`Permanently delete ${email} and remove them from Argus? Their memberships will be removed. This cannot be undone.`)) {
+          setMenuKey(null);
+          return;
+        }
+        runAction(() => adminDeleteUser(userId));
+      }}
+      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
+    >
+      <Trash2 size={14} />
+      Delete Argus account
+    </button>
+  );
+
+  const memberMenu = (schedule: AdminScheduleRow, member: AdminScheduleMember, user: AdminUserRow | undefined) => {
+    const key = `m:${schedule.id}:${member.userId}`;
+    return (
+      <div className="relative flex-shrink-0">
+        <button
+          onClick={() => setMenuKey(prev => (prev === key ? null : key))}
+          className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+        >
+          <MoreVertical size={15} />
+        </button>
+        {menuKey === key && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
+            <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+              <button
+                disabled={isBusy}
+                onClick={() => {
+                  if (!window.confirm(`Remove ${member.email} from "${schedule.name}"? They will lose access to this schedule.`)) {
+                    setMenuKey(null);
+                    return;
+                  }
+                  runAction(() => adminRemoveMember(schedule.id, member.userId));
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Remove from schedule
+              </button>
+              {user && !isSelf(user.email) && deleteAccountItem(user.id, user.email)}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const memberRow = (schedule: AdminScheduleRow, member: AdminScheduleMember) => {
+    const user = usersById.get(member.userId);
+    return (
+      <div key={member.userId} className="flex items-center gap-3 py-1.5">
+        <span className="text-sm text-gray-800 truncate flex-1 min-w-0">{member.email || 'Unknown account'}</span>
+        {statusChip(user)}
+        <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
+          last seen {fmtDate(user?.lastSignInAt)}
+        </span>
+        <select
+          value={member.role}
+          disabled={isBusy || membersMissing}
+          onChange={e => runAction(() => adminSetMemberRole(schedule.id, member.userId, e.target.value as ScheduleRole))}
+          className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-700 flex-shrink-0"
+        >
+          <option value="owner">Owner</option>
+          <option value="editor">Editor</option>
+          <option value="viewer">Viewer</option>
+        </select>
+        {memberMenu(schedule, member, user)}
+      </div>
+    );
+  };
+
+  const scheduleBlock = (schedule: AdminScheduleRow) => {
+    const members = [...(schedule.members ?? [])].sort(
+      (a, b) => roleRank[a.role] - roleRank[b.role] || a.email.localeCompare(b.email)
+    );
+    return (
+      <div key={schedule.id} className="px-4 py-3">
+        <div className="text-xs font-semibold text-gray-500 mb-1.5">
+          {schedule.name}
+          <span className="font-normal text-gray-400"> · created {fmtDate(schedule.createdAt)}</span>
+        </div>
+        {members.length === 0 && schedule.pendingInvites.length === 0 && (
+          <p className="text-xs text-gray-400">No members.</p>
+        )}
+        {members.map(m => memberRow(schedule, m))}
+        {schedule.pendingInvites.map(invite => (
+          <div key={invite.email} className="flex items-center gap-3 py-1.5">
+            <Clock size={14} className="text-gray-300 flex-shrink-0" />
+            <span className="text-sm text-gray-500 truncate flex-1 min-w-0">{invite.email}</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap">Pending — {invite.role}</span>
+            <button
+              disabled={isBusy}
+              onClick={() => {
+                if (!window.confirm(`Cancel the invite for ${invite.email}?`)) return;
+                runAction(() => adminCancelInvite(schedule.id, invite.email));
+              }}
+              className="p-1 hover:bg-red-100 rounded text-red-500 disabled:opacity-50 flex-shrink-0"
+              title="Cancel invite"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -89,7 +279,15 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData }
 
         <div className="overflow-auto px-6 py-4">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+          {actionError && <p className="text-sm text-red-600 mb-4">{actionError}</p>}
           {!overview && !error && <p className="text-sm text-gray-500">Loading overview…</p>}
+
+          {membersMissing && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              Member management needs the updated admin-overview function — redeploy it to see
+              each schedule’s members and change their access.
+            </p>
+          )}
 
           {overview && (
             <>
@@ -101,78 +299,103 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData }
                 {stat(<MailPlus size={16} className="text-gray-400" />, totalPending, 'pending invites')}
               </div>
 
-              {/* Schedules */}
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Schedules</h3>
-              {schedules.length === 0 ? (
+              {/* Owners */}
+              {ownerSections.length === 0 && schedules.length === 0 && (
                 <p className="text-sm text-gray-500 mb-6">No schedules have been created yet.</p>
-              ) : (
-                <table className="w-full text-sm mb-6">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
-                      <th className="pb-2 font-medium">Schedule</th>
-                      <th className="pb-2 font-medium">Owner</th>
-                      <th className="pb-2 font-medium text-right">Editors</th>
-                      <th className="pb-2 font-medium text-right">Viewers</th>
-                      <th className="pb-2 font-medium text-right">Pending</th>
-                      <th className="pb-2 font-medium text-right">Seats</th>
-                      <th className="pb-2 font-medium text-right">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map(s => (
-                      <tr key={s.id} className="border-b border-gray-100 last:border-0">
-                        <td className="py-2 pr-4 font-medium text-gray-800">{s.name}</td>
-                        <td className="py-2 pr-4 text-gray-600">{s.ownerEmail || '—'}</td>
-                        <td className="py-2 pr-4 text-right text-gray-600">{s.editors}</td>
-                        <td className="py-2 pr-4 text-right text-gray-600">{s.viewers}</td>
-                        <td
-                          className="py-2 pr-4 text-right text-gray-600"
-                          title={s.pendingInvites.map(i => `${i.email} (${i.role})`).join('\n')}
+              )}
+              {ownerSections.map(({ user, schedules: owned }) => (
+                <div key={user.id} className="border border-gray-200 rounded-xl mb-4 overflow-hidden">
+                  {/* Owner header */}
+                  <div className="bg-gray-50 px-4 py-3 flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">{user.email.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800 truncate">{user.email}</span>
+                        {statusChip(user)}
+                        <span className="text-[10px] font-medium text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">OWNER</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Joined {fmtDate(user.createdAt)} · Last sign-in {fmtDate(user.lastSignInAt)} · Owns {owned.length} {owned.length === 1 ? 'schedule' : 'schedules'}
+                      </div>
+                    </div>
+                    {!isSelf(user.email) && (
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setMenuKey(prev => (prev === `u:${user.id}` ? null : `u:${user.id}`))}
+                          className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
                         >
-                          {s.pendingInvites.length || '—'}
-                        </td>
-                        <td className="py-2 pr-4 text-right font-medium text-gray-800">{s.totalMembers}</td>
-                        <td className="py-2 text-right text-gray-500 whitespace-nowrap">{fmtDate(s.createdAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <MoreVertical size={15} />
+                        </button>
+                        {menuKey === `u:${user.id}` && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
+                            <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                              {deleteAccountItem(user.id, user.email)}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Their schedules and members */}
+                  <div className="divide-y divide-gray-100">
+                    {owned.map(scheduleBlock)}
+                  </div>
+                </div>
+              ))}
+
+              {/* Schedules with no owner */}
+              {orphanSchedules.length > 0 && (
+                <div className="border border-amber-200 rounded-xl mb-4 overflow-hidden">
+                  <div className="bg-amber-50 px-4 py-3">
+                    <span className="text-sm font-semibold text-amber-800">Schedules with no owner</span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {orphanSchedules.map(scheduleBlock)}
+                  </div>
+                </div>
               )}
 
-              {/* Accounts */}
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Accounts</h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Email</th>
-                    <th className="pb-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Joined</th>
-                    <th className="pb-2 font-medium">Last sign-in</th>
-                    <th className="pb-2 font-medium text-right">Schedules owned</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(u => (
-                    <tr key={u.id} className="border-b border-gray-100 last:border-0">
-                      <td className="py-2 pr-4 font-medium text-gray-800">{u.email}</td>
-                      <td className="py-2 pr-4">
-                        {u.lastSignInAt ? (
-                          <span className="inline-block bg-green-50 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-block bg-amber-50 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                            Invited — not signed in
-                          </span>
+              {/* Accounts owning nothing */}
+              {otherAccounts.length > 0 && (
+                <>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2 mt-6">Other accounts</h3>
+                  <div className="border border-gray-200 rounded-xl divide-y divide-gray-100">
+                    {otherAccounts.map(user => (
+                      <div key={user.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <span className="text-sm text-gray-800 truncate flex-1 min-w-0">{user.email}</span>
+                        {statusChip(user)}
+                        <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
+                          joined {fmtDate(user.createdAt)} · last seen {fmtDate(user.lastSignInAt)}
+                          {(membershipsByUser.get(user.id) ?? 0) > 0 &&
+                            ` · member of ${membershipsByUser.get(user.id)} schedule${membershipsByUser.get(user.id) === 1 ? '' : 's'}`}
+                        </span>
+                        {!isSelf(user.email) && (
+                          <div className="relative flex-shrink-0">
+                            <button
+                              onClick={() => setMenuKey(prev => (prev === `u:${user.id}` ? null : `u:${user.id}`))}
+                              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+                            >
+                              <MoreVertical size={15} />
+                            </button>
+                            {menuKey === `u:${user.id}` && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setMenuKey(null)} />
+                                <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                  {deleteAccountItem(user.id, user.email)}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
-                      </td>
-                      <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{fmtDate(u.createdAt)}</td>
-                      <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{fmtDate(u.lastSignInAt)}</td>
-                      <td className="py-2 text-right text-gray-600">{u.ownedSchedules}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

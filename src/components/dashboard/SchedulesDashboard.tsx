@@ -257,7 +257,11 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
         </div>
       </div>
 
-      <AdminOverviewModal isOpen={isAdminOverviewOpen} onClose={() => setIsAdminOverviewOpen(false)} />
+      <AdminOverviewModal
+        isOpen={isAdminOverviewOpen}
+        onClose={() => setIsAdminOverviewOpen(false)}
+        currentUserEmail={email}
+      />
       <InviteUserModal isOpen={isInviteUserOpen} onClose={() => setIsInviteUserOpen(false)} />
       <NewScheduleModal
         isOpen={isNewScheduleOpen}

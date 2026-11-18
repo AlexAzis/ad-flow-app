@@ -264,14 +264,24 @@ export interface AdminUserRow {
   ownedSchedules: number;
 }
 
+export interface AdminScheduleMember {
+  userId: string;
+  email: string;
+  role: ScheduleRole;
+}
+
 export interface AdminScheduleRow {
   id: string;
   name: string;
   createdAt: string;
+  ownerUserId: string | null;
   ownerEmail: string;
   editors: number;
   viewers: number;
   totalMembers: number;
+  // Absent if the deployed admin-overview predates member management - the UI
+  // falls back to counts and asks for a redeploy.
+  members?: AdminScheduleMember[];
   pendingInvites: { email: string; role: 'editor' | 'viewer' }[];
 }
 
@@ -287,6 +297,29 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as AdminOverview;
+}
+
+// Management actions for site admins, all POSTed to admin-overview.
+async function adminAction(body: Record<string, string>): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('admin-overview', { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function adminSetMemberRole(scheduleId: string, userId: string, role: ScheduleRole): Promise<void> {
+  await adminAction({ action: 'set-role', scheduleId, userId, role });
+}
+
+export async function adminRemoveMember(scheduleId: string, userId: string): Promise<void> {
+  await adminAction({ action: 'remove-member', scheduleId, userId });
+}
+
+export async function adminCancelInvite(scheduleId: string, email: string): Promise<void> {
+  await adminAction({ action: 'cancel-invite', scheduleId, email });
+}
+
+export async function adminDeleteUser(userId: string): Promise<void> {
+  await adminAction({ action: 'delete-user', userId });
 }
 
 // Supabase returns at most 1000 rows per request, so page through larger tables

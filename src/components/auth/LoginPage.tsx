@@ -78,7 +78,7 @@ export default function LoginPage({ notice }: { notice?: string }) {
           {logo}
           <h1 className="text-lg font-semibold text-gray-800">Check your email</h1>
           <p className="text-sm text-gray-600">
-            If an account exists for {email}, a 6-digit reset code is on its way.
+            If an account exists for {email}, a reset code is on its way.
             Enter it below.
           </p>
           <div>
@@ -90,7 +90,7 @@ export default function LoginPage({ notice }: { notice?: string }) {
               autoComplete="one-time-code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="123456"
+              placeholder="Enter code"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center text-lg tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -98,7 +98,7 @@ export default function LoginPage({ notice }: { notice?: string }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
-            disabled={isSubmitting || code.trim().length !== 6}
+            disabled={isSubmitting || code.trim().length < 6}
             className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium disabled:opacity-60"
           >
             {isSubmitting ? 'Checking…' : 'Confirm code'}

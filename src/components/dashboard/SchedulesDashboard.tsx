@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Users, MoreVertical, ShieldCheck, LogOut } from 'lucide-react';
+import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus } from 'lucide-react';
 import { campaignColors } from '@/lib/colorUtils';
-import { createSchedule, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
+import { acceptScheduleInvites, checkIsSiteAdmin, createSchedule, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
+import InviteUserModal from './InviteUserModal';
 
 interface SchedulesDashboardProps {
   userId: string;
@@ -22,9 +23,18 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
   const [schedules, setSchedules] = useState<ScheduleSummary[] | null>(null);
   const [error, setError] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+
+  useEffect(() => {
+    checkIsSiteAdmin().then(setIsAdmin);
+  }, []);
 
   const refresh = useCallback(() => {
-    listSchedules(userId)
+    // Pick up schedules this user has been invited to since their last visit
+    acceptScheduleInvites()
+      .catch(err => console.error('Could not accept invites', err))
+      .then(() => listSchedules(userId))
       .then(list => {
         setSchedules(list);
         setError('');
@@ -100,6 +110,16 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <h1 className="text-lg font-semibold text-gray-800">Schedules</h1>
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <button
+                onClick={() => setIsInviteUserOpen(true)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
+                title="Onboard a new customer account"
+              >
+                <UserPlus size={16} />
+                <span>Invite User</span>
+              </button>
+            )}
             <button onClick={handleNewSchedule} className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center gap-2 text-sm font-medium">
               <Plus size={16} />
               <span>Create New Schedule</span>
@@ -188,6 +208,8 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
           </div>
         </div>
       </div>
+
+      <InviteUserModal isOpen={isInviteUserOpen} onClose={() => setIsInviteUserOpen(false)} />
     </div>
   );
 }

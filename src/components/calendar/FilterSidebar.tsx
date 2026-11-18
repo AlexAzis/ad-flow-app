@@ -135,7 +135,7 @@ export default function FilterSidebar({
                 onDoubleClick={() => onEditCampaign && onEditCampaign(campaign)}
                 className={`${pillClass(false)} flex items-center gap-2 w-full text-left`}
                 style={selected ? { backgroundColor: campaign.color, borderColor: campaign.color, color: selectedText } : undefined}
-                title="Double-click to edit"
+                title={onEditCampaign ? 'Double-click to edit' : undefined}
               >
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -225,20 +225,24 @@ export default function FilterSidebar({
         <Toggle on={showWeekends} onClick={onToggleShowWeekends} label="Hide weekends" icon={<CalendarX size={15} className="text-gray-500" />} />
 
         <div className="pt-3 space-y-2">
-          <button
-            onClick={onNewCampaign}
-            className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium"
-          >
-            <Plus size={16} />
-            <span>New Campaign</span>
-          </button>
-          <button
-            onClick={onManageEvents}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 text-sm font-medium"
-          >
-            <Settings size={16} />
-            <span>Manage Events</span>
-          </button>
+          {onNewCampaign && (
+            <button
+              onClick={onNewCampaign}
+              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium"
+            >
+              <Plus size={16} />
+              <span>New Campaign</span>
+            </button>
+          )}
+          {onManageEvents && (
+            <button
+              onClick={onManageEvents}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 text-sm font-medium"
+            >
+              <Settings size={16} />
+              <span>Manage Events</span>
+            </button>
+          )}
         </div>
       </div>
     </aside>

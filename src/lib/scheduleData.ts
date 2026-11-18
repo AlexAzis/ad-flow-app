@@ -45,6 +45,134 @@ export async function createSchedule(name: string): Promise<void> {
   if (error) throw error;
 }
 
+// ------------------------------------------------------------ members
+
+export interface ScheduleMember {
+  userId: string;
+  email: string | null;
+  role: ScheduleRole;
+}
+
+export interface ScheduleInvite {
+  email: string;
+  role: 'editor' | 'viewer';
+}
+
+export interface ScheduleAccess {
+  members: ScheduleMember[];
+  invites: ScheduleInvite[];
+}
+
+// Turns any pending invites addressed to the signed-in user into memberships.
+export async function acceptScheduleInvites(): Promise<void> {
+  const { error } = await supabase.rpc('accept_schedule_invites');
+  if (error) throw error;
+}
+
+export async function listScheduleAccess(scheduleId: string): Promise<ScheduleAccess> {
+  const [memberResult, inviteResult] = await Promise.all([
+    supabase
+      .from('schedule_members')
+      .select('user_id, email, role')
+      .eq('schedule_id', scheduleId)
+      .order('created_at'),
+    supabase
+      .from('schedule_invites')
+      .select('email, role')
+      .eq('schedule_id', scheduleId)
+      .order('created_at'),
+  ]);
+  if (memberResult.error) throw memberResult.error;
+  if (inviteResult.error) throw inviteResult.error;
+  return {
+    members: (memberResult.data ?? []).map(row => ({
+      userId: row.user_id,
+      email: row.email,
+      role: row.role as ScheduleRole,
+    })),
+    invites: (inviteResult.data ?? []).map(row => ({
+      email: row.email,
+      role: row.role as ScheduleInvite['role'],
+    })),
+  };
+}
+
+export type InviteOutcome = 'emailed' | 'pending' | 'already-member';
+
+// Records the invite via the invite-member edge function, which also emails a
+// new user their account invite. If the function isn't reachable (e.g. not
+// deployed yet) the invite is written directly and just takes effect silently
+// on the person's next sign-in.
+export async function inviteToSchedule(scheduleId: string, email: string, role: ScheduleInvite['role']): Promise<InviteOutcome> {
+  const normalized = email.trim().toLowerCase();
+  try {
+    const { data, error } = await supabase.functions.invoke('invite-member', {
+      body: { scheduleId, email: normalized, role, redirectTo: window.location.origin },
+    });
+    if (!error && data?.status) return data.status as InviteOutcome;
+    if (data?.error) throw new Error(data.error);
+    if (error) console.warn('invite-member unavailable, recording invite directly', error);
+  } catch (err) {
+    console.warn('invite-member unavailable, recording invite directly', err);
+  }
+  const { error } = await supabase
+    .from('schedule_invites')
+    .upsert({ schedule_id: scheduleId, email: normalized, role }, { onConflict: 'schedule_id,email' });
+  if (error) throw error;
+  return 'pending';
+}
+
+export async function cancelScheduleInvite(scheduleId: string, email: string): Promise<void> {
+  const { error } = await supabase
+    .from('schedule_invites')
+    .delete()
+    .eq('schedule_id', scheduleId)
+    .eq('email', email);
+  if (error) throw error;
+}
+
+export async function updateMemberRole(scheduleId: string, userId: string, role: ScheduleRole): Promise<void> {
+  const { error } = await supabase
+    .from('schedule_members')
+    .update({ role })
+    .eq('schedule_id', scheduleId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function removeScheduleMember(scheduleId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('schedule_members')
+    .delete()
+    .eq('schedule_id', scheduleId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+// ------------------------------------------------------- site admin
+
+// Site admins (ADMIN_EMAILS secret on the invite-user function) can onboard new
+// customers by inviting an email that has no account yet.
+export async function checkIsSiteAdmin(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.functions.invoke('invite-user', { method: 'GET' });
+    return !error && !!data?.admin;
+  } catch {
+    return false;
+  }
+}
+
+export type PlatformInviteOutcome = 'emailed' | 'exists' | 'error';
+
+export async function inviteNewUser(email: string): Promise<PlatformInviteOutcome> {
+  const { data, error } = await supabase.functions.invoke('invite-user', {
+    body: { email: email.trim().toLowerCase(), redirectTo: window.location.origin },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return (data?.status ?? 'error') as PlatformInviteOutcome;
+}
+
 // Supabase returns at most 1000 rows per request, so page through larger tables
 async function fetchAll(table: string, scheduleId: string) {
   const rows: any[] = [];

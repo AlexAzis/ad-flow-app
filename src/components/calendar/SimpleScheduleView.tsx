@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck, Users } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
 import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
@@ -17,6 +17,7 @@ import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
 import ManageEventsModal from './ManageEventsModal';
 import EditCampaignModal from './EditCampaignModal';
+import MembersModal from './MembersModal';
 
 interface SimpleScheduleViewProps {
   scheduleId: string;
@@ -33,6 +34,9 @@ interface SimpleScheduleViewProps {
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
 const SAVE_DELAY_MS = 400;
 
+// Viewers can look but not touch: no adding, editing, moving or deleting
+const canEdit = (role: ScheduleRole) => role !== 'viewer';
+
 export default function SimpleScheduleView({
   scheduleId,
   scheduleName,
@@ -44,6 +48,7 @@ export default function SimpleScheduleView({
   customEventTypes: initialCustomEventTypes,
   onBack,
 }: SimpleScheduleViewProps) {
+  const readOnly = !canEdit(role);
   const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [showWeekends, setShowWeekends] = useState(false);
@@ -66,6 +71,7 @@ export default function SimpleScheduleView({
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
@@ -177,6 +183,7 @@ export default function SimpleScheduleView({
   };
 
   const handleDateClick = (date: Date) => {
+    if (readOnly) return;
     setSelectedDateForEvent(date);
     setIsAddEventModalOpen(true);
   };
@@ -198,6 +205,7 @@ export default function SimpleScheduleView({
   };
 
   const handleEventDoubleClick = (event: Event) => {
+    if (readOnly) return;
     const locked = getLockedCampaign(event.campaignId);
     if (locked) return warnLocked(locked);
     setSelectedEventToEdit(event);
@@ -205,6 +213,7 @@ export default function SimpleScheduleView({
   };
 
   const handleEventSelect = (eventId: string, action: EventSelectionAction) => {
+    if (readOnly) return;
     const event = allEvents.find(e => e.id === eventId);
     if (!event || getLockedCampaign(event.campaignId)) return;
 
@@ -315,6 +324,7 @@ export default function SimpleScheduleView({
   };
 
   const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
+    if (readOnly) return;
     const draggedEvent = allEvents.find(e => e.id === draggedEventId);
     if (!draggedEvent || getLockedCampaign(draggedEvent.campaignId)) return;
 
@@ -333,6 +343,7 @@ export default function SimpleScheduleView({
   };
 
   const handleEventResize = (eventId: string, newStartDate: Date, newEndDate: Date) => {
+    if (readOnly) return;
     const current = allEvents.find(e => e.id === eventId);
     if (!current || getLockedCampaign(current.campaignId)) return;
     setAllEvents(allEvents.map(event =>
@@ -388,7 +399,9 @@ export default function SimpleScheduleView({
                 <ShieldCheck size={11} />
                 {roleLabel[role]}
               </span>
-              {saveState === 'error' ? (
+              {readOnly ? (
+                <span className="text-xs text-gray-400 whitespace-nowrap">Read-only</span>
+              ) : saveState === 'error' ? (
                 <button onClick={saveNow} className="text-xs text-red-600 underline whitespace-nowrap">
                   Couldn’t save. Retry
                 </button>
@@ -397,6 +410,13 @@ export default function SimpleScheduleView({
                   {saveState === 'saving' ? 'Saving…' : 'Saved'}
                 </span>
               )}
+              <button
+                onClick={() => setIsMembersModalOpen(true)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600"
+                title="Members and invites"
+              >
+                <Users size={16} />
+              </button>
             </div>
             <div className="flex items-center gap-2 ml-8">
               <button
@@ -580,9 +600,9 @@ export default function SimpleScheduleView({
           onToggleShowEventNotes={() => setShowEventNotes(!showEventNotes)}
           onToggleShowPeople={() => setShowPeople(!showPeople)}
           onToggleShowMisc={() => setShowMisc(!showMisc)}
-          onEditCampaign={handleEditCampaign}
-          onNewCampaign={() => setIsNewCampaignModalOpen(true)}
-          onManageEvents={() => setIsManageEventsModalOpen(true)}
+          onEditCampaign={readOnly ? undefined : handleEditCampaign}
+          onNewCampaign={readOnly ? undefined : () => setIsNewCampaignModalOpen(true)}
+          onManageEvents={readOnly ? undefined : () => setIsManageEventsModalOpen(true)}
           onClearFilters={handleClearFilters}
         />
 
@@ -728,6 +748,16 @@ export default function SimpleScheduleView({
         currentUser={currentUser}
         campaign={selectedCampaignToEdit}
         allCampaigns={allCampaigns}
+      />
+
+      {/* Members & Invites Modal */}
+      <MembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        scheduleId={scheduleId}
+        scheduleName={scheduleName}
+        role={role}
+        currentUser={currentUser}
       />
     </div>
   );

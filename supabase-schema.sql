@@ -207,23 +207,23 @@ create policy "owners can remove members" on public.schedule_members
   for delete to authenticated
   using (public.schedule_role(schedule_id) = 'owner');
 
--- schedule_invites: members can see pending invites, only owners manage them
+-- schedule_invites: members can see pending invites, owners and editors manage them
 create policy "members can view invites" on public.schedule_invites
   for select to authenticated
   using (public.schedule_role(schedule_id) is not null);
 
-create policy "owners can create invites" on public.schedule_invites
+create policy "editors can create invites" on public.schedule_invites
   for insert to authenticated
-  with check (public.schedule_role(schedule_id) = 'owner');
+  with check (public.schedule_role(schedule_id) in ('owner', 'editor'));
 
-create policy "owners can change invites" on public.schedule_invites
+create policy "editors can change invites" on public.schedule_invites
   for update to authenticated
-  using (public.schedule_role(schedule_id) = 'owner')
-  with check (public.schedule_role(schedule_id) = 'owner');
+  using (public.schedule_role(schedule_id) in ('owner', 'editor'))
+  with check (public.schedule_role(schedule_id) in ('owner', 'editor'));
 
-create policy "owners can cancel invites" on public.schedule_invites
+create policy "editors can cancel invites" on public.schedule_invites
   for delete to authenticated
-  using (public.schedule_role(schedule_id) = 'owner');
+  using (public.schedule_role(schedule_id) in ('owner', 'editor'));
 
 -- schedule content: members read, owners and editors write
 create policy "members can view campaigns" on public.campaigns

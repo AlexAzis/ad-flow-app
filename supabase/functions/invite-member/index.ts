@@ -58,7 +58,9 @@ Deno.serve(async req => {
     .eq('schedule_id', scheduleId)
     .eq('user_id', user.id)
     .maybeSingle();
-  if (membership?.role !== 'owner') return json({ error: 'Only owners can invite' }, 403);
+  if (membership?.role !== 'owner' && membership?.role !== 'editor') {
+    return json({ error: 'Only owners and editors can invite' }, 403);
+  }
 
   const { data: existingMember } = await admin
     .from('schedule_members')

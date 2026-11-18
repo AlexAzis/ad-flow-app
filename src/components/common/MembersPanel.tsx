@@ -21,10 +21,12 @@ interface MembersPanelProps {
 const roleLabel: Record<ScheduleRole, string> = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
 const displayEmail = (email: string | null) => email || 'Unknown account';
 
-// Member list + invite management for a schedule. Owners can change roles,
-// remove people and send invites; other roles see a read-only list.
+// Member list + invite management for a schedule. Owners can change roles and
+// remove people; owners and editors can send and cancel invites; viewers see a
+// read-only list.
 export default function MembersPanel({ scheduleId, role, currentUser }: MembersPanelProps) {
   const isOwner = role === 'owner';
+  const canInvite = role === 'owner' || role === 'editor';
   const [access, setAccess] = useState<ScheduleAccess | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -167,7 +169,7 @@ export default function MembersPanel({ scheduleId, role, currentUser }: MembersP
                   <span className="text-sm text-gray-800 truncate block">{invite.email}</span>
                   <span className="text-xs text-gray-500">Invited as {roleLabel[invite.role]} — joins on next sign-in</span>
                 </div>
-                {isOwner && (
+                {canInvite && (
                   <button
                     onClick={() => run(() => cancelScheduleInvite(scheduleId, invite.email))}
                     disabled={isBusy}
@@ -186,8 +188,8 @@ export default function MembersPanel({ scheduleId, role, currentUser }: MembersP
       {actionError && <p className="text-sm text-red-600">{actionError}</p>}
       {notice && <p className="text-sm text-green-700">{notice}</p>}
 
-      {/* Invite form (owners only) */}
-      {isOwner && (
+      {/* Invite form (owners and editors) */}
+      {canInvite && (
         <div className="pt-4 border-t border-gray-200">
           <div className="flex gap-2">
             <div className="flex-1 relative">

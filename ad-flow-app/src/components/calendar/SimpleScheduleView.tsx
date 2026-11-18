@@ -15,6 +15,7 @@ import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
 import ManageEventsModal from './ManageEventsModal';
 import EditCampaignModal from './EditCampaignModal';
+import { emptySchedule, isRemoteEnabled, loadSchedule, saveChanges, ScheduleData } from '@/lib/scheduleStore';
 
 interface SimpleScheduleViewProps {
   events: Event[];
@@ -77,6 +78,62 @@ export default function SimpleScheduleView({
   const [customEventTypes, setCustomEventTypes] = useState<Record<string, string[]>>(
     () => loadSaved<Record<string, string[]>>('customEventTypes') ?? {}
   );
+
+  const [syncStatus, setSyncStatus] = useState<'local' | 'loading' | 'saving' | 'saved' | 'error'>(
+    isRemoteEnabled ? 'loading' : 'local'
+  );
+  const [remoteReady, setRemoteReady] = useState(false);
+  // Last state known to be stored in Supabase; each save writes only the difference from it
+  const confirmedRef = useRef<ScheduleData | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    if (!isRemoteEnabled) return;
+    let cancelled = false;
+    loadSchedule()
+      .then(remote => {
+        if (cancelled || !remote) return;
+        const hasRemoteData = remote.campaigns.length || remote.events.length || remote.people.length;
+        if (hasRemoteData) {
+          confirmedRef.current = remote;
+          setAllCampaigns(remote.campaigns);
+          setAllEvents(remote.events);
+          setAllPeople(remote.people);
+          setCustomEventTypes(remote.customEventTypes);
+        } else {
+          // Empty database: the save effect uploads what's currently in the browser
+          confirmedRef.current = emptySchedule;
+        }
+        setSyncStatus('saved');
+        setRemoteReady(true);
+      })
+      .catch(error => {
+        console.error('Failed to load schedule from Supabase', error);
+        if (!cancelled) setSyncStatus('error');
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!remoteReady) return;
+    const next: ScheduleData = {
+      campaigns: allCampaigns,
+      events: allEvents,
+      people: allPeople,
+      customEventTypes,
+    };
+    saveQueueRef.current = saveQueueRef.current.then(async () => {
+      setSyncStatus('saving');
+      try {
+        await saveChanges(confirmedRef.current ?? emptySchedule, next);
+        confirmedRef.current = next;
+        setSyncStatus('saved');
+      } catch (error) {
+        console.error('Failed to save schedule to Supabase', error);
+        setSyncStatus('error');
+      }
+    });
+  }, [remoteReady, allCampaigns, allEvents, allPeople, customEventTypes]);
 
   // Drop people from the filter once they are no longer assigned to any event
   useEffect(() => {
@@ -349,6 +406,16 @@ export default function SimpleScheduleView({
               <span className="text-lg font-medium text-gray-800">
                 {getHeaderTitle()}
               </span>
+              {syncStatus !== 'local' && (
+                <span className={`text-xs ${syncStatus === 'error' ? 'text-red-500' : 'text-gray-400'}`}>
+                  {{
+                    loading: 'Loading…',
+                    saving: 'Saving…',
+                    saved: 'Saved',
+                    error: 'Not saved – check connection',
+                  }[syncStatus]}
+                </span>
+              )}
             </div>
           </div>
 

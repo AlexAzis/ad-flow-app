@@ -225,7 +225,10 @@ export default function AddEventModal({
                 required
               >
                 <option value="">Select event</option>
-                {(customEventTypes?.[stage] || eventTypesByStage[stage])?.map((event) => (
+                {(customEventTypes?.[stage] || eventTypesByStage[stage] || [])
+                  .slice()
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((event) => (
                   <option key={event} value={event}>
                     {event}
                   </option>

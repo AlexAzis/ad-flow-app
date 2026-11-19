@@ -290,13 +290,13 @@ export default function EditCampaignModal({
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-between gap-3 pt-4">
-            <div className="flex gap-3">
+          <div className="flex flex-wrap justify-between gap-3 pt-4">
+            <div className="flex flex-wrap gap-3">
               {onDuplicateCampaign && (
                 <button
                   type="button"
                   onClick={() => setIsDuplicateModalOpen(true)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium whitespace-nowrap"
                 >
                   Duplicate and shift
                 </button>
@@ -305,7 +305,7 @@ export default function EditCampaignModal({
                 type="button"
                 onClick={handleDelete}
                 disabled={isLocked}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600"
               >
                 Delete Campaign
               </button>
@@ -314,13 +314,13 @@ export default function EditCampaignModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium whitespace-nowrap"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium whitespace-nowrap"
               >
                 Update Campaign
               </button>

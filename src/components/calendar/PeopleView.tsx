@@ -26,7 +26,7 @@ interface PeopleViewProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
-  selectedCampaigns?: Set<string>;
+  selectedPeople?: Set<string>;
 }
 
 const DAY_WIDTH = 60;
@@ -46,7 +46,7 @@ export default function PeopleView({
   showWeekends,
   showEventNotes,
   showPeople,
-  selectedCampaigns,
+  selectedPeople,
 }: PeopleViewProps) {
   // Two weeks of history render before the anchor so they can be scrolled back
   // to, but nothing earlier is ever shown
@@ -76,10 +76,13 @@ export default function PeopleView({
   const getEventsForPerson = (personId: string) =>
     events.filter(e => {
       const assigneeIds = e.assignees?.length ? e.assignees : (e.assignee ? [e.assignee] : []);
-      if (!assigneeIds.includes(personId)) return false;
-      if (selectedCampaigns && selectedCampaigns.size > 0 && !selectedCampaigns.has(e.campaignId)) return false;
-      return true;
+      return assigneeIds.includes(personId);
     });
+
+  const associatedPeople = people.filter(person => getEventsForPerson(person.id).length > 0);
+  const visiblePeople = selectedPeople && selectedPeople.size > 0
+    ? associatedPeople.filter(person => selectedPeople.has(person.id))
+    : associatedPeople;
 
   const handleDragStart = (e: React.DragEvent, event: Event) => {
     const details = getEventDragDetails(event.id, events, selectedEventIds, e.shiftKey);
@@ -152,7 +155,7 @@ export default function PeopleView({
         </div>
 
         {/* Person Rows: one sub-row per campaign so labels line up with their event blocks */}
-        {people.map((person) => {
+        {visiblePeople.map((person) => {
           const personEvents = getEventsForPerson(person.id);
 
           const groupKeys = [

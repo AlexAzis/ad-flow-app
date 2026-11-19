@@ -16,6 +16,7 @@ interface EditEventModalProps {
   event: Event | null;
   campaigns: Campaign[];
   people: Person[];
+  customEventTypes?: Record<string, string[]>;
   onAddPerson?: (name: string) => Person;
 }
 
@@ -27,6 +28,7 @@ export default function EditEventModal({
   event,
   campaigns,
   people,
+  customEventTypes,
   onAddPerson,
 }: EditEventModalProps) {
   const [startDate, setStartDate] = useState('');
@@ -209,7 +211,7 @@ export default function EditEventModal({
               required
             >
               <option value="">Select event</option>
-              {eventTypesByStage[stage]?.map((event) => (
+              {(customEventTypes?.[stage] || eventTypesByStage[stage])?.map((event) => (
                 <option key={event} value={event}>
                   {event}
                 </option>

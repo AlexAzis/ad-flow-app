@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldChec
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
 import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
+import { getStageColor } from '@/lib/colorUtils';
 import type { EventSelectionAction } from '@/lib/eventDrag';
 import CalendarGrid from './CalendarGrid';
 import GanttView from './GanttView';
@@ -17,6 +18,7 @@ import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
 import ManageEventsModal from './ManageEventsModal';
 import EditCampaignModal from './EditCampaignModal';
+import type { DuplicateCampaignDetails } from './DuplicateCampaignModal';
 import MembersModal from './MembersModal';
 
 interface SimpleScheduleViewProps {
@@ -34,6 +36,7 @@ interface SimpleScheduleViewProps {
 
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
 const SAVE_DELAY_MS = 400;
+const PASTE_OFFSET_DAYS = 7;
 
 // Viewers can look but not touch: no adding, editing, moving or deleting
 const canEdit = (role: ScheduleRole) => role !== 'viewer';
@@ -66,6 +69,7 @@ export default function SimpleScheduleView({
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set());
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [clipboardEvents, setClipboardEvents] = useState<Omit<Event, 'id'>[]>([]);
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(new Date());
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
@@ -309,6 +313,35 @@ export default function SimpleScheduleView({
     setAllEvents(allEvents.filter(e => e.campaignId !== id));
   };
 
+  const handleDuplicateCampaign = (campaignId: string, details: DuplicateCampaignDetails) => {
+    const source = allCampaigns.find(c => c.id === campaignId);
+    if (!source) return;
+
+    const newCampaign: Campaign = {
+      ...source,
+      id: crypto.randomUUID(),
+      name: details.name,
+      color: details.color,
+      locked: false,
+    };
+    delete newCampaign.lockedBy;
+
+    const dayOffset = details.weeks * 7;
+    const duplicatedEvents = allEvents
+      .filter(event => event.campaignId === source.id)
+      .map(event => ({
+        ...event,
+        id: crypto.randomUUID(),
+        campaignId: newCampaign.id,
+        startDate: addDays(new Date(event.startDate), dayOffset),
+        endDate: addDays(new Date(event.endDate), dayOffset),
+        color: event.isMisc ? event.color : getStageColor(details.color, event.stage),
+      }));
+
+    setAllCampaigns(prev => [...prev, newCampaign]);
+    setAllEvents(prev => [...prev, ...duplicatedEvents]);
+  };
+
   const handleAddPerson = (name: string): Person => {
     const newPerson: Person = {
       id: crypto.randomUUID(),
@@ -402,6 +435,86 @@ export default function SimpleScheduleView({
       return next.size === prev.size ? prev : next;
     });
   }, [filteredEvents]);
+
+  // Ctrl/Cmd+C copies the selected event blocks; Ctrl/Cmd+V pastes them one week later
+  useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return !!target.closest('input, textarea, select, [contenteditable="true"]');
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const key = event.key.toLowerCase();
+      if (key !== 'c' && key !== 'v') return;
+      if (isEditableTarget(event.target)) return;
+      if (
+        isAddEventModalOpen ||
+        isEditEventModalOpen ||
+        isNewCampaignModalOpen ||
+        isManageEventsModalOpen ||
+        isEditCampaignModalOpen ||
+        isMembersModalOpen
+      ) return;
+
+      if (key === 'c') {
+        if (readOnly || selectedEventIds.size === 0 || window.getSelection()?.toString().trim()) return;
+        event.preventDefault();
+        setClipboardEvents(
+          allEvents
+            .filter(e => selectedEventIds.has(e.id))
+            .map(({ id, ...rest }) => rest)
+        );
+        return;
+      }
+
+      if (readOnly || clipboardEvents.length === 0) return;
+      event.preventDefault();
+
+      let skippedLocked = false;
+      const pastedEvents = clipboardEvents
+        .map(eventDraft => {
+          const campaign = allCampaigns.find(c => c.id === eventDraft.campaignId);
+          if (campaign?.locked) {
+            skippedLocked = true;
+            return null;
+          }
+          return {
+            ...eventDraft,
+            id: crypto.randomUUID(),
+            startDate: addDays(new Date(eventDraft.startDate), PASTE_OFFSET_DAYS),
+            endDate: addDays(new Date(eventDraft.endDate), PASTE_OFFSET_DAYS),
+            color: eventDraft.isMisc ? eventDraft.color : (campaign ? getStageColor(campaign.color, eventDraft.stage) : '#999999'),
+          } as Event;
+        })
+        .filter((pasted): pasted is Event => pasted !== null);
+
+      if (pastedEvents.length === 0) {
+        if (skippedLocked) alert('Copied events belong to a locked campaign.');
+        return;
+      }
+
+      setAllEvents(prev => [...prev, ...pastedEvents]);
+      setSelectedEventIds(new Set(pastedEvents.map(pasted => pasted.id)));
+      setClipboardEvents(pastedEvents.map(({ id, ...rest }) => rest));
+      if (skippedLocked) alert('Some copied events were skipped because their campaign is locked.');
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    allCampaigns,
+    allEvents,
+    clipboardEvents,
+    isAddEventModalOpen,
+    isEditCampaignModalOpen,
+    isEditEventModalOpen,
+    isManageEventsModalOpen,
+    isMembersModalOpen,
+    isNewCampaignModalOpen,
+    readOnly,
+    selectedEventIds,
+  ]);
 
   return (
     <div className="flex flex-col h-full min-w-0 w-full">
@@ -695,7 +808,7 @@ export default function SimpleScheduleView({
                 showWeekends={showWeekends}
                 showEventNotes={showEventNotes}
                 showPeople={showPeople}
-                selectedCampaigns={selectedCampaigns}
+                selectedPeople={selectedPeople}
               />
             </div>
           ) : (
@@ -741,6 +854,7 @@ export default function SimpleScheduleView({
         event={selectedEventToEdit}
         campaigns={allCampaigns}
         people={allPeople}
+        customEventTypes={customEventTypes}
         onAddPerson={handleAddPerson}
       />
 
@@ -766,6 +880,7 @@ export default function SimpleScheduleView({
         onClose={() => setIsEditCampaignModalOpen(false)}
         onUpdateCampaign={handleUpdateCampaign}
         onDeleteCampaign={handleDeleteCampaign}
+        onDuplicateCampaign={readOnly ? undefined : handleDuplicateCampaign}
         currentUser={currentUser}
         campaign={selectedCampaignToEdit}
         allCampaigns={allCampaigns}

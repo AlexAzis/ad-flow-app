@@ -4,12 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Unlock, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Campaign } from '@/lib/types';
 import { campaignColors } from '@/lib/colorUtils';
+import DuplicateCampaignModal from './DuplicateCampaignModal';
+import type { DuplicateCampaignDetails } from './DuplicateCampaignModal';
 
 interface EditCampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>) => void;
   onDeleteCampaign?: (id: string) => void;
+  onDuplicateCampaign?: (campaignId: string, details: DuplicateCampaignDetails) => void;
   campaign: Campaign | null;
   currentUser?: string;
   allCampaigns?: Campaign[];
@@ -20,6 +23,7 @@ export default function EditCampaignModal({
   onClose,
   onUpdateCampaign,
   onDeleteCampaign,
+  onDuplicateCampaign,
   campaign,
   currentUser = '',
   allCampaigns = [],
@@ -30,6 +34,7 @@ export default function EditCampaignModal({
   const [logoUrl, setLogoUrl] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState('');
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Populate form when campaign changes
@@ -112,7 +117,8 @@ export default function EditCampaignModal({
   if (!isOpen || !campaign) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -285,14 +291,25 @@ export default function EditCampaignModal({
 
           {/* Submit Button */}
           <div className="flex justify-between gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isLocked}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600"
-            >
-              Delete Campaign
-            </button>
+            <div className="flex gap-3">
+              {onDuplicateCampaign && (
+                <button
+                  type="button"
+                  onClick={() => setIsDuplicateModalOpen(true)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Duplicate and shift
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isLocked}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600"
+              >
+                Delete Campaign
+              </button>
+            </div>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -312,5 +329,18 @@ export default function EditCampaignModal({
         </form>
       </div>
     </div>
+
+      <DuplicateCampaignModal
+        isOpen={isDuplicateModalOpen}
+        onClose={() => setIsDuplicateModalOpen(false)}
+        campaign={campaign}
+        allCampaigns={allCampaigns}
+        onDuplicate={(details) => {
+          onDuplicateCampaign?.(campaign.id, details);
+          setIsDuplicateModalOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

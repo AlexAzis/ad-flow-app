@@ -52,13 +52,13 @@ export default function PeopleView({
   // to, but nothing earlier is ever shown
   const anchor = anchorDay(currentDate);
   const rangeStart = addDays(anchor, -LOOKBACK_DAYS);
-  const days = Array.from({ length: 90 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
-  const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
-  // Export markers: image starts at the current date and ends a week after the
-  // last filtered event block
+  // The range runs to the end of the week after the last filtered event block,
+  // so scrolling right always reaches just past the final block
   const exportStartIdx = LOOKBACK_DAYS;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'day');
+  const days = Array.from({ length: exportEndIdx >= 0 ? exportEndIdx + 1 : 90 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
+  const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const anchorKey = anchor.getTime();

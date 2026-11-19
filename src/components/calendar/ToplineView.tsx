@@ -47,13 +47,13 @@ export default function ToplineView({
   // to, but nothing earlier is ever shown
   const anchor = anchorWeek(currentDate);
   const rangeStart = addWeeks(anchor, -2);
-  const weeks = Array.from({ length: 26 }, (_, i) => addWeeks(rangeStart, i));
-  const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
 
-  // Export markers: image starts at the current week and ends a week after the
-  // last filtered event block
+  // The range runs to the end of the week after the last filtered event block,
+  // so scrolling right always reaches just past the final block
   const exportStartIdx = 2;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
+  const weeks = Array.from({ length: exportEndIdx >= 0 ? exportEndIdx + 1 : 26 }, (_, i) => addWeeks(rangeStart, i));
+  const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const anchorKey = anchor.getTime();

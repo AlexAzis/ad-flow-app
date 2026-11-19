@@ -5,12 +5,15 @@ import { supabase } from '@/lib/supabase';
 
 interface UpdatePasswordPageProps {
   onDone: () => void;
+  // True for invited users setting their first password rather than resetting.
+  firstTime?: boolean;
 }
 
 // Shown when the user lands from a password-reset email (Supabase fires a
-// PASSWORD_RECOVERY event with a live session). Saving sets the new password
-// and they continue into the app already signed in.
-export default function UpdatePasswordPage({ onDone }: UpdatePasswordPageProps) {
+// PASSWORD_RECOVERY event with a live session) or accepts a schedule invite
+// and needs to choose their first password. Saving sets the new password and
+// they continue into the app already signed in.
+export default function UpdatePasswordPage({ onDone, firstTime }: UpdatePasswordPageProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
@@ -28,7 +31,11 @@ export default function UpdatePasswordPage({ onDone }: UpdatePasswordPageProps) 
       return;
     }
     setIsSubmitting(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+      // Clears the invite flag so this screen isn't shown again
+      data: { needs_password_setup: null },
+    });
     setIsSubmitting(false);
     if (updateError) {
       setError('The password couldn’t be saved. The link may have expired — request a new one.');
@@ -46,7 +53,12 @@ export default function UpdatePasswordPage({ onDone }: UpdatePasswordPageProps) 
           </div>
           <span className="font-bold text-gray-900 tracking-wide">ARGUS</span>
         </div>
-        <h1 className="text-lg font-semibold text-gray-800">Choose a new password</h1>
+        <h1 className="text-lg font-semibold text-gray-800">
+          {firstTime ? 'Welcome to Argus' : 'Choose a new password'}
+        </h1>
+        {firstTime && (
+          <p className="text-sm text-gray-600">Set a password for your account to continue.</p>
+        )}
         <div>
           <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New password</label>
           <input

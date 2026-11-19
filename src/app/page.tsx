@@ -15,6 +15,9 @@ export default function Home() {
   const [openSchedule, setOpenSchedule] = useState<ScheduleSummary | null>(null);
   // True while the user is in the password-reset flow from a recovery email
   const [isRecovery, setIsRecovery] = useState(false);
+  // Set once an invited user finishes the choose-a-password screen - the
+  // cached user object keeps the stale flag until the next sign-in otherwise.
+  const [setupDone, setSetupDone] = useState(false);
   const [authError, setAuthError] = useState('');
 
   useEffect(() => {
@@ -45,12 +48,22 @@ export default function Home() {
   }, []);
 
   const email = user?.email ?? '';
+  // New accounts created by a schedule invite carry this flag until they pick
+  // a password - see the invite-member function.
+  const needsSetup =
+    !!(user?.user_metadata as Record<string, unknown> | undefined)?.needs_password_setup && !setupDone;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
-        {user === undefined ? null : isRecovery && user ? (
-          <UpdatePasswordPage onDone={() => setIsRecovery(false)} />
+        {user === undefined ? null : user && (isRecovery || needsSetup) ? (
+          <UpdatePasswordPage
+            firstTime={needsSetup && !isRecovery}
+            onDone={() => {
+              setIsRecovery(false);
+              setSetupDone(true);
+            }}
+          />
         ) : user === null ? (
           <LoginPage notice={authError} />
         ) : openSchedule ? (

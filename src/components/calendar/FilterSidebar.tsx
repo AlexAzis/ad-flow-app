@@ -145,7 +145,7 @@ export default function FilterSidebar({
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: selected ? selectedText : campaign.color }}
                 />
-                <span className="truncate">{campaign.name}</span>
+                <span className="min-w-0 whitespace-normal break-words leading-snug">{campaign.name}</span>
                 {campaign.locked && <Lock size={11} className="flex-shrink-0 ml-auto" />}
               </button>
               );

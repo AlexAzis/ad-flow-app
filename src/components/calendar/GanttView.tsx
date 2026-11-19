@@ -182,6 +182,7 @@ export default function GanttView({
               <div className="flex-1 relative">
                 {days.map((day, index) => {
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                  const isToday = isSameDay(day, new Date());
                   const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
                   const isBankHoliday = bankHolidays.has(day.toDateString());
                   return (
@@ -189,7 +190,7 @@ export default function GanttView({
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
                         isPast ? 'bg-gray-100' : isWeekend || isBankHoliday ? 'bg-[#F6F7F9]' : ''
-                      }`}
+                      } ${isToday ? 'bg-blue-50' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                     />
                   );

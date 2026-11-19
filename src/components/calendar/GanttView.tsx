@@ -5,7 +5,7 @@ import { format, addDays, isSameDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
-import { anchorDay, exportEndIndex, monthAfterEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
+import { anchorDay, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
 import {
   getEventDragData,
   getEventDragDetails,
@@ -51,13 +51,11 @@ export default function GanttView({
   const anchor = anchorDay(currentDate);
   const rangeStart = addDays(anchor, -LOOKBACK_DAYS);
 
-  // The range runs to a month after the last filtered event block so the view
-  // can be scrolled well past the final block; exports still crop at the week
-  // after the last block
+  // The range runs to the end of the week after the last filtered event block,
+  // so scrolling right always reaches just past the final block
   const exportStartIdx = LOOKBACK_DAYS;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'day');
-  const viewEndIdx = monthAfterEndIndex(events, anchor, rangeStart);
-  const days = Array.from({ length: viewEndIdx >= 0 ? viewEndIdx + 1 : 90 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
+  const days = Array.from({ length: exportEndIdx >= 0 ? exportEndIdx + 1 : 90 + LOOKBACK_DAYS }, (_, i) => addDays(rangeStart, i));
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);

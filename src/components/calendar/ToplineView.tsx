@@ -5,7 +5,7 @@ import { format, addWeeks, addDays, endOfWeek, isWithinInterval } from 'date-fns
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
-import { anchorWeek, exportEndIndex } from '@/lib/visibleRange';
+import { anchorWeek, exportEndIndex, monthAfterEndIndex } from '@/lib/visibleRange';
 
 interface ToplineViewProps {
   events: Event[];
@@ -48,11 +48,13 @@ export default function ToplineView({
   const anchor = anchorWeek(currentDate);
   const rangeStart = addWeeks(anchor, -2);
 
-  // The range runs to the end of the week after the last filtered event block,
-  // so scrolling right always reaches just past the final block
+  // The range runs to a month after the last filtered event block so the view
+  // can be scrolled well past the final block; exports still crop at the week
+  // after the last block
   const exportStartIdx = 2;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
-  const weeks = Array.from({ length: exportEndIdx >= 0 ? exportEndIdx + 1 : 26 }, (_, i) => addWeeks(rangeStart, i));
+  const viewEndIdx = monthAfterEndIndex(events, anchor, rangeStart, 'week');
+  const weeks = Array.from({ length: viewEndIdx >= 0 ? viewEndIdx + 1 : 26 }, (_, i) => addWeeks(rangeStart, i));
   const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
 
   const scrollerRef = useRef<HTMLDivElement>(null);

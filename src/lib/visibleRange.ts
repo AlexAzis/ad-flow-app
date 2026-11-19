@@ -33,12 +33,20 @@ export function exportEndIndex(
     : differenceInDays(addDays(week, 13), rangeStart);
 }
 
-// Index of the day one month after the last filtered event ends. The anchor is
-// always covered even if every event sits in the past. Returns -1 when there
-// are no events.
-export function monthAfterEndIndex(events: Event[], anchor: Date, rangeStart: Date): number {
+// Index of the cell one month after the last filtered event ends: the exact
+// day for 'day' views, the week containing that point for 'week' views. The
+// anchor is always covered even if every event sits in the past. Returns -1
+// when there are no events.
+export function monthAfterEndIndex(
+  events: Event[],
+  anchor: Date,
+  rangeStart: Date,
+  unit: 'day' | 'week'
+): number {
   if (events.length === 0) return -1;
   const lastEnd = new Date(Math.max(...events.map(e => new Date(e.endDate).getTime())));
   const end = addMonths(lastEnd < anchor ? anchor : lastEnd, 1);
-  return differenceInDays(end, rangeStart);
+  return unit === 'week'
+    ? differenceInWeeks(startOfWeek(end, { weekStartsOn: 1 }), rangeStart)
+    : differenceInDays(end, rangeStart);
 }

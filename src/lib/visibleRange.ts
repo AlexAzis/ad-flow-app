@@ -1,4 +1,4 @@
-import { addDays, addWeeks, differenceInDays, differenceInWeeks, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, addMonths, addWeeks, differenceInDays, differenceInWeeks, startOfDay, startOfWeek } from 'date-fns';
 import { Event } from './types';
 
 // Every view renders two weeks of history before its anchor so the past can be
@@ -31,4 +31,14 @@ export function exportEndIndex(
   return unit === 'week'
     ? differenceInWeeks(addWeeks(week, 1), rangeStart)
     : differenceInDays(addDays(week, 13), rangeStart);
+}
+
+// Index of the day one month after the last filtered event ends. The anchor is
+// always covered even if every event sits in the past. Returns -1 when there
+// are no events.
+export function monthAfterEndIndex(events: Event[], anchor: Date, rangeStart: Date): number {
+  if (events.length === 0) return -1;
+  const lastEnd = new Date(Math.max(...events.map(e => new Date(e.endDate).getTime())));
+  const end = addMonths(lastEnd < anchor ? anchor : lastEnd, 1);
+  return differenceInDays(end, rangeStart);
 }

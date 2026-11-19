@@ -99,11 +99,8 @@ export default function EditEventModal({
 
   const handleDelete = () => {
     if (!event) return;
-
-    if (confirm('Are you sure you want to delete this event?')) {
-      onDeleteEvent(event.id);
-      onClose();
-    }
+    onDeleteEvent(event.id);
+    onClose();
   };
 
   if (!isOpen || !event) return null;

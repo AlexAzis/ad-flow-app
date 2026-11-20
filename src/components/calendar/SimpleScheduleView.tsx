@@ -961,6 +961,7 @@ export default function SimpleScheduleView({
         currentUser={currentUser}
         campaign={selectedCampaignToEdit}
         allCampaigns={allCampaigns}
+        people={allPeople}
       />
 
       {/* Members & Invites Modal */}

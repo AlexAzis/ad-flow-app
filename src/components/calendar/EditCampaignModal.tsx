@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Unlock, Image as ImageIcon, Trash2 } from 'lucide-react';
-import { Campaign } from '@/lib/types';
+import { Campaign, Person } from '@/lib/types';
 import { campaignColors } from '@/lib/colorUtils';
 import DuplicateCampaignModal from './DuplicateCampaignModal';
 import type { DuplicateCampaignDetails } from './DuplicateCampaignModal';
@@ -16,6 +16,7 @@ interface EditCampaignModalProps {
   campaign: Campaign | null;
   currentUser?: string;
   allCampaigns?: Campaign[];
+  people?: Person[];
 }
 
 export default function EditCampaignModal({
@@ -27,6 +28,7 @@ export default function EditCampaignModal({
   campaign,
   currentUser = '',
   allCampaigns = [],
+  people = [],
 }: EditCampaignModalProps) {
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -34,6 +36,7 @@ export default function EditCampaignModal({
   const [logoUrl, setLogoUrl] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState('');
+  const [peopleNames, setPeopleNames] = useState('');
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,8 +49,14 @@ export default function EditCampaignModal({
       setLogoUrl(campaign.logoUrl || '');
       setIsLocked(campaign.locked || false);
       setLockedBy(campaign.lockedBy || '');
+      setPeopleNames(
+        (campaign.people ?? [])
+          .map(id => people.find(p => p.id === id)?.name)
+          .filter(Boolean)
+          .join(', ')
+      );
     }
-  }, [campaign, isOpen]);
+  }, [campaign, isOpen, people]);
 
   // Store the logo as a small data URL so it saves with the campaign and
   // always renders in exports without cross-origin issues
@@ -81,6 +90,10 @@ export default function EditCampaignModal({
       name,
       client,
       color,
+      people: peopleNames
+        .split(',')
+        .map(n => n.trim())
+        .filter(Boolean),
       logoUrl: logoUrl || undefined,
       locked: isLocked,
       lockedBy: isLocked ? (lockedBy || currentUser) : undefined,
@@ -160,6 +173,22 @@ export default function EditCampaignModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               disabled={isLocked}
             />
+          </div>
+
+          {/* People */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              People (optional)
+            </label>
+            <input
+              type="text"
+              value={peopleNames}
+              onChange={(e) => setPeopleNames(e.target.value)}
+              placeholder="e.g., Alex, Kelly, Rob"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              disabled={isLocked}
+            />
+            <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
           </div>
 
           {/* Client Logo */}

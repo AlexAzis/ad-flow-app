@@ -531,7 +531,7 @@ export default function SimpleScheduleView({
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 relative">
         {scheduleLogoUrl && (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-            <img src={scheduleLogoUrl} alt={scheduleName} className="h-9 max-w-[220px] object-contain" />
+            <img src={scheduleLogoUrl} alt={scheduleName} className="h-[72px] max-w-[320px] object-contain" />
           </div>
         )}
         <div className="flex items-center justify-between mb-4">
@@ -629,15 +629,21 @@ export default function SimpleScheduleView({
                 </button>
               </div>
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setIsExportMenuOpen(open => !open)}
-                disabled={isExporting}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
-              >
-                <Download size={16} />
-                <span>{isExporting ? 'Exporting…' : 'Export'}</span>
-              </button>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-2">
+                <span className="h-px w-5 bg-gray-300" />
+                <span className="text-xs font-semibold text-gray-500 tracking-wider">EXPORT</span>
+                <span className="h-px w-5 bg-gray-300" />
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setIsExportMenuOpen(open => !open)}
+                  disabled={isExporting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+                >
+                  <Download size={16} />
+                  <span>{isExporting ? 'Exporting…' : 'PDF / JPEG'}</span>
+                </button>
               {isExportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)} />
@@ -657,6 +663,7 @@ export default function SimpleScheduleView({
                   </div>
                 </>
               )}
+              </div>
             </div>
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center justify-center gap-2">

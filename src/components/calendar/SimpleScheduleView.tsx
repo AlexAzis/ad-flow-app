@@ -528,7 +528,12 @@ export default function SimpleScheduleView({
   return (
     <div className="flex flex-col h-full min-w-0 w-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 relative">
+        {scheduleLogoUrl && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            <img src={scheduleLogoUrl} alt={scheduleName} className="h-9 max-w-[220px] object-contain" />
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             {onBack && (
@@ -592,30 +597,37 @@ export default function SimpleScheduleView({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}
-                disabled={zoom <= 0.5}
-                className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
-                title="Zoom out"
-              >
-                <Minus size={16} />
-              </button>
-              <button
-                onClick={() => setZoom(1)}
-                className="px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 w-14 text-center border-x border-gray-300"
-                title="Reset zoom"
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <button
-                onClick={() => setZoom(z => Math.min(1.5, Math.round((z + 0.1) * 10) / 10))}
-                disabled={zoom >= 1.5}
-                className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
-                title="Zoom in"
-              >
-                <Plus size={16} />
-              </button>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-2">
+                <span className="h-px w-5 bg-gray-300" />
+                <span className="text-xs font-semibold text-gray-500 tracking-wider">ZOOM</span>
+                <span className="h-px w-5 bg-gray-300" />
+              </div>
+              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}
+                  disabled={zoom <= 0.5}
+                  className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                  title="Zoom out"
+                >
+                  <Minus size={16} />
+                </button>
+                <button
+                  onClick={() => setZoom(1)}
+                  className="px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 w-14 text-center border-x border-gray-300"
+                  title="Reset zoom"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  onClick={() => setZoom(z => Math.min(1.5, Math.round((z + 0.1) * 10) / 10))}
+                  disabled={zoom >= 1.5}
+                  className="p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                  title="Zoom in"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
             <div className="relative">
               <button

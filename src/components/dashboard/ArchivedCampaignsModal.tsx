@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
-import { endOfWeek, format, startOfWeek } from 'date-fns';
+import { endOfWeek, format, startOfDay, startOfWeek } from 'date-fns';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import { campaignColors } from '@/lib/colorUtils';
 import { exportSchedule } from '@/lib/exportUtils';
@@ -111,7 +111,7 @@ export default function ArchivedCampaignsModal({
     if (!selected) return;
     setReName(selected.summary.name);
     setReColor(selected.summary.color);
-    setReStart(format(startOfWeek(earliest ?? new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+    setReStart(format(earliest ?? new Date(), 'yyyy-MM-dd'));
     setIsReinstating(true);
   };
 
@@ -122,7 +122,7 @@ export default function ArchivedCampaignsModal({
       await reinstateArchivedCampaign(scheduleId, selected.summary.id, {
         name: reName.trim(),
         color: reColor,
-        startDate: startOfWeek(new Date(reStart), { weekStartsOn: 1 }),
+        startDate: startOfDay(new Date(reStart)),
       });
       setSelected(null);
       setIsReinstating(false);
@@ -293,14 +293,14 @@ export default function ArchivedCampaignsModal({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start week</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start day</label>
                 <input
                   type="date"
                   value={reStart}
                   onChange={e => setReStart(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">The earliest archived block will move to the Monday of this week.</p>
+                <p className="text-xs text-gray-500 mt-1">The earliest archived block will move to this day.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">

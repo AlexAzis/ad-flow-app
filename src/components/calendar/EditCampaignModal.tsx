@@ -12,6 +12,7 @@ interface EditCampaignModalProps {
   onClose: () => void;
   onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>) => void;
   onDeleteCampaign?: (id: string) => void;
+  onArchiveCampaign?: (id: string) => void | Promise<void>;
   onDuplicateCampaign?: (campaignId: string, details: DuplicateCampaignDetails) => void;
   campaign: Campaign | null;
   currentUser?: string;
@@ -24,6 +25,7 @@ export default function EditCampaignModal({
   onClose,
   onUpdateCampaign,
   onDeleteCampaign,
+  onArchiveCampaign,
   onDuplicateCampaign,
   campaign,
   currentUser = '',
@@ -38,6 +40,7 @@ export default function EditCampaignModal({
   const [lockedBy, setLockedBy] = useState('');
   const [peopleNames, setPeopleNames] = useState('');
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Populate form when campaign changes
@@ -105,12 +108,21 @@ export default function EditCampaignModal({
 
   const handleDelete = () => {
     if (!campaign) return;
-    if (confirm(`Delete "${campaign.name}" and all its events? This cannot be undone.`)) {
-      if (onDeleteCampaign) {
-        onDeleteCampaign(campaign.id);
-      }
-      onClose();
-    }
+    setShowDeleteOptions(true);
+  };
+
+  const confirmPermanentDelete = () => {
+    if (!campaign) return;
+    setShowDeleteOptions(false);
+    onDeleteCampaign?.(campaign.id);
+    onClose();
+  };
+
+  const confirmArchive = () => {
+    if (!campaign) return;
+    setShowDeleteOptions(false);
+    onArchiveCampaign?.(campaign.id);
+    onClose();
   };
 
   // Only the person who locked a campaign can unlock it
@@ -188,7 +200,7 @@ export default function EditCampaignModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               disabled={isLocked}
             />
-            <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
+            <p className="text-xs text-gray-500 mt-1">Names here will be allocated to all new events in this campaign.</p>
           </div>
 
           {/* Client Logo */}
@@ -353,6 +365,42 @@ export default function EditCampaignModal({
         </form>
       </div>
     </div>
+
+      {showDeleteOptions && campaign && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete campaign?</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Delete “{campaign.name}” permanently, or archive it so an owner can review or reinstate it later.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={confirmPermanentDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Delete permanently
+              </button>
+              {onArchiveCampaign && (
+                <button
+                  type="button"
+                  onClick={confirmArchive}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Archive campaign
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDeleteOptions(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DuplicateCampaignModal
         isOpen={isDuplicateModalOpen}

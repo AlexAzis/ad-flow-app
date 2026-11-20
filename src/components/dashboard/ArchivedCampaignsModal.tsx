@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Download, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { endOfWeek, format, startOfWeek } from 'date-fns';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import { campaignColors } from '@/lib/colorUtils';
 import { exportSchedule } from '@/lib/exportUtils';
 import {
+  deleteArchivedCampaign,
   getArchivedCampaign,
   listArchivedCampaigns,
   reinstateArchivedCampaign,
@@ -38,6 +39,7 @@ export default function ArchivedCampaignsModal({
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [exporting, setExporting] = useState<'jpeg' | 'pdf' | null>(null);
   const [isReinstating, setIsReinstating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [reName, setReName] = useState('');
   const [reColor, setReColor] = useState('');
   const [reStart, setReStart] = useState('');
@@ -133,6 +135,25 @@ export default function ArchivedCampaignsModal({
     }
   };
 
+  const handleDeleteArchive = async () => {
+    if (!selected || isDeleting) return;
+    const confirmed = window.confirm(
+      `Delete “${selected.summary.name}” permanently? This archive will be removed and cannot be reinstated.`
+    );
+    if (!confirmed) return;
+    setIsDeleting(true);
+    try {
+      await deleteArchivedCampaign(selected.summary.id);
+      setSelected(null);
+      await loadArchives();
+    } catch (err) {
+      console.error('Could not delete archive', err);
+      alert('The archive couldn’t be deleted. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 h-[85vh] flex flex-col">
@@ -209,6 +230,14 @@ export default function ArchivedCampaignsModal({
                   >
                     <RotateCcw size={14} />
                     Reinstate
+                  </button>
+                  <button
+                    onClick={handleDeleteArchive}
+                    disabled={isDeleting}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Trash2 size={14} />
+                    {isDeleting ? 'Deleting…' : 'Delete'}
                   </button>
                 </div>
               </div>

@@ -470,6 +470,11 @@ export async function getArchivedCampaign(archiveId: string): Promise<ArchivedCa
   return reviveArchivedPayload(data.payload);
 }
 
+export async function deleteArchivedCampaign(archiveId: string): Promise<void> {
+  const { error } = await supabase.from('archived_campaigns').delete().eq('id', archiveId);
+  if (error) throw error;
+}
+
 export async function reinstateArchivedCampaign(
   scheduleId: string,
   archiveId: string,

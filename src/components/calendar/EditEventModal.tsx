@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { eventTypesByStage } from '@/lib/eventTypes';
 import { getEventTitles, joinEventTitles } from '@/lib/eventTitles';
 import CampaignSelect from './CampaignSelect';
@@ -117,8 +117,8 @@ export default function EditEventModal({
       titles: !isMisc && eventTitles.length > 1 ? eventTitles : undefined,
       campaignId,
       stage: isMisc ? 'Misc' : stage,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: parseISO(startDate),
+      endDate: parseISO(endDate),
       assignee: assigneeIds[0],
       assignees: assigneeIds.length ? assigneeIds : undefined,
       notes: notes || undefined,

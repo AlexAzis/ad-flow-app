@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
-import { endOfWeek, format, startOfDay, startOfWeek } from 'date-fns';
+import { endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import { campaignColors } from '@/lib/colorUtils';
 import { exportSchedule } from '@/lib/exportUtils';
@@ -122,7 +122,7 @@ export default function ArchivedCampaignsModal({
       await reinstateArchivedCampaign(scheduleId, selected.summary.id, {
         name: reName.trim(),
         color: reColor,
-        startDate: startOfDay(new Date(reStart)),
+        startDate: parseISO(reStart),
       });
       setSelected(null);
       setIsReinstating(false);

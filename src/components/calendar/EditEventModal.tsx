@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
 import { format } from 'date-fns';
 import { eventTypesByStage } from '@/lib/eventTypes';
+import { getEventTitles, joinEventTitles } from '@/lib/eventTitles';
 import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
 
@@ -18,6 +19,7 @@ interface EditEventModalProps {
   people: Person[];
   customEventTypes?: Record<string, string[]>;
   onAddPerson?: (name: string) => Person;
+  onManageEvents?: () => void;
 }
 
 export default function EditEventModal({
@@ -30,12 +32,14 @@ export default function EditEventModal({
   people,
   customEventTypes,
   onAddPerson,
+  onManageEvents,
 }: EditEventModalProps) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [campaignId, setCampaignId] = useState('');
   const [stage, setStage] = useState('');
   const [eventTitle, setEventTitle] = useState('');
+  const [eventTitles, setEventTitles] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [personName, setPersonName] = useState('');
 
@@ -47,6 +51,7 @@ export default function EditEventModal({
       setCampaignId(event.campaignId);
       setStage(event.stage);
       setEventTitle(event.title);
+      setEventTitles(getEventTitles(event));
       setNotes(event.notes || '');
       // Convert assignee IDs back to names for display
       const ids = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
@@ -54,14 +59,41 @@ export default function EditEventModal({
     }
   }, [event, isOpen, people]);
 
+  // Drop selected titles if Manage Events removes them for the current stage
+  useEffect(() => {
+    if (stage === 'Misc') return;
+    const allowed = new Set(customEventTypes?.[stage] || eventTypesByStage[stage] || []);
+    setEventTitles(prev => {
+      const next = prev.filter(title => allowed.has(title));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [stage, customEventTypes]);
+
   const filteredPeople = people;
+  const stageTitles = (customEventTypes?.[stage] || eventTypesByStage[stage] || [])
+    .slice()
+    .sort((a, b) => a.localeCompare(b));
+
+  const pillClass = (selected: boolean) =>
+    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+      selected
+        ? 'bg-gray-800 text-white border-gray-800'
+        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+    }`;
+
+  const toggleEventTitle = (title: string) => {
+    setEventTitles(prev => {
+      if (prev.includes(title)) return prev.filter(t => t !== title);
+      return [...prev, title].sort((a, b) => a.localeCompare(b));
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!event) return;
     const isMisc = !!event.isMisc;
-    if ((!isMisc && !campaignId) || !eventTitle) {
+    if ((!isMisc && !campaignId) || (isMisc ? !eventTitle : eventTitles.length === 0)) {
       alert(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
       return;
     }
@@ -81,7 +113,8 @@ export default function EditEventModal({
       });
 
     const updatedEvent: Omit<Event, 'id'> = {
-      title: eventTitle,
+      title: isMisc ? eventTitle : joinEventTitles(eventTitles),
+      titles: !isMisc && eventTitles.length > 1 ? eventTitles : undefined,
       campaignId: isMisc ? '' : campaignId,
       stage: isMisc ? 'Misc' : stage,
       startDate: new Date(startDate),
@@ -184,7 +217,8 @@ export default function EditEventModal({
               value={stage}
               onChange={(e) => {
                 setStage(e.target.value);
-                setEventTitle(''); // Reset event when stage changes
+                setEventTitle('');
+                setEventTitles([]);
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -196,27 +230,39 @@ export default function EditEventModal({
             </select>
           </div>
 
-          {/* Event */}
+          {/* Events */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Event
-            </label>
-            <select
-              value={eventTitle}
-              onChange={(e) => setEventTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select event</option>
-              {(customEventTypes?.[stage] || eventTypesByStage[stage] || [])
-                .slice()
-                .sort((a, b) => a.localeCompare(b))
-                .map((event) => (
-                <option key={event} value={event}>
-                  {event}
-                </option>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Events
+              </label>
+              {onManageEvents && (
+                <button
+                  type="button"
+                  onClick={onManageEvents}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Manage events
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {stageTitles.map((title) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() => toggleEventTitle(title)}
+                  className={pillClass(eventTitles.includes(title))}
+                >
+                  {title}
+                </button>
               ))}
-            </select>
+            </div>
+            {eventTitles.length > 0 && (
+              <p className="mt-2 text-xs text-gray-500">
+                {joinEventTitles(eventTitles)}
+              </p>
+            )}
           </div>
           </>)}
 

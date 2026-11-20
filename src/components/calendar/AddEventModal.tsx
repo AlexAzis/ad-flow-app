@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { eventTypesByStage } from '@/lib/eventTypes';
+import { joinEventTitles } from '@/lib/eventTitles';
 import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
 
@@ -18,6 +19,7 @@ interface AddEventModalProps {
   selectedCampaigns: Set<string>;
   customEventTypes?: Record<string, string[]>;
   onAddPerson?: (name: string) => Person;
+  onManageEvents?: () => void;
 }
 
 export default function AddEventModal({
@@ -30,12 +32,14 @@ export default function AddEventModal({
   selectedCampaigns,
   customEventTypes,
   onAddPerson,
+  onManageEvents,
 }: AddEventModalProps) {
   const [startDate, setStartDate] = useState(format(selectedDate, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(selectedDate, 'yyyy-MM-dd'));
   const [campaignId, setCampaignId] = useState('');
   const [stage, setStage] = useState('Creative Development');
   const [eventTitle, setEventTitle] = useState('');
+  const [eventTitles, setEventTitles] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [personName, setPersonName] = useState('');
 
@@ -47,10 +51,21 @@ export default function AddEventModal({
       setCampaignId('');
       setStage('Creative Development');
       setEventTitle('');
+      setEventTitles([]);
       setNotes('');
       setPersonName('');
     }
   }, [isOpen, selectedDate]);
+
+  // Drop selected titles if Manage Events removes them for the current stage
+  useEffect(() => {
+    if (stage === 'Misc') return;
+    const allowed = new Set(customEventTypes?.[stage] || eventTypesByStage[stage] || []);
+    setEventTitles(prev => {
+      const next = prev.filter(title => allowed.has(title));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [stage, customEventTypes]);
 
   // Filter campaigns based on selected campaigns
   const availableCampaigns = selectedCampaigns.size > 0
@@ -79,13 +94,30 @@ export default function AddEventModal({
   }, [campaignId, campaigns, people]);
 
   const filteredPeople = people;
+  const stageTitles = (customEventTypes?.[stage] || eventTypesByStage[stage] || [])
+    .slice()
+    .sort((a, b) => a.localeCompare(b));
+
+  const pillClass = (selected: boolean) =>
+    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+      selected
+        ? 'bg-gray-800 text-white border-gray-800'
+        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+    }`;
+
+  const toggleEventTitle = (title: string) => {
+    setEventTitles(prev => {
+      if (prev.includes(title)) return prev.filter(t => t !== title);
+      return [...prev, title].sort((a, b) => a.localeCompare(b));
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const isMisc = stage === 'Misc';
-    if ((!isMisc && !campaignId) || !eventTitle) {
-      alert('Please select a campaign and event');
+    if ((!isMisc && !campaignId) || (isMisc ? !eventTitle : eventTitles.length === 0)) {
+      alert(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
       return;
     }
 
@@ -108,7 +140,8 @@ export default function AddEventModal({
       });
 
     const newEvent: Omit<Event, 'id'> = {
-      title: eventTitle,
+      title: isMisc ? eventTitle : joinEventTitles(eventTitles),
+      titles: !isMisc && eventTitles.length > 1 ? eventTitles : undefined,
       campaignId: isMisc ? '' : campaignId,
       stage,
       startDate: new Date(startDate),
@@ -189,7 +222,8 @@ export default function AddEventModal({
               value={stage}
               onChange={(e) => {
                 setStage(e.target.value);
-                setEventTitle(''); // Reset event when stage changes
+                setEventTitle('');
+                setEventTitles([]);
                 if (e.target.value === 'Misc') setPersonName(''); // Misc events don't inherit the campaign's people
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -203,37 +237,56 @@ export default function AddEventModal({
             </select>
           </div>
 
-          {/* Event - dropdown for stages, free text for Misc */}
+          {/* Events - pills for stages, free text for Misc */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {stage === 'Misc' ? 'Name (e.g. Holiday, Bank Holiday)' : 'Event'}
-            </label>
             {stage === 'Misc' ? (
-              <input
-                type="text"
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                placeholder="e.g. Alex Holiday"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name (e.g. Holiday, Bank Holiday)
+                </label>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  placeholder="e.g. Alex Holiday"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </>
             ) : (
-              <select
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select event</option>
-                {(customEventTypes?.[stage] || eventTypesByStage[stage] || [])
-                  .slice()
-                  .sort((a, b) => a.localeCompare(b))
-                  .map((event) => (
-                  <option key={event} value={event}>
-                    {event}
-                  </option>
-                ))}
-              </select>
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Events
+                  </label>
+                  {onManageEvents && (
+                    <button
+                      type="button"
+                      onClick={onManageEvents}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Manage events
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {stageTitles.map((title) => (
+                    <button
+                      key={title}
+                      type="button"
+                      onClick={() => toggleEventTitle(title)}
+                      className={pillClass(eventTitles.includes(title))}
+                    >
+                      {title}
+                    </button>
+                  ))}
+                </div>
+                {eventTitles.length > 0 && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {joinEventTitles(eventTitles)}
+                  </p>
+                )}
+              </>
             )}
           </div>
 

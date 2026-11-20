@@ -12,6 +12,7 @@ export interface Campaign {
 export interface Event {
   id: string;
   title: string;
+  titles?: string[];
   campaignId: string;
   stage: string;
   startDate: Date;

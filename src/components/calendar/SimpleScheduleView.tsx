@@ -6,6 +6,7 @@ import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
 import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
 import { getStageColor } from '@/lib/colorUtils';
+import { getEventTitles, getEventDisplayTitle } from '@/lib/eventTitles';
 import type { EventSelectionAction } from '@/lib/eventDrag';
 import CalendarGrid from './CalendarGrid';
 import GanttView from './GanttView';
@@ -363,7 +364,9 @@ export default function SimpleScheduleView({
     const titles = new Set<string>();
     allEvents.forEach(event => {
       if (event.isMisc || event.stage === 'Misc') return;
-      if (campaignIds.size === 0 || campaignIds.has(event.campaignId)) titles.add(event.title);
+      if (campaignIds.size === 0 || campaignIds.has(event.campaignId)) {
+        getEventTitles(event).forEach(title => titles.add(title));
+      }
     });
     return titles;
   };
@@ -422,10 +425,16 @@ export default function SimpleScheduleView({
       if (!isUnassignedMisc && !eventAssignees.some(id => selectedPeople.has(id))) return false;
     }
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
-    if (selectedEvents.size > 0 && !selectedEvents.has(event.title)) return false;
+    if (selectedEvents.size > 0 && !getEventTitles(event).some(title => selectedEvents.has(title))) return false;
     if (!showMisc && event.isMisc) return false;
     return true;
   });
+
+  // When specific event names are filtered, blocks show only the matching names
+  const viewEvents = filteredEvents.map(event => ({
+    ...event,
+    title: getEventDisplayTitle(event, selectedEvents),
+  }));
 
   // Keep the move selection limited to events that are currently visible
   useEffect(() => {
@@ -745,7 +754,7 @@ export default function SimpleScheduleView({
           {viewMode === 'gantt' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <GanttView
-                events={filteredEvents}
+                events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
                 currentDate={currentDate}
@@ -763,7 +772,7 @@ export default function SimpleScheduleView({
           ) : viewMode === 'vertical' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <VerticalView
-                events={filteredEvents}
+                events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
                 currentDate={currentDate}
@@ -781,7 +790,7 @@ export default function SimpleScheduleView({
           ) : viewMode === 'topline' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <ToplineView
-                events={filteredEvents}
+                events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
                 currentDate={currentDate}
@@ -796,7 +805,7 @@ export default function SimpleScheduleView({
           ) : viewMode === 'people' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
               <PeopleView
-                events={filteredEvents}
+                events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
                 currentDate={currentDate}
@@ -813,7 +822,7 @@ export default function SimpleScheduleView({
             </div>
           ) : (
             <CalendarGrid
-              events={filteredEvents}
+              events={viewEvents}
               campaigns={allCampaigns}
               people={allPeople}
               currentDate={currentDate}
@@ -843,6 +852,7 @@ export default function SimpleScheduleView({
         selectedCampaigns={selectedCampaigns}
         customEventTypes={customEventTypes}
         onAddPerson={handleAddPerson}
+        onManageEvents={() => setIsManageEventsModalOpen(true)}
       />
 
       {/* Edit Event Modal */}
@@ -856,6 +866,7 @@ export default function SimpleScheduleView({
         people={allPeople}
         customEventTypes={customEventTypes}
         onAddPerson={handleAddPerson}
+        onManageEvents={() => setIsManageEventsModalOpen(true)}
       />
 
       {/* New Campaign Modal */}

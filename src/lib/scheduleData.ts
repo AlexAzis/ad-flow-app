@@ -382,9 +382,11 @@ export async function loadSchedule(scheduleId: string): Promise<ScheduleContent>
   const events: Event[] = eventRows.map(row => {
     const campaign = campaigns.find(c => c.id === row.campaign_id);
     const assignees: string[] = row.assignees ?? [];
+    const titles = row.title.split('\n').map((title: string) => title.trim()).filter(Boolean);
     return {
       id: row.id,
-      title: row.title,
+      title: titles.length > 1 ? titles.join(' / ') : (titles[0] ?? row.title),
+      titles: titles.length > 1 ? titles : undefined,
       campaignId: row.campaign_id ?? '',
       stage: row.stage,
       startDate: parseISO(row.start_date),
@@ -429,7 +431,7 @@ function toRows(scheduleId: string, content: ScheduleContent) {
       id: e.id,
       schedule_id: scheduleId,
       campaign_id: e.isMisc || !e.campaignId ? null : e.campaignId,
-      title: e.title,
+      title: e.titles?.length ? e.titles.join('\n') : e.title,
       stage: e.stage,
       start_date: format(new Date(e.startDate), 'yyyy-MM-dd'),
       end_date: format(new Date(e.endDate), 'yyyy-MM-dd'),

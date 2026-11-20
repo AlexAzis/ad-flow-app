@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot, Lock } from 'lucide-react';
 import { Campaign, Person, Event } from '@/lib/types';
 import { getAllStages } from '@/lib/eventTypes';
+import { getEventTitles } from '@/lib/eventTitles';
 import { getTextColor } from '@/lib/colorUtils';
 
 interface FilterSidebarProps {
@@ -66,7 +67,7 @@ export default function FilterSidebar({
   const usedEventsByStage = campaignScopedEvents.reduce<Record<string, Set<string>>>((acc, e) => {
     if (e.stage === 'Misc' || e.isMisc) return acc;
     if (!acc[e.stage]) acc[e.stage] = new Set();
-    acc[e.stage].add(e.title);
+    getEventTitles(e).forEach(title => acc[e.stage].add(title));
     return acc;
   }, {});
 

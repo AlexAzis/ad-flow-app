@@ -170,16 +170,16 @@ async function captureFullElement(element: HTMLElement) {
   }
 }
 
-// Draws a header band (schedule title, export date, campaign colour legend)
-// above the captured schedule image.
+// Draws a single header row - title, export date and campaign legend on the
+// left, schedule and campaign logos vertically centred on the right.
 async function applyHeader(dataUrl: string, header: ExportHeaderData, width: number, height: number) {
   const img = await loadImage(dataUrl);
   const r = img.width / width;
 
   const padX = 16;
-  const padTop = 12;
+  const padY = 16;
 
-  // Centered logo band: schedule logo first, then each visible campaign's logo
+  // Schedule logo first, then each visible campaign's logo (de-duplicated)
   const logoUrls = [
     ...(header.scheduleLogoUrl ? [header.scheduleLogoUrl] : []),
     ...header.campaigns.map(c => c.logoUrl).filter((u): u is string => !!u),
@@ -188,33 +188,36 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
     (img): img is HTMLImageElement => !!img
   );
 
-  const logoBandH = 72;
+  const logoMaxH = 72;
   const logoMaxW = 280;
   const logoGap = 16;
-  const availableW = width - padX * 2;
-  let totalLogoW = 0;
   const logoBoxes = logoImgs.map(img => {
-    const s = Math.min(logoBandH / img.height, logoMaxW / img.width);
-    const w = img.width * s;
-    totalLogoW += w;
-    return { img, w, h: img.height * s };
+    const s = Math.min(logoMaxH / img.height, logoMaxW / img.width);
+    return { img, w: img.width * s, h: img.height * s };
   });
-  totalLogoW += logoGap * Math.max(0, logoBoxes.length - 1);
-  const logoScale = Math.min(1, availableW / Math.max(1, totalLogoW));
-  const logoBand = logoBoxes.length > 0 ? logoBandH * logoScale + 12 : 0;
+  const logoTotalW = logoBoxes.reduce((sum, b) => sum + b.w, 0) + logoGap * Math.max(0, logoBoxes.length - 1);
+  // Logos take at most half the width so the text always keeps room
+  const logoScale = Math.min(1, logoBoxes.length > 0 ? (width * 0.5) / logoTotalW : 1);
+  const logoRowW = logoBoxes.length > 0 ? logoTotalW * logoScale : 0;
+  const logoRowH = logoBoxes.length > 0 ? Math.max(...logoBoxes.map(b => b.h)) * logoScale : 0;
+  const logoGapScaled = logoGap * logoScale;
 
-  const titleBaseline = padTop + logoBand + 14;
-  const legendBaseline0 = titleBaseline + 18;
-  const legendLineHeight = 18;
-  const legendBottomPad = 10;
-  const swatchSize = 10;
-  const itemGap = 14;
+  // Everything left of the logo zone
+  const textAreaW = width - padX * 2 - (logoRowW > 0 ? logoRowW + 24 : 0);
+
+  const titleSize = 30;
+  const dateSize = 24;
+  const legendSize = 24;
+  const swatchSize = 20;
+  const itemGap = 20;
+  const legendLineHeight = 30;
+  const legendBottomPad = 16;
 
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) return { dataUrl, width, height };
-  measure.font = '400 12px Arial, sans-serif';
+  measure.font = `400 ${legendSize}px Arial, sans-serif`;
 
-  const maxLegendWidth = width - padX * 2;
+  const maxLegendWidth = Math.max(0, textAreaW);
   const items = header.campaigns.map(c => {
     let name = c.name;
     let nameWidth = measure.measureText(name).width;
@@ -242,10 +245,12 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   }
   if (line.length > 0) legendLines.push(line);
 
-  const contentBottom = legendLines.length > 0
+  const titleBaseline = padY + titleSize;
+  const legendBaseline0 = titleBaseline + legendLineHeight + 4;
+  const textBottom = legendLines.length > 0
     ? legendBaseline0 + (legendLines.length - 1) * legendLineHeight + legendBottomPad
-    : titleBaseline + 8;
-  const headerHeight = Math.ceil(contentBottom) + 1;
+    : titleBaseline + 10;
+  const headerHeight = Math.ceil(Math.max(textBottom, logoRowH + padY * 2)) + 1;
 
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(width * r);
@@ -259,26 +264,27 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   ctx.fillStyle = '#e5e7eb';
   ctx.fillRect(0, headerHeight - 1, width, 1);
 
-  // Logos, centered across the export width
+  // Logos: right-aligned, vertically centred in the header band
   if (logoBoxes.length > 0) {
-    let logoX = (width - totalLogoW * logoScale) / 2;
+    const bandTop = (headerHeight - 1 - logoRowH) / 2;
+    let logoX = width - padX - logoRowW;
     logoBoxes.forEach(box => {
       const w = box.w * logoScale;
       const h = box.h * logoScale;
-      ctx.drawImage(box.img, logoX, padTop + (logoBandH * logoScale - h) / 2, w, h);
-      logoX += w + logoGap * logoScale;
+      ctx.drawImage(box.img, logoX, bandTop + (logoRowH - h) / 2, w, h);
+      logoX += w + logoGapScaled;
     });
   }
 
   ctx.textBaseline = 'alphabetic';
-  ctx.font = '700 15px Arial, sans-serif';
+  ctx.font = `700 ${titleSize}px Arial, sans-serif`;
   ctx.fillStyle = '#111827';
   ctx.fillText(header.title, padX, titleBaseline);
 
-  ctx.font = '400 12px Arial, sans-serif';
+  ctx.font = `400 ${dateSize}px Arial, sans-serif`;
   ctx.fillStyle = '#6b7280';
   ctx.textAlign = 'right';
-  ctx.fillText(`Exported ${header.date}`, width - padX, titleBaseline);
+  ctx.fillText(`Exported ${header.date}`, padX + textAreaW, titleBaseline);
   ctx.textAlign = 'left';
 
   legendLines.forEach((legendLine, i) => {
@@ -287,7 +293,7 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
     legendLine.forEach(item => {
       ctx.fillStyle = item.color;
       ctx.beginPath();
-      ctx.roundRect(x, baseline - swatchSize - 1, swatchSize, swatchSize, 2);
+      ctx.roundRect(x, baseline - swatchSize - 4, swatchSize, swatchSize, 3);
       ctx.fill();
       ctx.fillStyle = '#374151';
       ctx.fillText(item.name, x + swatchSize + itemGap, baseline);

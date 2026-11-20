@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import MembersPanel from '@/components/common/MembersPanel';
+import ArchivedCampaignsModal from './ArchivedCampaignsModal';
 import { scheduleColor } from '@/lib/colorUtils';
 import {
   deleteSchedule,
@@ -35,6 +36,7 @@ export default function ScheduleSettingsModal({
   const [logoRemoved, setLogoRemoved] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -200,6 +202,21 @@ export default function ScheduleSettingsModal({
 
           {canEdit && (
             <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Campaign archive</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Review, export or reinstate campaigns that were archived instead of deleted.
+              </p>
+              <button
+                onClick={() => setIsArchiveOpen(true)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+              >
+                View archived campaigns
+              </button>
+            </div>
+          )}
+
+          {canEdit && (
+            <div className="pt-4 border-t border-gray-200">
               <h3 className="text-sm font-semibold text-red-600 mb-2">Danger zone</h3>
               <p className="text-xs text-gray-500 mb-3">
                 Deleting this schedule permanently removes its campaigns, events, people, members and invites.
@@ -234,6 +251,15 @@ export default function ScheduleSettingsModal({
           </div>
         )}
       </div>
+
+      {isArchiveOpen && (
+        <ArchivedCampaignsModal
+          scheduleId={schedule.id}
+          scheduleName={schedule.name}
+          scheduleLogoUrl={schedule.logoUrl ?? undefined}
+          onClose={() => setIsArchiveOpen(false)}
+        />
+      )}
     </div>
   );
 }

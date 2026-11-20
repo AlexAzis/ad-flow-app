@@ -29,6 +29,9 @@ interface CalendarGridProps {
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
+  dateRange?: { start: Date; end: Date };
+  readOnly?: boolean;
+  exportMarkers?: boolean;
 }
 
 const CELL_WIDTH = 120;
@@ -54,18 +57,25 @@ export default function CalendarGrid({
   showWeekends,
   showEventNotes,
   showPeople,
+  dateRange,
+  readOnly = false,
+  exportMarkers = true,
 }: CalendarGridProps) {
   // Two weeks of history render before the anchor so they can be scrolled back
   // to, but nothing earlier is ever shown
   const anchor = anchorWeek(currentDate);
-  const startDate = addDays(anchor, -LOOKBACK_DAYS);
   const daysToShow = 385; // 12 months in full weeks, plus the 2-week look-back
-  const days = Array.from({ length: daysToShow }, (_, i) => addDays(startDate, i));
+  const rangeStart = dateRange?.start ?? addDays(anchor, -LOOKBACK_DAYS);
+  const rangeEnd = dateRange?.end ?? addDays(rangeStart, daysToShow - 1);
+  const days = Array.from(
+    { length: Math.max(1, differenceInDays(rangeEnd, rangeStart) + 1) },
+    (_, i) => addDays(rangeStart, i)
+  );
 
   // Export markers: image starts at the current week and ends a week after the
   // last filtered event block
-  const exportStartIdx = differenceInWeeks(anchor, startDate);
-  const exportEndIdx = exportEndIndex(events, anchor, startDate, 'week');
+  const exportStartIdx = differenceInWeeks(anchor, rangeStart);
+  const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
 
   // UK bank holidays for the visible range
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
@@ -360,15 +370,15 @@ export default function CalendarGrid({
                 style={{ height: rowHeight }}
                 data-week-row
                 data-has-events={hasEvents}
-                data-export-cell
-                data-export-start={weekIndex === exportStartIdx ? true : undefined}
-                data-export-end={weekIndex === exportEndIdx ? true : undefined}
+                data-export-cell={exportMarkers ? true : undefined}
+                data-export-start={exportMarkers && weekIndex === exportStartIdx ? true : undefined}
+                data-export-end={exportMarkers && weekIndex === exportEndIdx ? true : undefined}
               >
                 {weekDays.map((day) => {
                   const dayOfWeek = day.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                   const isToday = isSameDay(day, new Date());
-                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isPast = readOnly ? false : day < new Date(new Date().setHours(0, 0, 0, 0));
                   const bankHolidayName = bankHolidays.get(day.toDateString());
 
                   return (
@@ -436,7 +446,7 @@ export default function CalendarGrid({
                   const campaign = getCampaignById(event.campaignId);
                   const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
                   const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
-                  const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
+                  const eventIsPast = readOnly ? false : new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
                   const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : event.color);
                   const isSelected = selectedEventIds?.has(event.id) ?? false;
 

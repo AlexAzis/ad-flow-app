@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 'date-fns';
 import { supabase } from './supabase';
 import { Campaign, Event, Person } from './types';
 import { getStageColor } from './colorUtils';
@@ -404,6 +404,150 @@ export async function loadSchedule(scheduleId: string): Promise<ScheduleContent>
   });
 
   return { campaigns, events, people, customEventTypes };
+}
+
+export interface ArchivedCampaignPayload {
+  campaign: Campaign;
+  events: Event[];
+  people: Person[];
+}
+
+export interface ArchivedCampaignSummary {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface ReinstateCampaignDetails {
+  name: string;
+  color: string;
+  startDate: Date;
+}
+
+const reviveArchivedPayload = (payload: any): ArchivedCampaignPayload => ({
+  campaign: payload.campaign,
+  people: payload.people ?? [],
+  events: (payload.events ?? []).map((event: any) => ({
+    ...event,
+    startDate: new Date(event.startDate),
+    endDate: new Date(event.endDate),
+  })),
+});
+
+export async function archiveCampaign(scheduleId: string, payload: ArchivedCampaignPayload): Promise<void> {
+  const { error } = await supabase.from('archived_campaigns').insert({
+    schedule_id: scheduleId,
+    name: payload.campaign.name,
+    color: payload.campaign.color,
+    payload,
+  });
+  if (error) throw error;
+}
+
+export async function listArchivedCampaigns(scheduleId: string): Promise<ArchivedCampaignSummary[]> {
+  const { data, error } = await supabase
+    .from('archived_campaigns')
+    .select('id, name, color, created_at')
+    .eq('schedule_id', scheduleId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(row => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function getArchivedCampaign(archiveId: string): Promise<ArchivedCampaignPayload> {
+  const { data, error } = await supabase
+    .from('archived_campaigns')
+    .select('payload')
+    .eq('id', archiveId)
+    .single();
+  if (error) throw error;
+  return reviveArchivedPayload(data.payload);
+}
+
+export async function reinstateArchivedCampaign(
+  scheduleId: string,
+  archiveId: string,
+  details: ReinstateCampaignDetails
+): Promise<void> {
+  const { data: archiveRow, error: archiveError } = await supabase
+    .from('archived_campaigns')
+    .select('schedule_id, payload')
+    .eq('id', archiveId)
+    .single();
+  if (archiveError) throw archiveError;
+  if (archiveRow.schedule_id !== scheduleId) throw new Error('Archived campaign not found');
+
+  const payload = reviveArchivedPayload(archiveRow.payload);
+  const personRows = await fetchAll('people', scheduleId);
+  const personIdByName = new Map(personRows.map(row => [String(row.name).toLowerCase(), row.id as string]));
+  const oldToNewPerson = new Map<string, string>();
+  const newPeopleRows: Row[] = [];
+
+  for (const person of payload.people ?? []) {
+    const existingId = personIdByName.get(person.name.toLowerCase());
+    if (existingId) {
+      oldToNewPerson.set(person.id, existingId);
+      continue;
+    }
+    const newId = crypto.randomUUID();
+    personIdByName.set(person.name.toLowerCase(), newId);
+    oldToNewPerson.set(person.id, newId);
+    newPeopleRows.push({ id: newId, schedule_id: scheduleId, name: person.name, role: person.role || 'Team Member' });
+  }
+  if (newPeopleRows.length) {
+    const { error } = await supabase.from('people').insert(newPeopleRows);
+    if (error) throw error;
+  }
+
+  const mapPersonIds = (ids?: string[]) =>
+    (ids ?? []).map(id => oldToNewPerson.get(id)).filter((id): id is string => !!id);
+
+  const earliest = payload.events.length
+    ? new Date(Math.min(...payload.events.map(event => new Date(event.startDate).getTime())))
+    : null;
+  const offsetDays = earliest
+    ? differenceInCalendarDays(startOfDay(details.startDate), startOfDay(earliest))
+    : 0;
+  const newCampaignId = crypto.randomUUID();
+
+  const { error: campaignError } = await supabase.from('campaigns').insert({
+    id: newCampaignId,
+    schedule_id: scheduleId,
+    name: details.name,
+    client: payload.campaign.client ?? '',
+    color: details.color,
+    logo_url: payload.campaign.logoUrl ?? null,
+    locked: false,
+    locked_by_name: null,
+    people: mapPersonIds(payload.campaign.people),
+  });
+  if (campaignError) throw campaignError;
+
+  const eventRows = payload.events.map(event => ({
+    id: crypto.randomUUID(),
+    schedule_id: scheduleId,
+    campaign_id: newCampaignId,
+    title: event.titles?.length ? event.titles.join('\n') : event.title,
+    stage: event.stage,
+    start_date: format(addDays(new Date(event.startDate), offsetDays), 'yyyy-MM-dd'),
+    end_date: format(addDays(new Date(event.endDate), offsetDays), 'yyyy-MM-dd'),
+    assignees: mapPersonIds(event.assignees?.length ? event.assignees : event.assignee ? [event.assignee] : []),
+    notes: event.notes ?? null,
+    is_misc: !!event.isMisc,
+  }));
+  if (eventRows.length) {
+    const { error } = await supabase.from('events').insert(eventRows);
+    if (error) throw error;
+  }
+
+  const { error: deleteError } = await supabase.from('archived_campaigns').delete().eq('id', archiveId);
+  if (deleteError) throw deleteError;
 }
 
 type Row = Record<string, unknown>;

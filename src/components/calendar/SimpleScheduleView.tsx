@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck, Users } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
-import { createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
+import { archiveCampaign, createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
 import { getStageColor } from '@/lib/colorUtils';
 import { getEventTitles, getEventDisplayTitle } from '@/lib/eventTitles';
 import type { EventSelectionAction } from '@/lib/eventDrag';
@@ -314,6 +314,29 @@ export default function SimpleScheduleView({
     if (locked) return warnLocked(locked);
     setAllCampaigns(allCampaigns.filter(c => c.id !== id));
     setAllEvents(allEvents.filter(e => e.campaignId !== id));
+  };
+
+  const handleArchiveCampaign = async (id: string) => {
+    const campaign = allCampaigns.find(c => c.id === id);
+    if (!campaign) return;
+    const locked = getLockedCampaign(id);
+    if (locked) return warnLocked(locked);
+
+    const events = allEvents.filter(event => event.campaignId === id);
+    const referencedPeople = new Set<string>([
+      ...(campaign.people ?? []),
+      ...events.flatMap(event => event.assignees?.length ? event.assignees : event.assignee ? [event.assignee] : []),
+    ]);
+    const people = allPeople.filter(person => referencedPeople.has(person.id));
+
+    try {
+      await archiveCampaign(scheduleId, { campaign, events, people });
+      setAllCampaigns(allCampaigns.filter(c => c.id !== id));
+      setAllEvents(allEvents.filter(e => e.campaignId !== id));
+    } catch (error) {
+      console.error('Could not archive campaign', error);
+      alert('The campaign couldn’t be archived. Please try again.');
+    }
   };
 
   const handleDuplicateCampaign = (campaignId: string, details: DuplicateCampaignDetails) => {
@@ -957,6 +980,7 @@ export default function SimpleScheduleView({
         onClose={() => setIsEditCampaignModalOpen(false)}
         onUpdateCampaign={handleUpdateCampaign}
         onDeleteCampaign={handleDeleteCampaign}
+        onArchiveCampaign={readOnly ? undefined : handleArchiveCampaign}
         onDuplicateCampaign={readOnly ? undefined : handleDuplicateCampaign}
         currentUser={currentUser}
         campaign={selectedCampaignToEdit}

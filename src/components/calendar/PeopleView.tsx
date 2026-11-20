@@ -247,7 +247,7 @@ export default function PeopleView({
                         const campaign = group.campaign;
                         const eventEnd = new Date(event.endDate);
                         const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
-                        const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#999999');
+                        const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#E5E7EB');
                         const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                         if (startOffset + duration < 0 || startOffset >= days.length) return null;

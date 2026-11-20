@@ -127,26 +127,24 @@ export default function NewCampaignModal({
             <div className="grid grid-cols-5 gap-2">
               {campaignColors.map((colorOption) => {
                 const isUsed = usedColors.has(colorOption);
+                const isSelected = color === colorOption;
                 return (
                   <button
                     key={colorOption}
                     type="button"
-                    onClick={() => !isUsed && setColor(colorOption)}
-                    disabled={isUsed}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
-                      color === colorOption
+                    onClick={() => setColor(colorOption)}
+                    className={`relative w-10 h-10 rounded-full border-2 transition-all ${
+                      isSelected
                         ? 'border-blue-500 scale-110'
-                        : isUsed
-                        ? 'border-red-300 opacity-50 cursor-not-allowed'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     style={{ backgroundColor: colorOption }}
-                    title={isUsed ? 'Color already in use' : 'Select this color'}
+                    title={isUsed ? 'Already used by another campaign' : 'Select this color'}
                   >
                     {isUsed && (
-                      <div className="w-full h-full rounded-full bg-red-500/30 flex items-center justify-center">
-                        <span className="text-red-600 font-bold text-sm">✕</span>
-                      </div>
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <X size={20} className="text-red-600 stroke-[3]" />
+                      </span>
                     )}
                   </button>
                 );

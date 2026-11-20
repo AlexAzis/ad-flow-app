@@ -24,6 +24,8 @@ interface CalendarGridProps {
   onEventSelect?: (eventId: string, action: EventSelectionAction) => void;
   onEventsDrop?: (draggedEventId: string, eventIds: string[], newDate: Date) => void;
   onEventResize?: (eventId: string, newStartDate: Date, newEndDate: Date) => void;
+  onEventResizeStart?: (eventId: string) => void;
+  onEventResizeEnd?: () => void;
   showWeekends: boolean;
   showEventNotes: boolean;
   showPeople: boolean;
@@ -47,6 +49,8 @@ export default function CalendarGrid({
   onEventSelect,
   onEventsDrop,
   onEventResize,
+  onEventResizeStart,
+  onEventResizeEnd,
   showWeekends,
   showEventNotes,
   showPeople,
@@ -99,7 +103,10 @@ export default function CalendarGrid({
       }
     };
 
-    const handleMouseUp = () => setResizeState(null);
+    const handleMouseUp = () => {
+      onEventResizeEnd?.();
+      setResizeState(null);
+    };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -107,7 +114,7 @@ export default function CalendarGrid({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizeState, onEventResize]);
+  }, [resizeState, onEventResize, onEventResizeEnd]);
 
   // Measure how many lines the misc pills actually wrap onto in each week (depends on cell width)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -167,6 +174,7 @@ export default function CalendarGrid({
     e.stopPropagation();
     const parent = (e.currentTarget as HTMLElement).closest('[data-week-row]');
     const cellWidth = parent ? parent.getBoundingClientRect().width / colCount : 120;
+    onEventResizeStart?.(event.id);
     setResizeState({
       eventId: event.id,
       edge,

@@ -104,6 +104,8 @@ export default function SimpleScheduleView({
   const latestContent = useRef({ campaigns: allCampaigns, events: allEvents, people: allPeople, customEventTypes });
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const isMounted = useRef(true);
+  const undoStack = useRef<Event[][]>([]);
+  const resizeGestureRef = useRef<{ eventId: string; pushed: boolean } | null>(null);
 
   const saveNow = useCallback(() => {
     saveQueue.current = saveQueue.current
@@ -384,6 +386,25 @@ export default function SimpleScheduleView({
     });
   };
 
+  const pushEventUndo = () => {
+    undoStack.current = [...undoStack.current.slice(-49), allEvents];
+  };
+
+  const handleEventResizeStart = (eventId: string) => {
+    resizeGestureRef.current = { eventId, pushed: false };
+  };
+
+  const handleEventResizeEnd = () => {
+    resizeGestureRef.current = null;
+  };
+
+  const handleUndo = useCallback(() => {
+    if (readOnly) return;
+    const previous = undoStack.current.pop();
+    if (!previous) return;
+    setAllEvents(previous);
+  }, [readOnly]);
+
   const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
     if (readOnly) return;
     const draggedEvent = allEvents.find(e => e.id === draggedEventId);
@@ -393,6 +414,7 @@ export default function SimpleScheduleView({
     if (dayOffset === 0) return;
 
     const ids = new Set([draggedEventId, ...eventIds]);
+    pushEventUndo();
     setAllEvents(allEvents.map(event => {
       if (!ids.has(event.id) || getLockedCampaign(event.campaignId)) return event;
       return {
@@ -407,6 +429,17 @@ export default function SimpleScheduleView({
     if (readOnly) return;
     const current = allEvents.find(e => e.id === eventId);
     if (!current || getLockedCampaign(current.campaignId)) return;
+    if (
+      newStartDate.getTime() === current.startDate.getTime() &&
+      newEndDate.getTime() === current.endDate.getTime()
+    ) return;
+
+    const gesture = resizeGestureRef.current;
+    if (gesture?.eventId !== eventId || !gesture.pushed) {
+      pushEventUndo();
+      if (gesture?.eventId === eventId) gesture.pushed = true;
+    }
+
     setAllEvents(allEvents.map(event =>
       event.id === eventId
         ? { ...event, startDate: newStartDate, endDate: newEndDate }
@@ -459,7 +492,8 @@ export default function SimpleScheduleView({
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
       const key = event.key.toLowerCase();
-      if (key !== 'c' && key !== 'v') return;
+      const isUndo = key === 'z' && !event.shiftKey;
+      if (key !== 'c' && key !== 'v' && !isUndo) return;
       if (isEditableTarget(event.target)) return;
       if (
         isAddEventModalOpen ||
@@ -469,6 +503,12 @@ export default function SimpleScheduleView({
         isEditCampaignModalOpen ||
         isMembersModalOpen
       ) return;
+
+      if (isUndo) {
+        event.preventDefault();
+        handleUndo();
+        return;
+      }
 
       if (key === 'c') {
         if (readOnly || selectedEventIds.size === 0 || window.getSelection()?.toString().trim()) return;
@@ -519,6 +559,7 @@ export default function SimpleScheduleView({
     allCampaigns,
     allEvents,
     clipboardEvents,
+    handleUndo,
     isAddEventModalOpen,
     isEditCampaignModalOpen,
     isEditEventModalOpen,
@@ -855,6 +896,8 @@ export default function SimpleScheduleView({
               onEventSelect={handleEventSelect}
               onEventsDrop={handleEventsDrop}
               onEventResize={handleEventResize}
+              onEventResizeStart={handleEventResizeStart}
+              onEventResizeEnd={handleEventResizeEnd}
               showWeekends={showWeekends}
               showEventNotes={showEventNotes}
               showPeople={showPeople}

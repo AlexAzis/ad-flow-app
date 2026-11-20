@@ -72,12 +72,17 @@ export default function AddEventModal({
     ? campaigns.filter(c => selectedCampaigns.has(c.id))
     : campaigns;
 
-  // If only one campaign is available, auto-select it
+  // If only one campaign is available, auto-select it for regular stages
   useEffect(() => {
-    if (isOpen && availableCampaigns.length === 1 && !campaignId) {
+    if (isOpen && stage !== 'Misc' && availableCampaigns.length === 1 && !campaignId) {
       setCampaignId(availableCampaigns[0].id);
     }
-  }, [isOpen, availableCampaigns, campaignId]);
+  }, [isOpen, stage, availableCampaigns, campaignId]);
+
+  // Misc campaign links are opt-in, so clear any auto-selected campaign when Misc is chosen
+  useEffect(() => {
+    if (stage === 'Misc') setCampaignId('');
+  }, [stage]);
 
   // When campaign selected, prefill person field with its assigned people
   useEffect(() => {
@@ -142,7 +147,7 @@ export default function AddEventModal({
     const newEvent: Omit<Event, 'id'> = {
       title: isMisc ? eventTitle : joinEventTitles(eventTitles),
       titles: !isMisc && eventTitles.length > 1 ? eventTitles : undefined,
-      campaignId: isMisc ? '' : campaignId,
+      campaignId,
       stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
@@ -203,15 +208,20 @@ export default function AddEventModal({
             </div>
           </div>
 
-          {/* Campaign - hidden for Misc events */}
-          {stage !== 'Misc' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Campaign
-              </label>
-              <CampaignSelect campaigns={availableCampaigns} value={campaignId} onChange={setCampaignId} />
-            </div>
-          )}
+          {/* Campaign - optional link for Misc events */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {stage === 'Misc' ? 'Allocate to campaign? (optional)' : 'Campaign'}
+            </label>
+            <CampaignSelect
+              campaigns={availableCampaigns}
+              value={campaignId}
+              onChange={setCampaignId}
+              clearable={stage === 'Misc'}
+              placeholder={stage === 'Misc' ? 'No campaign' : undefined}
+              clearLabel="No campaign"
+            />
+          </div>
 
           {/* Stage */}
           <div>

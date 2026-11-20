@@ -159,14 +159,18 @@ export default function PeopleView({
           const personEvents = getEventsForPerson(person.id);
 
           const groupKeys = [
-            ...campaigns.filter(c => personEvents.some(e => e.campaignId === c.id)).map(c => c.id),
-            ...(personEvents.some(e => !getCampaignById(e.campaignId)) ? [''] : []),
+            ...campaigns.filter(c => personEvents.some(e => e.campaignId === c.id && !e.isMisc)).map(c => c.id),
+            ...(personEvents.some(e => e.isMisc || !getCampaignById(e.campaignId)) ? [''] : []),
           ];
           const groups = (groupKeys.length ? groupKeys : [null]).map(key => {
             const campaign = key ? getCampaignById(key) : undefined;
             const groupEvents = key === null
               ? []
-              : personEvents.filter(e => (campaign ? e.campaignId === campaign.id : !getCampaignById(e.campaignId)));
+              : personEvents.filter(e =>
+                  campaign
+                    ? e.campaignId === campaign.id && !e.isMisc
+                    : e.isMisc || !getCampaignById(e.campaignId)
+                );
 
             // Assign lanes to overlapping events so they stack instead of overlap
             const sorted = [...groupEvents].sort((a, b) =>

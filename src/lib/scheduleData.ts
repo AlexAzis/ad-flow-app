@@ -430,7 +430,7 @@ function toRows(scheduleId: string, content: ScheduleContent) {
     events: content.events.map<Row>(e => ({
       id: e.id,
       schedule_id: scheduleId,
-      campaign_id: e.isMisc || !e.campaignId ? null : e.campaignId,
+      campaign_id: e.campaignId || null,
       title: e.titles?.length ? e.titles.join('\n') : e.title,
       stage: e.stage,
       start_date: format(new Date(e.startDate), 'yyyy-MM-dd'),

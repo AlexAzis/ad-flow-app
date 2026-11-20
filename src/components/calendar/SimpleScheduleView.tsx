@@ -416,8 +416,13 @@ export default function SimpleScheduleView({
 
   // Filter events based on selections
   const filteredEvents = allEvents.filter(event => {
-    // Misc events bypass campaign filtering - controlled only by the Misc toggle
-    if (!event.isMisc && selectedCampaigns.size > 0 && !selectedCampaigns.has(event.campaignId)) return false;
+    const hasCampaignFilter = selectedCampaigns.size > 0;
+    const isLinkedMisc = !!event.isMisc && !!event.campaignId;
+    // Campaign-linked blocks (including linked Misc) follow campaign filters;
+    // unlinked Misc bypass campaign filters and stay under the Misc toggle.
+    if (hasCampaignFilter && event.campaignId && !selectedCampaigns.has(event.campaignId)) return false;
+    if (event.isMisc && !isLinkedMisc && !showMisc) return false;
+    if (event.isMisc && isLinkedMisc && !hasCampaignFilter && !showMisc) return false;
     if (selectedPeople.size > 0) {
       const eventAssignees = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
       // Only events assigned to a selected person; unassigned Misc events stay under the Misc toggle
@@ -426,7 +431,6 @@ export default function SimpleScheduleView({
     }
     if (selectedStages.size > 0 && !selectedStages.has(event.stage)) return false;
     if (selectedEvents.size > 0 && !getEventTitles(event).some(title => selectedEvents.has(title))) return false;
-    if (!showMisc && event.isMisc) return false;
     return true;
   });
 

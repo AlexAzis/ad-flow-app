@@ -72,7 +72,7 @@ export default function GanttView({
   const getPersonById = (id: string) => people.find(p => p.id === id);
 
   const getEventsForCampaign = (campaignId: string) =>
-    events.filter(e => e.campaignId === campaignId);
+    events.filter(e => e.campaignId === campaignId && !e.isMisc);
 
   const handleDragStart = (e: React.DragEvent, event: Event) => {
     const details = getEventDragDetails(event.id, events, selectedEventIds, e.shiftKey);

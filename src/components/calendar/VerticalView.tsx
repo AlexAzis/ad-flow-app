@@ -75,7 +75,7 @@ export default function VerticalView({
     return events.filter(event => {
       const eventStart = new Date(event.startDate);
       const eventEnd = new Date(event.endDate);
-      return event.campaignId === campaignId && date >= eventStart && date <= eventEnd;
+      return event.campaignId === campaignId && !event.isMisc && date >= eventStart && date <= eventEnd;
     });
   };
 

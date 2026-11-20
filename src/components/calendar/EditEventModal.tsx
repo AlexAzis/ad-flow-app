@@ -115,7 +115,7 @@ export default function EditEventModal({
     const updatedEvent: Omit<Event, 'id'> = {
       title: isMisc ? eventTitle : joinEventTitles(eventTitles),
       titles: !isMisc && eventTitles.length > 1 ? eventTitles : undefined,
-      campaignId: isMisc ? '' : campaignId,
+      campaignId,
       stage: isMisc ? 'Misc' : stage,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
@@ -183,20 +183,35 @@ export default function EditEventModal({
             </div>
           </div>
 
-          {/* Misc events have no campaign or stage - just a name */}
+          {/* Misc events have no stage - just a name, with an optional campaign link */}
           {isMisc && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name (e.g. Holiday, Bank Holiday)
-              </label>
-              <input
-                type="text"
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name (e.g. Holiday, Bank Holiday)
+                </label>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Allocate to campaign? (optional)
+                </label>
+                <CampaignSelect
+                  campaigns={campaigns}
+                  value={campaignId}
+                  onChange={setCampaignId}
+                  clearable
+                  placeholder="No campaign"
+                  clearLabel="No campaign"
+                />
+              </div>
+            </>
           )}
 
           {!isMisc && (<>

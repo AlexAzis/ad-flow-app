@@ -21,6 +21,7 @@ import { getStageColor } from '@/lib/colorUtils';
 import { getEventTitles, getEventDisplayTitle } from '@/lib/eventTitles';
 import type { EventSelectionAction } from '@/lib/eventDrag';
 import CalendarGrid from './CalendarGrid';
+import PresenceAvatars from './PresenceAvatars';
 import GanttView from './GanttView';
 import VerticalView from './VerticalView';
 import ToplineView from './ToplineView';
@@ -92,6 +93,7 @@ export default function SimpleScheduleView({
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<{ name: string; view?: string }[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
   const [allEvents, setAllEvents] = useState<Event[]>(events);
   const [allPeople, setAllPeople] = useState<Person[]>(people);
@@ -118,6 +120,9 @@ export default function SimpleScheduleView({
   const isMounted = useRef(true);
   const undoStack = useRef<Event[][]>([]);
   const resizeGestureRef = useRef<{ eventId: string; pushed: boolean } | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
 
   const saveNow = useCallback(() => {
     saveQueue.current = saveQueue.current
@@ -243,18 +248,70 @@ export default function SimpleScheduleView({
       });
     };
 
+    // Which view each user is on, learned via broadcast. Presence track() is
+    // rate-limited to 5 calls per client per 30s, so it only carries who is
+    // online; view changes go over broadcast, which is built for frequent
+    // ephemeral updates.
+    const viewByUser = new Map<string, string>();
+    const broadcastView = () => {
+      channel
+        .send({ type: 'broadcast', event: 'view-change', payload: { name: currentUser, view: viewModeRef.current } })
+        .catch(() => {});
+    };
+
     const channel = supabase
-      .channel(`schedule-${scheduleId}`)
+      .channel(`schedule-${scheduleId}`, { config: { presence: { key: currentUser } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter }, onCampaignChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, onPersonChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter }, onEventChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'custom_event_types', filter }, onTypeChange)
-      .subscribe();
+      .on('broadcast', { event: 'view-change' }, ({ payload }: any) => {
+        if (!payload?.name || !payload?.view) return;
+        viewByUser.set(payload.name, payload.view);
+        setOnlineUsers(prev =>
+          prev.map(u => (u.name === payload.name ? { ...u, view: payload.view } : u))
+        );
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const users = new Map<string, string | undefined>();
+        Object.values(channel.presenceState()).forEach((metas: any) =>
+          metas.forEach((meta: any) => {
+            if (!meta.name) return;
+            users.set(
+              meta.name,
+              meta.name === currentUser ? viewModeRef.current : viewByUser.get(meta.name) ?? meta.view
+            );
+          })
+        );
+        setOnlineUsers(
+          Array.from(users, ([name, view]) => ({ name, view }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+        // Someone just joined or left — rebroadcast our view so the newcomer
+        // learns where everyone actually is, not just their join-time view
+        broadcastView();
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          channel.track({ name: currentUser, view: viewModeRef.current }).catch(() => {});
+        }
+      });
+    channelRef.current = channel;
 
     return () => {
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [scheduleId, sync]);
+  }, [scheduleId, sync, currentUser]);
+
+  // Tell everyone else which view we're on via broadcast (presence track is
+  // rate-limited to a few calls per 30s, so it isn't used for view updates)
+  useEffect(() => {
+    channelRef.current
+      ?.send({ type: 'broadcast', event: 'view-change', payload: { name: currentUser, view: viewMode } })
+      .catch(() => {});
+    setOnlineUsers(prev => prev.map(u => (u.name === currentUser ? { ...u, view: viewMode } : u)));
+  }, [viewMode, currentUser]);
 
   // Views anchor on the current date and only show the previous 2 weeks, so
   // navigating back before the current month has nothing to show
@@ -837,57 +894,27 @@ export default function SimpleScheduleView({
                 <span className="text-xs font-semibold text-gray-500 tracking-wider">VIEWS</span>
                 <span className="h-px w-5 bg-gray-300" />
               </div>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('daily')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'daily'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Daily
-              </button>
-              <button
-                onClick={() => setViewMode('gantt')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'gantt'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Gantt
-              </button>
-              <button
-                onClick={() => setViewMode('vertical')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'vertical'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Vertical
-              </button>
-              <button
-                onClick={() => setViewMode('topline')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'topline'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Topline
-              </button>
-              <button
-                onClick={() => setViewMode('people')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  viewMode === 'people'
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                People
-              </button>
+            <div className="flex items-start gap-1 bg-gray-100 rounded-lg p-1">
+              {(['daily', 'gantt', 'vertical', 'topline', 'people'] as ViewMode[]).map(mode => (
+                <div key={mode} className="flex flex-col items-center">
+                  <button
+                    onClick={() => setViewMode(mode)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                      viewMode === mode
+                        ? 'bg-white text-gray-800 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                  <div className="h-4 mt-0.5 flex items-center justify-center">
+                    <PresenceAvatars
+                      users={onlineUsers.filter(u => u.view === mode).map(u => u.name)}
+                      size="sm"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
             </div>
           </div>

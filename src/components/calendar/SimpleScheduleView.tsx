@@ -180,7 +180,7 @@ export default function SimpleScheduleView({
       case 'gantt': return 'Gantt Overview';
       case 'topline': return 'Topline Overview';
       case 'people': return 'People Overview';
-      case 'vertical': return format(currentDate, 'MMMM yyyy');
+      case 'vertical': return format(currentDate, 'MMM yyyy');
       default: return getDateRangeText();
     }
   };
@@ -596,18 +596,13 @@ export default function SimpleScheduleView({
   return (
     <div className="flex flex-col h-full min-w-0 w-full">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 relative">
-        {scheduleLogoUrl && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-            <img src={scheduleLogoUrl} alt={scheduleName} className="h-[72px] max-w-[320px] object-contain" />
-          </div>
-        )}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
                 title="Back to schedules"
               >
                 <ArrowLeft size={20} className="text-gray-600" />
@@ -638,33 +633,40 @@ export default function SimpleScheduleView({
                 <Users size={16} />
               </button>
             </div>
-            <div className="flex items-center gap-2 ml-8">
+            <div className="flex flex-col items-start gap-1 ml-8">
               <button
                 onClick={() => setCurrentDate(new Date())}
                 className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 rounded-lg font-medium"
               >
                 Today
               </button>
-              <button
-                onClick={() => navigateDate('prev')}
-                disabled={!canNavigatePrev}
-                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <ChevronLeft size={20} className="text-gray-600" />
-              </button>
-              <button
-                onClick={() => navigateDate('next')}
-                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronRight size={20} className="text-gray-600" />
-              </button>
-              <span className="text-lg font-medium text-gray-800">
-                {getHeaderTitle()}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigateDate('prev')}
+                  disabled={!canNavigatePrev}
+                  className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <ChevronLeft size={20} className="text-gray-600" />
+                </button>
+                <button
+                  onClick={() => navigateDate('next')}
+                  className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
+                >
+                  <ChevronRight size={20} className="text-gray-600" />
+                </button>
+                <span className="text-lg font-medium text-gray-800 whitespace-nowrap">
+                  {getHeaderTitle()}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {scheduleLogoUrl && (
+            <div className="flex-1 min-w-0 flex items-center justify-center px-4">
+              <img src={scheduleLogoUrl} alt={scheduleName} className="max-h-[72px] max-w-full object-contain" />
+            </div>
+          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center justify-center gap-2">
                 <span className="h-px w-5 bg-gray-300" />

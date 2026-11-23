@@ -175,23 +175,6 @@ export default function SimpleScheduleView({
     }
   };
 
-  const getHeaderTitle = () => {
-    switch (viewMode) {
-      case 'gantt': return 'Gantt Overview';
-      case 'topline': return 'Topline Overview';
-      case 'people': return 'People Overview';
-      case 'vertical': return format(currentDate, 'MMM yyyy');
-      default: return getDateRangeText();
-    }
-  };
-
-  const getDateRangeText = () => {
-    const startDate = startOfMonth(currentDate);
-    const monthsToShow = viewMode === 'daily' ? 11 : 2;
-    const endDate = addMonths(startDate, monthsToShow);
-    return `${format(startDate, 'MMM')} - ${format(endDate, 'MMM yyyy')}`;
-  };
-
   const handleDateClick = (date: Date) => {
     if (readOnly) return;
     setSelectedDateForEvent(date);
@@ -633,31 +616,26 @@ export default function SimpleScheduleView({
                 <Users size={16} />
               </button>
             </div>
-            <div className="flex flex-col items-start gap-1 ml-8">
+            <div className="flex items-center gap-2 ml-8">
+              <button
+                onClick={() => navigateDate('prev')}
+                disabled={!canNavigatePrev}
+                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                <ChevronLeft size={20} className="text-gray-600" />
+              </button>
               <button
                 onClick={() => setCurrentDate(new Date())}
                 className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 rounded-lg font-medium"
               >
                 Today
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigateDate('prev')}
-                  disabled={!canNavigatePrev}
-                  className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  <ChevronLeft size={20} className="text-gray-600" />
-                </button>
-                <button
-                  onClick={() => navigateDate('next')}
-                  className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
-                >
-                  <ChevronRight size={20} className="text-gray-600" />
-                </button>
-                <span className="text-lg font-medium text-gray-800 whitespace-nowrap">
-                  {getHeaderTitle()}
-                </span>
-              </div>
+              <button
+                onClick={() => navigateDate('next')}
+                className="p-1.5 border border-gray-300 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronRight size={20} className="text-gray-600" />
+              </button>
             </div>
           </div>
 

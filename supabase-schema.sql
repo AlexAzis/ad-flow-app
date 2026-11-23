@@ -345,3 +345,17 @@ create policy "owners can view archives" on public.archived_campaigns
 create policy "owners can delete archives" on public.archived_campaigns
   for delete to authenticated
   using (public.schedule_role(schedule_id) = 'owner');
+
+-- Realtime: broadcast saved schedule changes to other members live.
+do $$
+declare t text;
+begin
+  foreach t in array array['campaigns', 'people', 'events', 'custom_event_types'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

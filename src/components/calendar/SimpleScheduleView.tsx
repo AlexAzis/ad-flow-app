@@ -4,7 +4,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck, Users } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
-import { archiveCampaign, createScheduleSync, ScheduleRole } from '@/lib/scheduleData';
+import {
+  archiveCampaign,
+  campaignFromRow,
+  campaignToRow,
+  createScheduleSync,
+  customTypeToRow,
+  eventFromRow,
+  eventToRow,
+  personFromRow,
+  personToRow,
+  ScheduleRole,
+} from '@/lib/scheduleData';
+import { supabase } from '@/lib/supabase';
 import { getStageColor } from '@/lib/colorUtils';
 import { getEventTitles, getEventDisplayTitle } from '@/lib/eventTitles';
 import type { EventSelectionAction } from '@/lib/eventDrag';
@@ -137,6 +149,112 @@ export default function SimpleScheduleView({
       if (sync.isDirty(latestContent.current)) saveNow();
     };
   }, [sync, saveNow]);
+
+  // Live collaboration: merge other members' saved changes into local state.
+  // Rows with unsaved local edits win over incoming remote versions; untouched
+  // rows follow whoever saved last. Remote deletes always apply.
+  useEffect(() => {
+    const filter = `schedule_id=eq.${scheduleId}`;
+
+    const onCampaignChange = (payload: any) => {
+      const { eventType, new: n, old: o } = payload;
+      if (eventType === 'DELETE') {
+        setAllCampaigns(prev => {
+          if (!prev.some(c => c.id === o.id) && !sync.hasSaved('campaigns', o.id)) return prev;
+          sync.drop('campaigns', o.id);
+          return prev.filter(c => c.id !== o.id);
+        });
+        // The campaign's events are cascade-deleted remotely too
+        setAllEvents(prev => {
+          prev.filter(e => e.campaignId === o.id).forEach(e => sync.drop('events', e.id));
+          return prev.filter(e => e.campaignId !== o.id);
+        });
+        return;
+      }
+      const remote = campaignFromRow(n);
+      setAllCampaigns(prev => {
+        const local = prev.find(c => c.id === remote.id);
+        if (local && !sync.isSynced('campaigns', campaignToRow(scheduleId, local))) return prev;
+        if (!local && sync.hasSaved('campaigns', remote.id)) return prev;
+        sync.adopt('campaigns', campaignToRow(scheduleId, remote));
+        return local ? prev.map(c => (c.id === remote.id ? remote : c)) : [...prev, remote];
+      });
+    };
+
+    const onPersonChange = (payload: any) => {
+      const { eventType, new: n, old: o } = payload;
+      if (eventType === 'DELETE') {
+        setAllPeople(prev => {
+          if (!prev.some(p => p.id === o.id) && !sync.hasSaved('people', o.id)) return prev;
+          sync.drop('people', o.id);
+          return prev.filter(p => p.id !== o.id);
+        });
+        return;
+      }
+      const remote = personFromRow(n);
+      setAllPeople(prev => {
+        const local = prev.find(p => p.id === remote.id);
+        if (local && !sync.isSynced('people', personToRow(scheduleId, local))) return prev;
+        if (!local && sync.hasSaved('people', remote.id)) return prev;
+        sync.adopt('people', personToRow(scheduleId, remote));
+        return local ? prev.map(p => (p.id === remote.id ? remote : p)) : [...prev, remote];
+      });
+    };
+
+    const onEventChange = (payload: any) => {
+      const { eventType, new: n, old: o } = payload;
+      if (eventType === 'DELETE') {
+        setAllEvents(prev => {
+          if (!prev.some(e => e.id === o.id) && !sync.hasSaved('events', o.id)) return prev;
+          sync.drop('events', o.id);
+          return prev.filter(e => e.id !== o.id);
+        });
+        return;
+      }
+      const remote = eventFromRow(n, latestContent.current.campaigns.find(c => c.id === n.campaign_id));
+      setAllEvents(prev => {
+        const local = prev.find(e => e.id === remote.id);
+        if (local && !sync.isSynced('events', eventToRow(scheduleId, local))) return prev;
+        if (!local && sync.hasSaved('events', remote.id)) return prev;
+        sync.adopt('events', eventToRow(scheduleId, remote));
+        return local ? prev.map(e => (e.id === remote.id ? remote : e)) : [...prev, remote];
+      });
+    };
+
+    const onTypeChange = (payload: any) => {
+      const { eventType, new: n, old: o } = payload;
+      if (eventType === 'DELETE') {
+        setCustomEventTypes(prev => {
+          if (prev[o.stage] === undefined && !sync.hasSaved('custom_event_types', o.stage)) return prev;
+          sync.drop('custom_event_types', o.stage);
+          const next = { ...prev };
+          delete next[o.stage];
+          return next;
+        });
+        return;
+      }
+      const titles: string[] = n.titles ?? [];
+      setCustomEventTypes(prev => {
+        const local = prev[n.stage];
+        if (local !== undefined && !sync.isSynced('custom_event_types', customTypeToRow(scheduleId, n.stage, local))) return prev;
+        if (local === undefined && sync.hasSaved('custom_event_types', n.stage)) return prev;
+        sync.adopt('custom_event_types', customTypeToRow(scheduleId, n.stage, titles));
+        return { ...prev, [n.stage]: titles };
+      });
+    };
+
+    const channel = supabase
+      .channel(`schedule-${scheduleId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter }, onCampaignChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, onPersonChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter }, onEventChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'custom_event_types', filter }, onTypeChange)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [scheduleId, sync]);
 
   // Views anchor on the current date and only show the previous 2 weeks, so
   // navigating back before the current month has nothing to show

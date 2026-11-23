@@ -359,6 +359,40 @@ async function fetchAll(table: string, scheduleId: string) {
   }
 }
 
+// Database row -> domain object mappers, shared by loadSchedule and the
+// realtime merge so both produce identical objects.
+export const campaignFromRow = (row: any): Campaign => ({
+  id: row.id,
+  name: row.name,
+  client: row.client,
+  color: row.color,
+  logoUrl: row.logo_url ?? undefined,
+  locked: row.locked || undefined,
+  lockedBy: row.locked_by_name ?? undefined,
+  people: row.people ?? [],
+});
+
+export const personFromRow = (row: any): Person => ({ id: row.id, name: row.name, role: row.role });
+
+export const eventFromRow = (row: any, campaign?: Campaign): Event => {
+  const assignees: string[] = row.assignees ?? [];
+  const titles = String(row.title ?? '').split('\n').map((title: string) => title.trim()).filter(Boolean);
+  return {
+    id: row.id,
+    title: titles.length > 1 ? titles.join(' / ') : (titles[0] ?? row.title),
+    titles: titles.length > 1 ? titles : undefined,
+    campaignId: row.campaign_id ?? '',
+    stage: row.stage,
+    startDate: parseISO(row.start_date),
+    endDate: parseISO(row.end_date),
+    assignee: assignees[0],
+    assignees: assignees.length ? assignees : undefined,
+    notes: row.notes ?? undefined,
+    color: row.is_misc || !campaign ? '#E5E5E5' : getStageColor(campaign.color, row.stage),
+    isMisc: row.is_misc || undefined,
+  };
+};
+
 export async function loadSchedule(scheduleId: string): Promise<ScheduleContent> {
   const [campaignRows, peopleRows, eventRows, typeResult] = await Promise.all([
     fetchAll('campaigns', scheduleId),
@@ -368,36 +402,11 @@ export async function loadSchedule(scheduleId: string): Promise<ScheduleContent>
   ]);
   if (typeResult.error) throw typeResult.error;
 
-  const campaigns: Campaign[] = campaignRows.map(row => ({
-    id: row.id,
-    name: row.name,
-    client: row.client,
-    color: row.color,
-    logoUrl: row.logo_url ?? undefined,
-    locked: row.locked || undefined,
-    lockedBy: row.locked_by_name ?? undefined,
-    people: row.people ?? [],
-  }));
-  const people: Person[] = peopleRows.map(row => ({ id: row.id, name: row.name, role: row.role }));
-  const events: Event[] = eventRows.map(row => {
-    const campaign = campaigns.find(c => c.id === row.campaign_id);
-    const assignees: string[] = row.assignees ?? [];
-    const titles = row.title.split('\n').map((title: string) => title.trim()).filter(Boolean);
-    return {
-      id: row.id,
-      title: titles.length > 1 ? titles.join(' / ') : (titles[0] ?? row.title),
-      titles: titles.length > 1 ? titles : undefined,
-      campaignId: row.campaign_id ?? '',
-      stage: row.stage,
-      startDate: parseISO(row.start_date),
-      endDate: parseISO(row.end_date),
-      assignee: assignees[0],
-      assignees: assignees.length ? assignees : undefined,
-      notes: row.notes ?? undefined,
-      color: row.is_misc || !campaign ? '#E5E5E5' : getStageColor(campaign.color, row.stage),
-      isMisc: row.is_misc || undefined,
-    };
-  });
+  const campaigns: Campaign[] = campaignRows.map(campaignFromRow);
+  const people: Person[] = peopleRows.map(personFromRow);
+  const events: Event[] = eventRows.map(row =>
+    eventFromRow(row, campaigns.find(c => c.id === row.campaign_id))
+  );
   const customEventTypes: Record<string, string[]> = {};
   (typeResult.data ?? []).forEach(row => {
     customEventTypes[row.stage] = row.titles;
@@ -557,43 +566,55 @@ export async function reinstateArchivedCampaign(
 
 type Row = Record<string, unknown>;
 
+// Domain object -> database row mappers. The realtime merge uses these to
+// compare remote changes against the last-saved snapshot.
+export const personToRow = (scheduleId: string, p: Person): Row => ({
+  id: p.id,
+  schedule_id: scheduleId,
+  name: p.name,
+  role: p.role,
+});
+
+export const campaignToRow = (scheduleId: string, c: Campaign): Row => ({
+  id: c.id,
+  schedule_id: scheduleId,
+  name: c.name,
+  client: c.client,
+  color: c.color,
+  logo_url: c.logoUrl ?? null,
+  locked: !!c.locked,
+  locked_by_name: c.locked ? c.lockedBy ?? null : null,
+  people: c.people ?? [],
+});
+
+export const eventToRow = (scheduleId: string, e: Event): Row => ({
+  id: e.id,
+  schedule_id: scheduleId,
+  campaign_id: e.campaignId || null,
+  title: e.titles?.length ? e.titles.join('\n') : e.title,
+  stage: e.stage,
+  start_date: format(new Date(e.startDate), 'yyyy-MM-dd'),
+  end_date: format(new Date(e.endDate), 'yyyy-MM-dd'),
+  assignees: e.assignees?.length ? e.assignees : e.assignee ? [e.assignee] : [],
+  notes: e.notes ?? null,
+  is_misc: !!e.isMisc,
+});
+
+export const customTypeToRow = (scheduleId: string, stage: string, titles: string[]): Row => ({
+  id: stage,
+  schedule_id: scheduleId,
+  stage,
+  titles,
+});
+
 function toRows(scheduleId: string, content: ScheduleContent) {
   return {
-    people: content.people.map<Row>(p => ({
-      id: p.id,
-      schedule_id: scheduleId,
-      name: p.name,
-      role: p.role,
-    })),
-    campaigns: content.campaigns.map<Row>(c => ({
-      id: c.id,
-      schedule_id: scheduleId,
-      name: c.name,
-      client: c.client,
-      color: c.color,
-      logo_url: c.logoUrl ?? null,
-      locked: !!c.locked,
-      locked_by_name: c.locked ? c.lockedBy ?? null : null,
-      people: c.people ?? [],
-    })),
-    events: content.events.map<Row>(e => ({
-      id: e.id,
-      schedule_id: scheduleId,
-      campaign_id: e.campaignId || null,
-      title: e.titles?.length ? e.titles.join('\n') : e.title,
-      stage: e.stage,
-      start_date: format(new Date(e.startDate), 'yyyy-MM-dd'),
-      end_date: format(new Date(e.endDate), 'yyyy-MM-dd'),
-      assignees: e.assignees?.length ? e.assignees : e.assignee ? [e.assignee] : [],
-      notes: e.notes ?? null,
-      is_misc: !!e.isMisc,
-    })),
-    custom_event_types: Object.entries(content.customEventTypes).map<Row>(([stage, titles]) => ({
-      id: stage,
-      schedule_id: scheduleId,
-      stage,
-      titles,
-    })),
+    people: content.people.map(p => personToRow(scheduleId, p)),
+    campaigns: content.campaigns.map(c => campaignToRow(scheduleId, c)),
+    events: content.events.map(e => eventToRow(scheduleId, e)),
+    custom_event_types: Object.entries(content.customEventTypes).map(([stage, titles]) =>
+      customTypeToRow(scheduleId, stage, titles)
+    ),
   };
 }
 
@@ -649,6 +670,22 @@ export function createScheduleSync(scheduleId: string, initial: ScheduleContent)
         const { upserts, deletes } = changes(table, rows[table]);
         return upserts.length > 0 || deletes.length > 0;
       });
+    },
+    // Realtime merge helpers. isSynced checks whether a local row still matches
+    // the last-saved snapshot (if not, local unsaved edits win over remote
+    // changes). adopt/drop fold remote changes into the snapshot so the save
+    // loop doesn't write the same data straight back.
+    isSynced(table: TableName, row: Row) {
+      return saved[table].get(row.id as string) === JSON.stringify(row);
+    },
+    hasSaved(table: TableName, id: string) {
+      return saved[table].has(id);
+    },
+    adopt(table: TableName, row: Row) {
+      saved[table].set(row.id as string, JSON.stringify(row));
+    },
+    drop(table: TableName, id: string) {
+      saved[table].delete(id);
     },
     // Order matters: events point at campaigns, so campaigns are written first and removed last
     async save(content: ScheduleContent) {

@@ -109,36 +109,37 @@ export default function VerticalView({
 
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden">
-      {/* Header Row */}
-      <div className="flex h-12 border-b border-gray-200 bg-gray-50 flex-shrink-0 overflow-x-auto">
-        <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
-        {visibleCampaigns.map((campaign) => (
-          <div
-            key={campaign.id}
-            className="flex-1 border-r border-gray-200 flex items-center justify-center px-2 min-w-[200px]"
-          >
-            <div className="flex items-center gap-2">
+      {/* Header and rows live inside one scroller with a shared content width,
+          so the columns always line up (scrollbars included) */}
+      <div className="flex-1 overflow-auto min-h-0" ref={scrollerRef}>
+        <div style={{ width: 'fit-content', minWidth: '100%' }}>
+          {/* Header Row */}
+          <div className="sticky top-0 z-20 flex h-12 border-b border-gray-200 bg-gray-50">
+            <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
+            {visibleCampaigns.map((campaign) => (
               <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: campaign.color }}
-              />
-              <span className="text-sm font-medium text-gray-800 truncate">
-                {campaign.name}
-              </span>
+                key={campaign.id}
+                className="flex-1 border-r border-gray-200 flex items-center justify-center px-2 min-w-[200px]"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: campaign.color }}
+                  />
+                  <span className="text-sm font-medium text-gray-800 truncate">
+                    {campaign.name}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {/* Misc Column Header */}
+            <div className="w-36 flex-shrink-0 flex items-center justify-center px-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300" />
+                <span className="text-sm font-medium text-gray-800">Misc.</span>
+              </div>
             </div>
           </div>
-        ))}
-        {/* Misc Column Header */}
-        <div className="w-36 flex-shrink-0 flex items-center justify-center px-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-300" />
-            <span className="text-sm font-medium text-gray-800">Misc.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Date Rows */}
-      <div className="flex-1 overflow-auto min-h-0" ref={scrollerRef}>
         {days.map((day, index) => {
           const dayOfWeek = day.getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -262,6 +263,7 @@ export default function VerticalView({
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

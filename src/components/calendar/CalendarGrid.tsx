@@ -240,18 +240,25 @@ export default function CalendarGrid({
     });
 
     const lanes: number[] = [];
+    const campaignLanes = new Map<string, number>();
     return weekEvents.flatMap(e => {
       const s = new Date(e.startDate);
       const en = new Date(e.endDate);
       const startCol = weekDays.filter(d => d < s).length;
       const endCol = weekDays.filter(d => d <= en).length - 1;
       if (endCol < startCol) return []; // Event only falls on hidden (weekend) days
-      let lane = lanes.findIndex(end => end < startCol);
+      // Prefer the lane this campaign already occupies so its blocks line up,
+      // but fall back to the first free lane to keep the row count minimal
+      const preferred = campaignLanes.get(e.campaignId);
+      let lane = preferred !== undefined && lanes[preferred] < startCol
+        ? preferred
+        : lanes.findIndex(end => end < startCol);
       if (lane === -1) {
         lane = lanes.length;
         lanes.push(0);
       }
       lanes[lane] = endCol;
+      if (!campaignLanes.has(e.campaignId)) campaignLanes.set(e.campaignId, lane);
       return [{ event: e, startCol, span: endCol - startCol + 1, lane }];
     });
   };
@@ -301,27 +308,27 @@ export default function CalendarGrid({
 
   return (
     <div className="flex flex-col min-w-0 h-full pr-3">
-      {/* Weekday Header */}
-      <div className="flex h-10 border-b border-gray-200 flex-shrink-0">
-        <div className="w-9 flex-shrink-0"></div>
-        <div className="flex flex-1">
-          {days.slice(0, 7)
-            .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6))
-            .map((day) => (
-            <div
-              key={day.toISOString()}
-              className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center"
-            >
-              <span className="text-sm font-medium text-gray-700">
-                {format(day, 'EEE')}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Calendar Grid */}
       <div className="flex-1 overflow-auto" ref={gridRef}>
+        {/* Weekday Header: inside the scroller so its columns always match the
+            grid width, including when a scrollbar appears */}
+        <div className="sticky top-0 z-20 flex h-10 border-b border-gray-200 bg-gray-50">
+          <div className="w-9 flex-shrink-0 border-r border-gray-200"></div>
+          <div className="flex flex-1">
+            {days.slice(0, 7)
+              .filter(d => !showWeekends || (d.getDay() !== 0 && d.getDay() !== 6))
+              .map((day) => (
+              <div
+                key={day.toISOString()}
+                className="flex-1 text-center border-r border-gray-200 bg-gray-50 flex items-center justify-center"
+              >
+                <span className="text-sm font-medium text-gray-700">
+                  {format(day, 'EEE')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="flex">
           {/* Month Column: merged per month, diagonal split where a week spans two months */}
           <div className="w-9 flex-shrink-0 border-r border-gray-200 bg-gray-50">

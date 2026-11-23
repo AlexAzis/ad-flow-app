@@ -1,10 +1,9 @@
 'use client';
 
 import { useLayoutEffect, useRef } from 'react';
-import { format, addWeeks, addDays, endOfWeek, isWithinInterval } from 'date-fns';
+import { format, addWeeks, endOfWeek, isWithinInterval } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
-import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 import { anchorWeek, exportEndIndex, monthAfterEndIndex } from '@/lib/visibleRange';
 
 interface ToplineViewProps {
@@ -55,7 +54,6 @@ export default function ToplineView({
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
   const viewEndIdx = monthAfterEndIndex(events, anchor, rangeStart, 'week');
   const weeks = Array.from({ length: viewEndIdx >= 0 ? viewEndIdx + 1 : 26 }, (_, i) => addWeeks(rangeStart, i));
-  const bankHolidays = getBankHolidaysForRange(weeks[0], endOfWeek(weeks[weeks.length - 1], { weekStartsOn: 1 }));
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const anchorKey = anchor.getTime();
@@ -67,14 +65,6 @@ export default function ToplineView({
       scroller.scrollLeft = start.getBoundingClientRect().left - first.getBoundingClientRect().left;
     }
   }, [anchorKey]);
-
-  // Does a bank holiday fall within this week?
-  const weekHasBankHoliday = (weekStart: Date) => {
-    for (let i = 0; i < 7; i++) {
-      if (bankHolidays.has(addDays(weekStart, i).toDateString())) return true;
-    }
-    return false;
-  };
 
   const isCurrentWeek = (weekStart: Date) =>
     isWithinInterval(new Date(), { start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) });
@@ -206,12 +196,11 @@ export default function ToplineView({
             {weeks.map((weekStart) => {
               const stages = getStagesForWeek(campaign.id, weekStart);
               const isPast = isPastWeek(weekStart);
-              const hasHoliday = weekHasBankHoliday(weekStart);
               return (
                 <div
                   key={weekStart.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                    isPast ? 'bg-gray-100' : hasHoliday ? 'bg-[#F6F7F9]' : ''
+                    isPast ? 'bg-gray-100' : ''
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
@@ -255,12 +244,11 @@ export default function ToplineView({
           {weeks.map((weekStart) => {
             const miscEvents = getMiscForWeek(weekStart);
             const isPast = isPastWeek(weekStart);
-            const hasHoliday = weekHasBankHoliday(weekStart);
             return (
               <div
                 key={weekStart.toISOString()}
                 className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                  isPast ? 'bg-gray-100' : hasHoliday ? 'bg-[#F6F7F9]' : ''
+                  isPast ? 'bg-gray-100' : ''
                 }`}
                 style={{ width: WEEK_WIDTH }}
               >

@@ -1,4 +1,8 @@
-const MAX_CANVAS_SIDE = 16000;
+const MAX_CANVAS_SIDE = 30000;
+
+// Keep exported files comfortably emailable (10 MB sits well under Gmail,
+// Outlook and other providers' attachment limits, including MIME overhead)
+const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
 
 const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
@@ -66,13 +70,13 @@ async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, heigh
     ctx.drawImage(img, 0, 0, crop.keep * r, img.height, 0, 0, crop.keep * r, img.height);
     ctx.drawImage(img, crop.from * r, 0, (crop.to - crop.from) * r, img.height, crop.keep * r, 0, (crop.to - crop.from) * r, img.height);
   }
-  return { dataUrl: canvas.toDataURL('image/jpeg', 0.95), width: outWidth, height: outHeight };
+  return { dataUrl: canvas.toDataURL('image/png'), width: outWidth, height: outHeight };
 }
 
-// Renders the whole schedule (not just the part scrolled into view) to a JPEG data URL.
+// Renders the whole schedule (not just the part scrolled into view) to a PNG data URL.
 // The element is temporarily expanded so nothing inside it needs to scroll, then restored.
 async function captureFullElement(element: HTMLElement) {
-  const { toJpeg } = await import('html-to-image');
+  const { toPng } = await import('html-to-image');
 
   const saved = {
     width: element.style.width,
@@ -146,14 +150,22 @@ async function captureFullElement(element: HTMLElement) {
       }
     }
 
-    const pixelRatio = Math.min(2, MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height);
-    const dataUrl = await toJpeg(element, {
-      width,
-      height,
-      pixelRatio,
-      quality: 0.95,
-      backgroundColor: '#ffffff',
-    });
+    // Capture at up to 3x so text stays crisp when the export is zoomed.
+    // Very wide schedules can exceed a browser's canvas limit, so retry at
+    // progressively smaller ratios if the capture throws.
+    let dataUrl = '';
+    let pixelRatio = 1;
+    for (const cap of [3, 2, 1]) {
+      const r = Math.min(cap, MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height);
+      try {
+        dataUrl = await toPng(element, { width, height, pixelRatio: r, backgroundColor: '#ffffff' });
+        pixelRatio = r;
+        break;
+      } catch {
+        // try a lower pixel ratio
+      }
+    }
+    if (!dataUrl) throw new Error('Could not capture the schedule for export');
     if (crop) return cropCapture(dataUrl, crop, width, height, pixelRatio);
     return { dataUrl, width, height };
   } finally {
@@ -302,7 +314,35 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   });
 
   ctx.drawImage(img, 0, headerHeight, width, height);
-  return { dataUrl: canvas.toDataURL('image/jpeg', 0.95), width, height: headerHeight + height };
+  return { dataUrl: canvas.toDataURL('image/png'), width, height: headerHeight + height };
+}
+
+function dataUrlBytes(dataUrl: string) {
+  const base64Length = dataUrl.length - dataUrl.indexOf(',') - 1;
+  return Math.ceil(base64Length * 3 / 4);
+}
+
+// Re-encodes the lossless capture as JPEG, first lowering quality and then
+// downscaling until the result fits inside the export size cap
+async function jpegUnderLimit(dataUrl: string, maxBytes: number) {
+  const img = await loadImage(dataUrl);
+  let best = dataUrl;
+  for (const scale of [1, 0.75, 0.5, 0.35]) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return best;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for (const quality of [1, 0.9, 0.8, 0.7, 0.55]) {
+      const out = canvas.toDataURL('image/jpeg', quality);
+      best = out;
+      if (dataUrlBytes(out) <= maxBytes) return out;
+    }
+  }
+  return best;
 }
 
 export async function exportSchedule(
@@ -316,19 +356,30 @@ export async function exportSchedule(
 
   if (format === 'jpeg') {
     const link = document.createElement('a');
-    link.href = dataUrl;
+    link.href = await jpegUnderLimit(dataUrl, MAX_EXPORT_BYTES);
     link.download = `${fileName}.jpg`;
     link.click();
     return;
   }
 
   const { jsPDF } = await import('jspdf');
-  const pdf = new jsPDF({
-    orientation: width > height ? 'landscape' : 'portrait',
-    unit: 'px',
-    format: [width, height],
-    hotfixes: ['px_scaling'],
-  });
-  pdf.addImage(dataUrl, 'JPEG', 0, 0, width, height);
+  const buildPdf = (imgDataUrl: string, imgFormat: 'PNG' | 'JPEG') => {
+    const pdf = new jsPDF({
+      orientation: width > height ? 'landscape' : 'portrait',
+      unit: 'px',
+      format: [width, height],
+      hotfixes: ['px_scaling'],
+    });
+    pdf.addImage(imgDataUrl, imgFormat, 0, 0, width, height);
+    return pdf;
+  };
+
+  // Prefer the lossless PNG, but rebuild with a compressed image if the
+  // finished PDF would exceed the size cap
+  let pdf = buildPdf(dataUrl, 'PNG');
+  if (pdf.output('arraybuffer').byteLength > MAX_EXPORT_BYTES) {
+    const compressed = await jpegUnderLimit(dataUrl, MAX_EXPORT_BYTES * 0.9);
+    pdf = buildPdf(compressed, 'JPEG');
+  }
   pdf.save(`${fileName}.pdf`);
 }

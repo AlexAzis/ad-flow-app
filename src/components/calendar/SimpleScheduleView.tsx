@@ -450,16 +450,28 @@ export default function SimpleScheduleView({
     setAllCampaigns([...allCampaigns, campaignWithId]);
   };
 
-  const handleUpdateCampaign = (id: string, updatedCampaign: Omit<Campaign, 'id'>) => {
+  const handleUpdateCampaign = (id: string, updatedCampaign: Omit<Campaign, 'id'>, replaceEventNames = false) => {
     let peopleIds = updatedCampaign.people;
     if (updatedCampaign.people?.length) {
       const { ids, newPeople } = resolveNamesToIds(updatedCampaign.people, allPeople);
       if (newPeople.length) setAllPeople(prev => [...prev, ...newPeople]);
       peopleIds = ids;
     }
+    const finalPeopleIds = peopleIds ?? allCampaigns.find(c => c.id === id)?.people;
     setAllCampaigns(allCampaigns.map(campaign =>
       campaign.id === id ? { ...updatedCampaign, id, people: peopleIds ?? campaign.people } : campaign
     ));
+    // "Replace all campaign events with name(s)": rewrite every event in this
+    // campaign (excluding Misc blocks) to the people just saved. When
+    // unchecked, the names only prefill events added from now on.
+    if (replaceEventNames) {
+      const ids = finalPeopleIds ?? [];
+      setAllEvents(allEvents.map(event =>
+        event.campaignId === id && !event.isMisc
+          ? { ...event, assignee: ids[0], assignees: ids.length ? ids : undefined }
+          : event
+      ));
+    }
   };
 
   const handleEditCampaign = (campaign: Campaign) => {

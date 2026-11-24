@@ -10,7 +10,7 @@ import type { DuplicateCampaignDetails } from './DuplicateCampaignModal';
 interface EditCampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>) => void;
+  onUpdateCampaign: (id: string, updatedCampaign: Omit<Campaign, 'id'>, replaceEventNames?: boolean) => void;
   onDeleteCampaign?: (id: string) => void;
   onArchiveCampaign?: (id: string) => void | Promise<void>;
   onDuplicateCampaign?: (campaignId: string, details: DuplicateCampaignDetails) => void;
@@ -39,6 +39,7 @@ export default function EditCampaignModal({
   const [isLocked, setIsLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState('');
   const [peopleNames, setPeopleNames] = useState('');
+  const [replaceEventNames, setReplaceEventNames] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +59,7 @@ export default function EditCampaignModal({
           .filter(Boolean)
           .join(', ')
       );
+      setReplaceEventNames(false);
     }
   }, [campaign, isOpen, people]);
 
@@ -102,7 +104,7 @@ export default function EditCampaignModal({
       lockedBy: isLocked ? (lockedBy || currentUser) : undefined,
     };
 
-    onUpdateCampaign(campaign.id, updatedCampaign);
+    onUpdateCampaign(campaign.id, updatedCampaign, replaceEventNames);
     onClose();
   };
 
@@ -201,6 +203,16 @@ export default function EditCampaignModal({
               disabled={isLocked}
             />
             <p className="text-xs text-gray-500 mt-1">Names here will be allocated to all new events in this campaign.</p>
+            <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={replaceEventNames}
+                onChange={(e) => setReplaceEventNames(e.target.checked)}
+                disabled={isLocked}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              />
+              Replace all campaign events with name(s)?
+            </label>
           </div>
 
           {/* Client Logo */}

@@ -189,7 +189,7 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   const r = img.width / width;
 
   const padX = 16;
-  const padY = 16;
+  const padY = 10;
 
   // Schedule logo first, then each visible campaign's logo (de-duplicated)
   const logoUrls = [
@@ -200,9 +200,9 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
     (img): img is HTMLImageElement => !!img
   );
 
-  const logoMaxH = 72;
-  const logoMaxW = 280;
-  const logoGap = 16;
+  const logoMaxH = 52;
+  const logoMaxW = 220;
+  const logoGap = 12;
   const logoBoxes = logoImgs.map(img => {
     const s = Math.min(logoMaxH / img.height, logoMaxW / img.width);
     return { img, w: img.width * s, h: img.height * s };
@@ -217,13 +217,13 @@ async function applyHeader(dataUrl: string, header: ExportHeaderData, width: num
   // Everything left of the logo zone
   const textAreaW = width - padX * 2 - (logoRowW > 0 ? logoRowW + 24 : 0);
 
-  const titleSize = 30;
-  const dateSize = 24;
-  const legendSize = 24;
-  const swatchSize = 20;
-  const itemGap = 20;
-  const legendLineHeight = 30;
-  const legendBottomPad = 16;
+  const titleSize = 18;
+  const dateSize = 13;
+  const legendSize = 13;
+  const swatchSize = 11;
+  const itemGap = 14;
+  const legendLineHeight = 18;
+  const legendBottomPad = 10;
 
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) return { dataUrl, width, height };

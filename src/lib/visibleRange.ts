@@ -25,8 +25,9 @@ export function exportEndIndex(
   rangeStart: Date,
   unit: 'day' | 'week'
 ): number {
-  if (events.length === 0) return -1;
-  const lastEnd = new Date(Math.max(...events.map(e => new Date(e.endDate).getTime())));
+  const blocks = events.filter(e => !e.isMisc);
+  if (blocks.length === 0) return -1;
+  const lastEnd = new Date(Math.max(...blocks.map(e => new Date(e.endDate).getTime())));
   const week = startOfWeek(lastEnd < anchor ? anchor : lastEnd, { weekStartsOn: 1 });
   return unit === 'week'
     ? differenceInWeeks(addWeeks(week, 1), rangeStart)
@@ -43,8 +44,9 @@ export function monthAfterEndIndex(
   rangeStart: Date,
   unit: 'day' | 'week'
 ): number {
-  if (events.length === 0) return -1;
-  const lastEnd = new Date(Math.max(...events.map(e => new Date(e.endDate).getTime())));
+  const blocks = events.filter(e => !e.isMisc);
+  if (blocks.length === 0) return -1;
+  const lastEnd = new Date(Math.max(...blocks.map(e => new Date(e.endDate).getTime())));
   const end = addMonths(lastEnd < anchor ? anchor : lastEnd, 1);
   return unit === 'week'
     ? differenceInWeeks(startOfWeek(end, { weekStartsOn: 1 }), rangeStart)

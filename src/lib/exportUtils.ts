@@ -1,4 +1,6 @@
-const MAX_CANVAS_SIDE = 30000;
+// Browsers cap canvas dimensions at 16384px; html-to-image silently downscales
+// captures that exceed it, so never request beyond this.
+const MAX_CANVAS_SIDE = 16384;
 
 // Keep exported files comfortably emailable (10 MB sits well under Gmail,
 // Outlook and other providers' attachment limits, including MIME overhead)
@@ -62,10 +64,13 @@ async function loadLogo(url: string): Promise<HTMLImageElement | null> {
 }
 
 // Stitches the kept leading region and the current-date-onwards range into one image
-async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, height: number, pixelRatio: number) {
+async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, height: number) {
   if (crop.to - crop.from <= 0) return { dataUrl, width, height };
   const img = await loadImage(dataUrl);
-  const r = pixelRatio;
+  // Derive the real raster scale from the image itself: the capture can be
+  // downscaled to fit the browser's canvas limit, so the requested pixel
+  // ratio is not guaranteed.
+  const r = img.width / width;
   const outWidth = crop.axis === 'x' ? crop.keep + (crop.to - crop.from) : width;
   const outHeight = crop.axis === 'y' ? crop.keep + (crop.to - crop.from) : height;
 
@@ -100,112 +105,173 @@ async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, heigh
 }
 
 // Renders the whole schedule (not just the part scrolled into view) to a PNG data URL.
-// The element is temporarily expanded so nothing inside it needs to scroll, then restored.
+// Works on a detached clone so live re-renders (realtime sync, resize observers,
+// zoom changes) can't mutate the DOM mid-capture.
 async function captureFullElement(element: HTMLElement) {
   const { toPng } = await import('html-to-image');
 
-  const saved = {
-    width: element.style.width,
-    height: element.style.height,
-    flexShrink: element.style.flexShrink,
-    zoom: element.style.getPropertyValue('zoom'),
-  };
-
-  element.style.setProperty('zoom', '1');
-  await nextFrame();
-
-  const scrollers = Array.from(element.querySelectorAll<HTMLElement>('*')).filter(el => {
-    if (el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth) return false;
-    const { overflowX, overflowY } = getComputedStyle(el);
-    return [overflowX, overflowY].some(v => v === 'auto' || v === 'scroll');
-  });
-  const scrollPositions = scrollers.map(el => ({ el, top: el.scrollTop, left: el.scrollLeft }));
-  const extraWidth = Math.max(0, ...scrollers.map(el => el.scrollWidth - el.clientWidth));
-  const extraHeight = Math.max(0, ...scrollers.map(el => el.scrollHeight - el.clientHeight));
-  const width = element.clientWidth + extraWidth;
-  let height = element.clientHeight + extraHeight;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;top:0;left:-1000000px;pointer-events:none;';
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.setProperty('zoom', '1');
+  clone.style.flexShrink = '0';
+  // Scrollbars never appear in exports — scoped so the live page is untouched
+  clone.setAttribute('data-export-root', '');
+  const noScrollbars = document.createElement('style');
+  noScrollbars.textContent =
+    '[data-export-root]::-webkit-scrollbar,[data-export-root] *::-webkit-scrollbar{display:none!important}' +
+    '[data-export-root],[data-export-root] *{scrollbar-width:none!important}';
+  clone.appendChild(noScrollbars);
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
   try {
-    element.style.width = `${width}px`;
-    element.style.height = `${height}px`;
-    element.style.flexShrink = '0';
-    // The captured clone always renders unscrolled, so measurements must match
+    wrapper.style.width = `${element.clientWidth}px`;
+    wrapper.style.height = `${element.clientHeight}px`;
+    await nextFrame();
+
+    // Expand so nothing inside the clone needs to scroll
+    const scrollers = Array.from(clone.querySelectorAll<HTMLElement>('*')).filter(el => {
+      if (el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth) return false;
+      const { overflowX, overflowY } = getComputedStyle(el);
+      return [overflowX, overflowY].some(v => v === 'auto' || v === 'scroll');
+    });
+    const extraWidth = Math.max(0, ...scrollers.map(el => el.scrollWidth - el.clientWidth));
+    const extraHeight = Math.max(0, ...scrollers.map(el => el.scrollHeight - el.clientHeight));
+    const width = element.clientWidth + extraWidth;
+    let height = element.clientHeight + extraHeight;
+    clone.style.width = `${width}px`;
+    clone.style.height = `${height}px`;
     scrollers.forEach(el => {
       el.scrollTop = 0;
       el.scrollLeft = 0;
     });
     await nextFrame();
-    await nextFrame();
 
-    const elRect = element.getBoundingClientRect();
-    const { top, left } = elRect;
+    const { top, left } = clone.getBoundingClientRect();
+    const contentBottomOf = () =>
+      Math.max(
+        0,
+        ...Array.from(clone.querySelectorAll<HTMLElement>('*'))
+          .filter(el => ['auto', 'scroll'].includes(getComputedStyle(el).overflowY))
+          .flatMap(el => Array.from(el.children))
+          .map(child => child.getBoundingClientRect().bottom - top)
+      );
 
     // Trim empty space below the last row when the schedule is shorter than the window
-    const contentBottom = Math.max(
-      0,
-      ...Array.from(element.querySelectorAll<HTMLElement>('*'))
-        .filter(el => ['auto', 'scroll'].includes(getComputedStyle(el).overflowY))
-        .flatMap(el => Array.from(el.children))
-        .map(child => child.getBoundingClientRect().bottom - top)
-    );
+    const contentBottom = contentBottomOf();
     if (contentBottom > 0) height = Math.min(height, Math.ceil(contentBottom) + 1);
 
-    // Crop to the visible range: views mark their time-axis cells with
+    // Crop to the export range: views mark their time-axis cells with
     // data-export-cell, the current date/week with data-export-start, and the
     // week after the last filtered event with data-export-end.
-    const cells = Array.from(element.querySelectorAll<HTMLElement>('[data-export-cell]'));
-    const startCell = element.querySelector<HTMLElement>('[data-export-start]');
+    const cells = Array.from(clone.querySelectorAll<HTMLElement>('[data-export-cell]'));
+    const startCell = clone.querySelector<HTMLElement>('[data-export-start]');
     let crop: AxisCrop | null = null;
     if (cells.length > 0 && startCell) {
       const first = cells[0].getBoundingClientRect();
       const start = startCell.getBoundingClientRect();
       const second = cells[1]?.getBoundingClientRect();
       const vertical = !second || Math.abs(second.top - first.top) > Math.abs(second.left - first.left);
-      const endCell = element.querySelector<HTMLElement>('[data-export-end]') ?? cells[cells.length - 1];
+      const endCell = clone.querySelector<HTMLElement>('[data-export-end]') ?? cells[cells.length - 1];
       const end = endCell.getBoundingClientRect();
-      if (vertical) {
-        const keep = Math.max(0, first.top - top);
-        const from = Math.max(keep, start.top - top);
-        const to = Math.min(height, Math.max(end.bottom, start.bottom) - top);
-        if (to > keep) crop = { axis: 'y', keep, from, to };
+      const startIdx = cells.indexOf(startCell);
+      const endIdx = cells.indexOf(endCell);
+      if (vertical && startIdx >= 0 && endIdx >= startIdx) {
+        // Trim the DOM itself rather than the pixels afterwards: captures that
+        // exceed the canvas limit get silently downscaled, which made
+        // pixel-space crops land on the wrong rows. Removing the unwanted
+        // rows also keeps the image small enough for full-resolution output.
+        cells.forEach((c, i) => {
+          if (i > endIdx) c.style.display = 'none';
+        });
+        if (startIdx > 0) {
+          const rowsCol = cells[0].parentElement;
+          const rowsOnlyCol =
+            !!rowsCol &&
+            Array.from(rowsCol.children).every(ch =>
+              (ch as HTMLElement).hasAttribute?.('data-export-cell')
+            );
+          const body = rowsOnlyCol ? rowsCol!.parentElement : null;
+          if (body) {
+            // Cells sit in a dedicated column beside label columns (e.g. the
+            // daily month gutter): slide the shared body so labels stay
+            // aligned, then clip it to the wanted band.
+            body.style.transform = `translateY(${-(start.top - first.top)}px)`;
+            body.style.overflow = 'hidden';
+            body.style.height = `${end.bottom - first.top}px`;
+          } else {
+            // Self-contained rows (each carries its own label): drop the
+            // leading ones outright.
+            cells.forEach((c, i) => {
+              if (i < startIdx) c.style.display = 'none';
+            });
+          }
+        }
+        await nextFrame();
+        const newBottom = contentBottomOf();
+        if (newBottom > 0) height = Math.ceil(newBottom) + 1;
+        clone.style.height = `${height}px`;
+        await nextFrame();
       } else {
-        const keep = Math.max(0, first.left - left);
-        const from = Math.max(keep, start.left - left);
-        const to = Math.min(width, Math.max(end.right, start.right) - left);
-        if (to > keep) crop = { axis: 'x', keep, from, to };
+        if (vertical) {
+          const keep = Math.max(0, first.top - top);
+          const from = Math.max(keep, start.top - top);
+          const to = Math.min(height, Math.max(end.bottom, start.bottom) - top);
+          if (to > keep) crop = { axis: 'y', keep, from, to };
+        } else {
+          const keep = Math.max(0, first.left - left);
+          const from = Math.max(keep, start.left - left);
+          const to = Math.min(width, Math.max(end.right, start.right) - left);
+          if (to > keep) crop = { axis: 'x', keep, from, to };
+        }
       }
     }
 
-    // Capture at up to 3x so text stays crisp when the export is zoomed.
-    // Very wide schedules can exceed a browser's canvas limit, so retry at
-    // progressively smaller ratios if the capture throws.
+    // Capture at up to 3x so text stays crisp when the export is zoomed, retrying
+    // at smaller ratios if a browser can't allocate a canvas that big.
     let dataUrl = '';
-    let pixelRatio = 1;
     for (const cap of [3, 2, 1]) {
       const r = Math.min(cap, MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height);
       try {
-        dataUrl = await toPng(element, { width, height, pixelRatio: r, backgroundColor: '#ffffff' });
-        pixelRatio = r;
+        dataUrl = await toPng(clone, { width, height, pixelRatio: r, backgroundColor: '#ffffff' });
         break;
       } catch {
         // try a lower pixel ratio
       }
     }
     if (!dataUrl) throw new Error('Could not capture the schedule for export');
-    if (crop) return cropCapture(dataUrl, crop, width, height, pixelRatio);
-    return { dataUrl, width, height };
+    if (crop) return cropCapture(dataUrl, crop, width, height);
+    // The capture already contains exactly the export content; just drop any
+    // dead-white margin to the right of the calendar
+    return trimRightEdge(dataUrl, width, height);
   } finally {
-    element.style.width = saved.width;
-    element.style.height = saved.height;
-    element.style.flexShrink = saved.flexShrink;
-    if (saved.zoom) element.style.setProperty('zoom', saved.zoom);
-    else element.style.removeProperty('zoom');
-    await nextFrame();
-    scrollPositions.forEach(({ el, top, left }) => {
-      el.scrollTop = top;
-      el.scrollLeft = left;
-    });
+    wrapper.remove();
   }
+}
+
+// Cuts the dead-white margin to the right of the calendar, if there is one
+async function trimRightEdge(dataUrl: string, width: number, height: number) {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { dataUrl, width, height };
+  ctx.drawImage(img, 0, 0);
+  const r = img.width / width;
+  const edge = rightmostContentX(ctx, canvas.width, canvas.height);
+  if (edge > 0 && edge < canvas.width) {
+    const trimmed = document.createElement('canvas');
+    trimmed.width = edge;
+    trimmed.height = canvas.height;
+    const tctx = trimmed.getContext('2d');
+    if (tctx) {
+      tctx.drawImage(canvas, 0, 0);
+      return { dataUrl: trimmed.toDataURL('image/png'), width: edge / r, height };
+    }
+  }
+  return { dataUrl, width, height };
 }
 
 // Draws a single header row - title, export date and campaign legend on the

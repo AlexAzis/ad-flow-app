@@ -283,9 +283,10 @@ export default function CalendarGrid({
   });
 
   // Ends the export the week after the last week that actually has a block
-  // rendered, so stray events outside the visible range can't stretch it
+  // rendered (misc pills don't count), so stray events outside the visible
+  // range can't stretch it
   const lastEventWeekIdx = weekRows.reduce(
-    (m, w) => (w.hasEvents ? Math.max(m, w.weekIndex) : m),
+    (m, w) => (w.positionedEvents.length > 0 ? Math.max(m, w.weekIndex) : m),
     -1
   );
   const exportEndIdx = lastEventWeekIdx >= 0 ? Math.min(lastEventWeekIdx + 1, weeks - 1) : -1;

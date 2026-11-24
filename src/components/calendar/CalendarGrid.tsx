@@ -72,10 +72,19 @@ export default function CalendarGrid({
     (_, i) => addDays(rangeStart, i)
   );
 
+  const weeks = Math.ceil(days.length / 7);
+
   // Export markers: image starts at the current week and ends a week after the
-  // last filtered event block
+  // last filtered event block. Events outside the rendered range can't appear,
+  // so they shouldn't push the crop past the last row either.
   const exportStartIdx = differenceInWeeks(anchor, rangeStart);
-  const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
+  const renderedEvents = events.filter(
+    e => new Date(e.endDate) >= rangeStart && new Date(e.startDate) <= rangeEnd
+  );
+  const exportEndIdx = Math.min(
+    exportEndIndex(renderedEvents, anchor, rangeStart, 'week'),
+    weeks - 1
+  );
 
   // UK bank holidays for the visible range
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
@@ -262,8 +271,6 @@ export default function CalendarGrid({
       return [{ event: e, startCol, span: endCol - startCol + 1, lane }];
     });
   };
-
-  const weeks = Math.ceil(days.length / 7);
 
   const weekRows = Array.from({ length: weeks }, (_, weekIndex) => {
     const weekDays = days

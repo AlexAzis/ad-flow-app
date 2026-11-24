@@ -11,7 +11,20 @@ interface AxisCrop {
   keep: number; // leading region kept before the cut (weekday header / label columns)
   from: number; // where the visible range starts (current date / week)
   to: number; // where it ends (week after the last event block)
-  right?: number; // content right edge, trimming blank space beside the grid
+}
+
+// Rightmost column containing any non-white pixel. The captured element can
+// end up wider than the calendar itself (it is expanded to fit scrollers), so
+// the DOM can't tell us where the content really ends — the pixels can.
+function rightmostContentX(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  for (let x = width - 1; x >= 0; x--) {
+    for (let y = 0; y < height; y += 4) {
+      const i = (y * width + x) * 4;
+      if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return x + 1;
+    }
+  }
+  return 0;
 }
 
 export interface ExportHeaderData {
@@ -53,7 +66,7 @@ async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, heigh
   if (crop.to - crop.from <= 0) return { dataUrl, width, height };
   const img = await loadImage(dataUrl);
   const r = pixelRatio;
-  const outWidth = crop.axis === 'x' ? crop.keep + (crop.to - crop.from) : (crop.right ?? width);
+  const outWidth = crop.axis === 'x' ? crop.keep + (crop.to - crop.from) : width;
   const outHeight = crop.axis === 'y' ? crop.keep + (crop.to - crop.from) : height;
 
   const canvas = document.createElement('canvas');
@@ -65,9 +78,20 @@ async function cropCapture(dataUrl: string, crop: AxisCrop, width: number, heigh
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (crop.axis === 'y') {
-    const imgW = Math.min(img.width, Math.round((crop.right ?? width) * r));
-    ctx.drawImage(img, 0, 0, imgW, crop.keep * r, 0, 0, imgW, crop.keep * r);
-    ctx.drawImage(img, 0, crop.from * r, imgW, (crop.to - crop.from) * r, 0, crop.keep * r, imgW, (crop.to - crop.from) * r);
+    ctx.drawImage(img, 0, 0, img.width, crop.keep * r, 0, 0, img.width, crop.keep * r);
+    ctx.drawImage(img, 0, crop.from * r, img.width, (crop.to - crop.from) * r, 0, crop.keep * r, img.width, (crop.to - crop.from) * r);
+    // Drop the dead-white margin to the right of the calendar, if there is one
+    const edge = rightmostContentX(ctx, canvas.width, canvas.height);
+    if (edge > 0 && edge < canvas.width) {
+      const trimmed = document.createElement('canvas');
+      trimmed.width = edge;
+      trimmed.height = canvas.height;
+      const tctx = trimmed.getContext('2d');
+      if (tctx) {
+        tctx.drawImage(canvas, 0, 0);
+        return { dataUrl: trimmed.toDataURL('image/png'), width: edge / r, height: outHeight };
+      }
+    }
   } else {
     ctx.drawImage(img, 0, 0, crop.keep * r, img.height, 0, 0, crop.keep * r, img.height);
     ctx.drawImage(img, crop.from * r, 0, (crop.to - crop.from) * r, img.height, crop.keep * r, 0, (crop.to - crop.from) * r, img.height);
@@ -143,13 +167,7 @@ async function captureFullElement(element: HTMLElement) {
         const keep = Math.max(0, first.top - top);
         const from = Math.max(keep, start.top - top);
         const to = Math.min(height, Math.max(end.bottom, start.bottom) - top);
-        // Cells are full-width rows, so their right edge marks where the
-        // calendar ends — anything beyond is expanded blank space
-        const right = Math.min(
-          width,
-          Math.max(0, ...cells.map(c => c.getBoundingClientRect().right - left))
-        );
-        if (to > keep) crop = { axis: 'y', keep, from, to, right };
+        if (to > keep) crop = { axis: 'y', keep, from, to };
       } else {
         const keep = Math.max(0, first.left - left);
         const from = Math.max(keep, start.left - left);

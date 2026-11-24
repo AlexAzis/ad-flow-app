@@ -146,9 +146,9 @@ export default function EditCampaignModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">Edit Campaign</h2>
           <button
             onClick={onClose}
@@ -159,7 +159,7 @@ export default function EditCampaignModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
           {/* Campaign Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -203,7 +203,7 @@ export default function EditCampaignModal({
               disabled={isLocked}
             />
             <p className="text-xs text-gray-500 mt-1">Names here will be allocated to all new events in this campaign.</p>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+            <label className="mt-1.5 flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
                 checked={replaceEventNames}
@@ -278,31 +278,24 @@ export default function EditCampaignModal({
                     type="button"
                     onClick={() => setColor(colorOption)}
                     disabled={isLocked}
-                    className={`relative w-10 h-10 rounded-full transition-transform enabled:hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`relative w-8 h-8 rounded-full transition-transform enabled:hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
                       isSelected ? 'ring-2 ring-offset-2 ring-gray-800' : ''
                     }`}
                     style={{ backgroundColor: colorOption }}
                   >
                     {isUsedByOther && (
                       <span className="absolute inset-0 flex items-center justify-center">
-                        <X size={20} className="text-red-600 stroke-[3]" />
+                        <X size={16} className="text-red-600 stroke-[3]" />
                       </span>
                     )}
                   </button>
                 );
               })}
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <div
-                className="w-8 h-8 rounded-full border-2 border-gray-200"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs text-gray-500">Selected color</span>
-            </div>
           </div>
 
           {/* Lock/Unlock Toggle */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-3">
               {isLocked ? (
                 <Lock size={20} className="text-red-600" />
@@ -342,7 +335,7 @@ export default function EditCampaignModal({
           </div>
 
           {/* Submit Button */}
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          <div className="grid grid-cols-2 gap-3 pt-2">
             {onDuplicateCampaign && (
               <button
                 type="button"

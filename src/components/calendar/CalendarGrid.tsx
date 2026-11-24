@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { format, addDays, differenceInDays, differenceInWeeks, isSameDay, isSameMonth } from 'date-fns';
+import { format, addDays, differenceInDays, differenceInWeeks, isSameDay, isSameMonth, startOfWeek } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
-import { anchorWeek, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
+import { anchorWeek, LOOKBACK_DAYS } from '@/lib/visibleRange';
 import {
   getEventDragData,
   getEventDragDetails,
@@ -74,15 +74,11 @@ export default function CalendarGrid({
 
   const weeks = Math.ceil(days.length / 7);
 
-  // Export markers: image starts at the current week and ends a week after the
-  // last filtered event block. Events outside the rendered range can't appear,
-  // so they shouldn't push the crop past the last row either.
-  const exportStartIdx = differenceInWeeks(anchor, rangeStart);
-  const renderedEvents = events.filter(
-    e => new Date(e.endDate) >= rangeStart && new Date(e.startDate) <= rangeEnd
-  );
-  const exportEndIdx = Math.min(
-    exportEndIndex(renderedEvents, anchor, rangeStart, 'week'),
+  // The view scrolls to the navigated week, but exports always start at the
+  // current week and end a week after the last rendered event block
+  const scrollStartIdx = differenceInWeeks(anchor, rangeStart);
+  const exportStartIdx = Math.min(
+    Math.max(0, differenceInWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), rangeStart)),
     weeks - 1
   );
 
@@ -169,7 +165,7 @@ export default function CalendarGrid({
   const anchorKey = anchor.getTime();
   useLayoutEffect(() => {
     const scroller = gridRef.current;
-    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const start = scroller?.querySelector<HTMLElement>('[data-view-start]');
     const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
     if (scroller && start && first) {
       scroller.scrollTop = start.getBoundingClientRect().top - first.getBoundingClientRect().top;
@@ -286,6 +282,14 @@ export default function CalendarGrid({
     return { weekIndex, weekDays, positionedEvents, rowHeight, headerHeight, hasEvents };
   });
 
+  // Ends the export the week after the last week that actually has a block
+  // rendered, so stray events outside the visible range can't stretch it
+  const lastEventWeekIdx = weekRows.reduce(
+    (m, w) => (w.hasEvents ? Math.max(m, w.weekIndex) : m),
+    -1
+  );
+  const exportEndIdx = lastEventWeekIdx >= 0 ? Math.min(lastEventWeekIdx + 1, weeks - 1) : -1;
+
   // Month column segments: one merged block per month, plus a split cell for weeks spanning two months
   type MonthSegment =
     | { kind: 'month'; date: Date; height: number }
@@ -385,6 +389,7 @@ export default function CalendarGrid({
                 data-week-row
                 data-has-events={hasEvents}
                 data-export-cell={exportMarkers ? true : undefined}
+                data-view-start={exportMarkers && weekIndex === scrollStartIdx ? true : undefined}
                 data-export-start={exportMarkers && weekIndex === exportStartIdx ? true : undefined}
                 data-export-end={exportMarkers && weekIndex === exportEndIdx ? true : undefined}
               >

@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef } from 'react';
-import { format, addDays, isSameDay, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, isSameDay, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
@@ -51,11 +51,16 @@ export default function VerticalView({
 
   // The range runs to the end of the week after the last filtered event block,
   // so scrolling down always reaches just past the final block
-  const exportStartIdx = LOOKBACK_DAYS;
+  // The view scrolls to the navigated day, but exports start at today
+  const scrollStartIdx = LOOKBACK_DAYS;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'day');
   const days = Array.from(
     { length: exportEndIdx >= 0 ? exportEndIdx + 1 : 60 + LOOKBACK_DAYS },
     (_, i) => addDays(rangeStart, i)
+  );
+  const exportStartIdx = Math.min(
+    Math.max(0, differenceInDays(startOfDay(new Date()), rangeStart)),
+    Math.max(0, days.length - 1)
   );
   const bankHolidays = getBankHolidaysForRange(days[0], days[days.length - 1]);
 
@@ -63,7 +68,7 @@ export default function VerticalView({
   const anchorKey = anchor.getTime();
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
-    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const start = scroller?.querySelector<HTMLElement>('[data-view-start]');
     const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
     if (scroller && start && first) {
       scroller.scrollTop = start.getBoundingClientRect().top - first.getBoundingClientRect().top;
@@ -158,6 +163,7 @@ export default function VerticalView({
               }`}
               style={{ height: rowHeight }}
               data-export-cell
+              data-view-start={index === scrollStartIdx ? true : undefined}
               data-export-start={index === exportStartIdx ? true : undefined}
               data-export-end={index === exportEndIdx ? true : undefined}
               onDragOver={handleDragOver}

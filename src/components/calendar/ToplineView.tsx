@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef } from 'react';
-import { format, addWeeks, endOfWeek, isWithinInterval } from 'date-fns';
+import { format, addWeeks, endOfWeek, isWithinInterval, startOfWeek, differenceInWeeks } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
 import { anchorWeek, exportEndIndex, monthAfterEndIndex } from '@/lib/visibleRange';
@@ -50,16 +50,21 @@ export default function ToplineView({
   // The range runs to a month after the last filtered event block so the view
   // can be scrolled well past the final block; exports still crop at the week
   // after the last block
-  const exportStartIdx = 2;
+  // The view scrolls to the navigated week, but exports start at today's
+  const scrollStartIdx = 2;
   const exportEndIdx = exportEndIndex(events, anchor, rangeStart, 'week');
   const viewEndIdx = monthAfterEndIndex(events, anchor, rangeStart, 'week');
   const weeks = Array.from({ length: viewEndIdx >= 0 ? viewEndIdx + 1 : 26 }, (_, i) => addWeeks(rangeStart, i));
+  const exportStartIdx = Math.min(
+    Math.max(0, differenceInWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), rangeStart)),
+    Math.max(0, weeks.length - 1)
+  );
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const anchorKey = anchor.getTime();
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
-    const start = scroller?.querySelector<HTMLElement>('[data-export-start]');
+    const start = scroller?.querySelector<HTMLElement>('[data-view-start]');
     const first = scroller?.querySelector<HTMLElement>('[data-export-cell]');
     if (scroller && start && first) {
       scroller.scrollLeft = start.getBoundingClientRect().left - first.getBoundingClientRect().left;
@@ -158,6 +163,7 @@ export default function ToplineView({
                     }`}
                     style={{ width: WEEK_WIDTH }}
                     data-export-cell
+                    data-view-start={index === scrollStartIdx ? true : undefined}
                     data-export-start={index === exportStartIdx ? true : undefined}
                     data-export-end={index === exportEndIdx ? true : undefined}
                   >

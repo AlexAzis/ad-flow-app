@@ -326,7 +326,7 @@ export default function SimpleScheduleView({
     if (!exportRef.current || isExporting) return;
     setIsExporting(true);
     try {
-      const { exportSchedule } = await import('@/lib/exportUtils');
+      const { exportSchedule, exportFileName } = await import('@/lib/exportUtils');
       // Legend shows the campaigns currently visible under the filters
       const legendCampaigns = allCampaigns.filter(
         c => selectedCampaigns.size === 0 || selectedCampaigns.has(c.id)
@@ -334,7 +334,9 @@ export default function SimpleScheduleView({
       await exportSchedule(
         exportRef.current,
         exportFormat,
-        `${scheduleName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}_${viewMode}_${format(new Date(), 'yyyy-MM-dd')}`,
+        exportFileName(
+          legendCampaigns.length > 0 ? legendCampaigns.map(c => c.name) : [scheduleName]
+        ),
         {
           title: scheduleName,
           date: format(new Date(), 'd MMM yyyy'),

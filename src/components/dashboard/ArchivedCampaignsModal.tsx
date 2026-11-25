@@ -5,7 +5,7 @@ import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
 import CalendarGrid from '@/components/calendar/CalendarGrid';
 import { campaignColors } from '@/lib/colorUtils';
-import { exportSchedule } from '@/lib/exportUtils';
+import { exportFileName, exportSchedule } from '@/lib/exportUtils';
 import {
   deleteArchivedCampaign,
   getArchivedCampaign,
@@ -92,8 +92,7 @@ export default function ArchivedCampaignsModal({
     if (!exportRef.current || !selected || exporting) return;
     setExporting(exportFormat);
     try {
-      const fileName = `${selected.summary.name.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'archived-campaign'}_${format(new Date(), 'yyyy-MM-dd')}`;
-      await exportSchedule(exportRef.current, exportFormat, fileName, {
+      await exportSchedule(exportRef.current, exportFormat, exportFileName([selected.summary.name]), {
         title: selected.summary.name,
         date: format(new Date(), 'd MMM yyyy'),
         scheduleLogoUrl,

@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+
 // Browsers cap canvas dimensions at 16384px; html-to-image silently downscales
 // captures that exceed it, so never request beyond this.
 const MAX_CANVAS_SIDE = 16384;
@@ -7,6 +9,19 @@ const MAX_CANVAS_SIDE = 16384;
 const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
 
 const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+// Export file names: Name_parts_Schedule_YYMMDD — spaces become underscores,
+// other punctuation is stripped, "Schedule" is literal.
+export function exportFileName(names: string[]) {
+  const base =
+    names
+      .join('_')
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_]+/g, '')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '') || 'schedule';
+  return `${base}_Schedule_${format(new Date(), 'yyMMdd')}`;
+}
 
 interface AxisCrop {
   axis: 'x' | 'y';

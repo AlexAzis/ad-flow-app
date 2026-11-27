@@ -6,7 +6,7 @@ import { Event, Campaign, Person } from '@/lib/types';
 import { getStageColor, getTextColor } from '@/lib/colorUtils';
 import { anchorWeek, exportEndIndex, monthAfterEndIndex } from '@/lib/visibleRange';
 
-interface ToplineViewProps {
+interface SummaryViewProps {
   events: Event[];
   campaigns: Campaign[];
   people: Person[];
@@ -30,7 +30,7 @@ const stageAbbr: Record<string, string> = {
   'Delivery': 'Del',
 };
 
-export default function ToplineView({
+export default function SummaryView({
   events,
   campaigns,
   people,
@@ -41,7 +41,7 @@ export default function ToplineView({
   showEventNotes,
   showPeople,
   selectedCampaigns,
-}: ToplineViewProps) {
+}: SummaryViewProps) {
   // Two weeks of history render before the anchor so they can be scrolled back
   // to, but nothing earlier is ever shown
   const anchor = anchorWeek(currentDate);

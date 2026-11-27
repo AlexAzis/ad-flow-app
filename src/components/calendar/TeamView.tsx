@@ -13,7 +13,7 @@ import {
   type EventSelectionAction,
 } from '@/lib/eventDrag';
 
-interface PeopleViewProps {
+interface TeamViewProps {
   events: Event[];
   campaigns: Campaign[];
   people: Person[];
@@ -33,7 +33,7 @@ const DAY_WIDTH = 60;
 const NAME_COL_WIDTH = 140;
 const CAMPAIGN_COL_WIDTH = 160;
 
-export default function PeopleView({
+export default function TeamView({
   events,
   campaigns,
   people,
@@ -47,7 +47,7 @@ export default function PeopleView({
   showEventNotes,
   showPeople,
   selectedPeople,
-}: PeopleViewProps) {
+}: TeamViewProps) {
   // Two weeks of history render before the anchor so they can be scrolled back
   // to, but nothing earlier is ever shown
   const anchor = anchorDay(currentDate);

@@ -13,7 +13,7 @@ import {
   type EventSelectionAction,
 } from '@/lib/eventDrag';
 
-interface CalendarGridProps {
+interface GridViewProps {
   events: Event[];
   campaigns: Campaign[];
   people: Person[];
@@ -41,7 +41,7 @@ const DATE_HEADER_HEIGHT = 32;
 const MISC_PILL_HEIGHT = 16;
 const MISC_ROW_PITCH = MISC_PILL_HEIGHT + 2;
 
-export default function CalendarGrid({
+export default function GridView({
   events,
   campaigns,
   people,
@@ -60,7 +60,7 @@ export default function CalendarGrid({
   dateRange,
   readOnly = false,
   exportMarkers = true,
-}: CalendarGridProps) {
+}: GridViewProps) {
   // Two weeks of history render before the anchor so they can be scrolled back
   // to, but nothing earlier is ever shown
   const anchor = anchorWeek(currentDate);

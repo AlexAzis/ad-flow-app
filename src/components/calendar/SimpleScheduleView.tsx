@@ -20,12 +20,12 @@ import { supabase } from '@/lib/supabase';
 import { getStageColor } from '@/lib/colorUtils';
 import { getEventTitles, getEventDisplayTitle } from '@/lib/eventTitles';
 import type { EventSelectionAction } from '@/lib/eventDrag';
-import CalendarGrid from './CalendarGrid';
+import GridView from './GridView';
 import PresenceAvatars from './PresenceAvatars';
 import GanttView from './GanttView';
 import VerticalView from './VerticalView';
-import ToplineView from './ToplineView';
-import PeopleView from './PeopleView';
+import SummaryView from './SummaryView';
+import TeamView from './TeamView';
 import FilterSidebar from './FilterSidebar';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
@@ -69,7 +69,7 @@ export default function SimpleScheduleView({
 }: SimpleScheduleViewProps) {
   const readOnly = !canEdit(role);
   const [currentDate, setCurrentDate] = useState(() => startOfMonth(new Date()));
-  const [viewMode, setViewMode] = useState<ViewMode>('daily');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showWeekends, setShowWeekends] = useState(false);
   const [showEventNotes, setShowEventNotes] = useState(false);
   const [showPeople, setShowPeople] = useState(true);
@@ -909,7 +909,7 @@ export default function SimpleScheduleView({
                 <span className="h-px w-5 bg-gray-300" />
               </div>
             <div className="flex items-start gap-1 bg-gray-100 rounded-lg p-1">
-              {(['daily', 'gantt', 'vertical', 'topline', 'people'] as ViewMode[]).map(mode => (
+              {(['grid', 'gantt', 'vertical', 'summary', 'team'] as ViewMode[]).map(mode => (
                 <div key={mode} className="flex flex-col items-center">
                   <button
                     onClick={() => setViewMode(mode)}
@@ -1013,9 +1013,9 @@ export default function SimpleScheduleView({
                 selectedCampaigns={selectedCampaigns}
               />
             </div>
-          ) : viewMode === 'topline' ? (
+          ) : viewMode === 'summary' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
-              <ToplineView
+              <SummaryView
                 events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
@@ -1028,9 +1028,9 @@ export default function SimpleScheduleView({
                 selectedCampaigns={selectedCampaigns}
               />
             </div>
-          ) : viewMode === 'people' ? (
+          ) : viewMode === 'team' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
-              <PeopleView
+              <TeamView
                 events={viewEvents}
                 campaigns={allCampaigns}
                 people={allPeople}
@@ -1047,7 +1047,7 @@ export default function SimpleScheduleView({
               />
             </div>
           ) : (
-            <CalendarGrid
+            <GridView
               events={viewEvents}
               campaigns={allCampaigns}
               people={allPeople}

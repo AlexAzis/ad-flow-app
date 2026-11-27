@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
-import CalendarGrid from '@/components/calendar/CalendarGrid';
+import GridView from '@/components/calendar/GridView';
 import { campaignColors } from '@/lib/colorUtils';
 import { exportFileName, exportSchedule } from '@/lib/exportUtils';
 import {
@@ -241,7 +241,7 @@ export default function ArchivedCampaignsModal({
                 </div>
               </div>
               <div ref={exportRef} className="flex-1 min-h-0">
-                <CalendarGrid
+                <GridView
                   events={events}
                   campaigns={previewCampaigns}
                   people={previewPeople}

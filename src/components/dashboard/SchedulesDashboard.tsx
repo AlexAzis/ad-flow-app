@@ -17,6 +17,15 @@ interface SchedulesDashboardProps {
 }
 
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+const LAST_OPENED_KEY = 'argus:lastOpened';
+
+const openedLabel = (timestamp?: number) => {
+  if (!timestamp) return null;
+  const days = Math.floor((Date.now() - timestamp) / 86400000);
+  if (days <= 0) return 'opened today';
+  if (days === 1) return 'opened yesterday';
+  return `opened ${days}d ago`;
+};
 
 export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSignOut }: SchedulesDashboardProps) {
   const [schedules, setSchedules] = useState<ScheduleSummary[] | null>(null);
@@ -28,6 +37,15 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
   const [isNewScheduleOpen, setIsNewScheduleOpen] = useState(false);
   const [menuScheduleId, setMenuScheduleId] = useState<string | null>(null);
   const [settingsSchedule, setSettingsSchedule] = useState<ScheduleSummary | null>(null);
+  const [lastOpened, setLastOpened] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      setLastOpened(JSON.parse(localStorage.getItem(LAST_OPENED_KEY) || '{}'));
+    } catch {
+      // Malformed prefs just mean no "opened" labels
+    }
+  }, []);
 
   useEffect(() => {
     checkIsSiteAdmin().then(setIsAdmin);
@@ -52,6 +70,17 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
 
   const handleNewSchedule = () => setIsNewScheduleOpen(true);
 
+  const openSchedule = (schedule: ScheduleSummary) => {
+    const next = { ...lastOpened, [schedule.id]: Date.now() };
+    setLastOpened(next);
+    try {
+      localStorage.setItem(LAST_OPENED_KEY, JSON.stringify(next));
+    } catch {
+      // Storage full or unavailable: the label just won't persist
+    }
+    onOpenSchedule(schedule);
+  };
+
   const scheduleCount = schedules?.length ?? 0;
   const ownedCount = schedules?.filter(s => s.role === 'owner').length ?? 0;
   const sharedCount = scheduleCount - ownedCount;
@@ -63,8 +92,8 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
 
   return (
     <div className="h-full w-full flex bg-gray-50">
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      {/* Left Sidebar - hidden on narrow windows; the cards cover the same navigation */}
+      <div className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col">
         {/* Logo */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-2">
           <div className="w-7 h-7 bg-gray-900 rounded flex items-center justify-center">
@@ -89,7 +118,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
           {(schedules ?? []).map((schedule) => (
             <button
               key={schedule.id}
-              onClick={() => onOpenSchedule(schedule)}
+              onClick={() => openSchedule(schedule)}
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100 text-left"
             >
               {schedule.logoUrl ? (
@@ -117,7 +146,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="bg-white border-b border-gray-200 px-6 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 flex-shrink-0">
           <div>
             <h1 className="text-lg font-semibold text-gray-800">Dashboard</h1>
             {statsText && <p className="text-xs text-gray-500 mt-0.5">{statsText}</p>}
@@ -214,10 +243,14 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 key={schedule.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onOpenSchedule(schedule)}
-                onKeyDown={(e) => e.key === 'Enter' && onOpenSchedule(schedule)}
+                onClick={() => openSchedule(schedule)}
+                onKeyDown={(e) => e.key === 'Enter' && openSchedule(schedule)}
                 className="card-enter bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 transition-all duration-200 h-40 flex flex-col cursor-pointer"
-                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                style={{
+                  animationDelay: `${Math.min(index, 8) * 40}ms`,
+                  borderTopWidth: '4px',
+                  borderTopColor: scheduleColor(schedule.id),
+                }}
               >
                 {/* Card Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -279,8 +312,8 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 </div>
 
                 {/* Card Content */}
-                <div className="font-semibold text-gray-900">{schedule.name}</div>
-                <div className="text-sm text-gray-500">
+                <div className="font-semibold text-gray-900 truncate" title={schedule.name}>{schedule.name}</div>
+                <div className="text-sm text-gray-500 line-clamp-2">
                   {schedule.description || 'No description'}
                 </div>
 
@@ -288,6 +321,9 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 <div className="mt-auto flex items-center gap-1.5 text-xs text-gray-500">
                   <Users size={13} />
                   <span>{schedule.memberCount} {schedule.memberCount === 1 ? 'member' : 'members'}</span>
+                  {openedLabel(lastOpened[schedule.id]) && (
+                    <span className="text-gray-400">· {openedLabel(lastOpened[schedule.id])}</span>
+                  )}
                 </div>
               </div>
             ))}

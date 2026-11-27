@@ -174,7 +174,7 @@ export default function SummaryView({
                   <div
                     key={weekStart.toISOString()}
                     className={`flex-shrink-0 border-r border-gray-200 flex items-center justify-center ${
-                      isPastWeek(weekStart) ? 'bg-white cell-past' : 'bg-white'
+                      isPastWeek(weekStart) ? 'cell-past' : 'bg-white'
                     }`}
                     style={{ width: WEEK_WIDTH }}
                     data-export-cell

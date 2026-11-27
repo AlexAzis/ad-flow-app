@@ -34,6 +34,7 @@ import ManageEventsModal from './ManageEventsModal';
 import EditCampaignModal from './EditCampaignModal';
 import type { DuplicateCampaignDetails } from './DuplicateCampaignModal';
 import MembersModal from './MembersModal';
+import { notify } from '@/components/common/Feedback';
 
 interface SimpleScheduleViewProps {
   scheduleId: string;
@@ -54,6 +55,26 @@ const PASTE_OFFSET_DAYS = 7;
 
 // Viewers can look but not touch: no adding, editing, moving or deleting
 const canEdit = (role: ScheduleRole) => role !== 'viewer';
+
+// Undo stores inverse operations per slice rather than whole-array snapshots,
+// so changes other members make between the action and the undo survive.
+interface UndoSlice<T> {
+  restore: T[]; // objects to write back (their pre-action values)
+  removeIds: string[]; // objects the action created, to delete on undo
+}
+interface UndoOp {
+  campaigns?: UndoSlice<Campaign>;
+  people?: UndoSlice<Person>;
+  events?: UndoSlice<Event>;
+  customTypes?: Record<string, string[]>;
+}
+
+const applyUndoSlice = <T extends { id: string }>(prev: T[], op: UndoSlice<T>) => {
+  const remove = new Set(op.removeIds);
+  const byId = new Map(prev.filter(x => !remove.has(x.id)).map(x => [x.id, x]));
+  op.restore.forEach(x => byId.set(x.id, x));
+  return Array.from(byId.values());
+};
 
 export default function SimpleScheduleView({
   scheduleId,
@@ -118,7 +139,7 @@ export default function SimpleScheduleView({
   const latestContent = useRef({ campaigns: allCampaigns, events: allEvents, people: allPeople, customEventTypes });
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const isMounted = useRef(true);
-  const undoStack = useRef<Event[][]>([]);
+  const undoStack = useRef<UndoOp[]>([]);
   const resizeGestureRef = useRef<{ eventId: string; pushed: boolean } | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const viewModeRef = useRef(viewMode);
@@ -346,7 +367,7 @@ export default function SimpleScheduleView({
       );
     } catch (error) {
       console.error('Export failed', error);
-      alert('Sorry, the export failed. Please try again.');
+      notify('Sorry, the export failed. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -362,7 +383,7 @@ export default function SimpleScheduleView({
   const getLockedCampaign = (campaignId: string) =>
     allCampaigns.find(c => c.id === campaignId && c.locked);
   const warnLocked = (campaign: Campaign) =>
-    alert(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`);
+    notify(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`, 'info');
 
   const handleAddEvent = (newEvent: Omit<Event, 'id'>) => {
     const locked = getLockedCampaign(newEvent.campaignId);
@@ -371,6 +392,7 @@ export default function SimpleScheduleView({
       ...newEvent,
       id: crypto.randomUUID(),
     };
+    pushUndo({ events: { restore: [], removeIds: [eventWithId.id] } });
     setAllEvents([...allEvents, eventWithId]);
   };
 
@@ -406,6 +428,7 @@ export default function SimpleScheduleView({
     const current = allEvents.find(e => e.id === id);
     const locked = (current && getLockedCampaign(current.campaignId)) || getLockedCampaign(updatedEvent.campaignId);
     if (locked) return warnLocked(locked);
+    if (current) pushUndo({ events: { restore: [current], removeIds: [] } });
     setAllEvents(allEvents.map(event =>
       event.id === id ? { ...updatedEvent, id } : event
     ));
@@ -415,6 +438,7 @@ export default function SimpleScheduleView({
     const current = allEvents.find(e => e.id === id);
     const locked = current && getLockedCampaign(current.campaignId);
     if (locked) return warnLocked(locked);
+    if (current) pushUndo({ events: { restore: [current], removeIds: [] } });
     setAllEvents(allEvents.filter(event => event.id !== id));
   };
 
@@ -439,8 +463,10 @@ export default function SimpleScheduleView({
   const handleAddCampaign = (newCampaign: Omit<Campaign, 'id'>) => {
     // Convert people names to IDs, creating people as needed
     let peopleIds = newCampaign.people;
+    let newPersonIds: string[] = [];
     if (newCampaign.people?.length) {
       const { ids, newPeople } = resolveNamesToIds(newCampaign.people, allPeople);
+      newPersonIds = newPeople.map(p => p.id);
       if (newPeople.length) setAllPeople(prev => [...prev, ...newPeople]);
       peopleIds = ids;
     }
@@ -449,17 +475,30 @@ export default function SimpleScheduleView({
       id: crypto.randomUUID(),
       people: peopleIds,
     };
+    pushUndo({
+      campaigns: { restore: [], removeIds: [campaignWithId.id] },
+      ...(newPersonIds.length ? { people: { restore: [], removeIds: newPersonIds } } : {}),
+    });
     setAllCampaigns([...allCampaigns, campaignWithId]);
   };
 
   const handleUpdateCampaign = (id: string, updatedCampaign: Omit<Campaign, 'id'>, replaceEventNames = false) => {
     let peopleIds = updatedCampaign.people;
+    let newPersonIds: string[] = [];
     if (updatedCampaign.people?.length) {
       const { ids, newPeople } = resolveNamesToIds(updatedCampaign.people, allPeople);
+      newPersonIds = newPeople.map(p => p.id);
       if (newPeople.length) setAllPeople(prev => [...prev, ...newPeople]);
       peopleIds = ids;
     }
     const finalPeopleIds = peopleIds ?? allCampaigns.find(c => c.id === id)?.people;
+    const oldCampaign = allCampaigns.find(c => c.id === id);
+    const rewritten = replaceEventNames ? allEvents.filter(e => e.campaignId === id && !e.isMisc) : [];
+    pushUndo({
+      campaigns: { restore: oldCampaign ? [oldCampaign] : [], removeIds: [] },
+      ...(rewritten.length ? { events: { restore: rewritten, removeIds: [] } } : {}),
+      ...(newPersonIds.length ? { people: { restore: [], removeIds: newPersonIds } } : {}),
+    });
     setAllCampaigns(allCampaigns.map(campaign =>
       campaign.id === id ? { ...updatedCampaign, id, people: peopleIds ?? campaign.people } : campaign
     ));
@@ -484,6 +523,11 @@ export default function SimpleScheduleView({
   const handleDeleteCampaign = (id: string) => {
     const locked = getLockedCampaign(id);
     if (locked) return warnLocked(locked);
+    const campaign = allCampaigns.find(c => c.id === id);
+    pushUndo({
+      campaigns: { restore: campaign ? [campaign] : [], removeIds: [] },
+      events: { restore: allEvents.filter(e => e.campaignId === id), removeIds: [] },
+    });
     setAllCampaigns(allCampaigns.filter(c => c.id !== id));
     setAllEvents(allEvents.filter(e => e.campaignId !== id));
   };
@@ -507,7 +551,7 @@ export default function SimpleScheduleView({
       setAllEvents(allEvents.filter(e => e.campaignId !== id));
     } catch (error) {
       console.error('Could not archive campaign', error);
-      alert('The campaign couldn’t be archived. Please try again.');
+      notify('The campaign couldn’t be archived. Please try again.');
     }
   };
 
@@ -536,6 +580,10 @@ export default function SimpleScheduleView({
         color: event.isMisc ? event.color : getStageColor(details.color, event.stage),
       }));
 
+    pushUndo({
+      campaigns: { restore: [], removeIds: [newCampaign.id] },
+      events: { restore: [], removeIds: duplicatedEvents.map(e => e.id) },
+    });
     setAllCampaigns(prev => [...prev, newCampaign]);
     setAllEvents(prev => [...prev, ...duplicatedEvents]);
   };
@@ -546,8 +594,14 @@ export default function SimpleScheduleView({
       name,
       role: 'Team Member',
     };
+    pushUndo({ people: { restore: [], removeIds: [newPerson.id] } });
     setAllPeople(prev => [...prev, newPerson]);
     return newPerson;
+  };
+
+  const handleUpdateCustomEventTypes = (next: Record<string, string[]>) => {
+    pushUndo({ customTypes: customEventTypes });
+    setCustomEventTypes(next);
   };
 
   const handleClearFilters = () => {
@@ -581,8 +635,8 @@ export default function SimpleScheduleView({
     });
   };
 
-  const pushEventUndo = () => {
-    undoStack.current = [...undoStack.current.slice(-49), allEvents];
+  const pushUndo = (op: UndoOp) => {
+    undoStack.current = [...undoStack.current.slice(-49), op];
   };
 
   const handleEventResizeStart = (eventId: string) => {
@@ -595,9 +649,12 @@ export default function SimpleScheduleView({
 
   const handleUndo = useCallback(() => {
     if (readOnly) return;
-    const previous = undoStack.current.pop();
-    if (!previous) return;
-    setAllEvents(previous);
+    const op = undoStack.current.pop();
+    if (!op) return;
+    if (op.campaigns) setAllCampaigns(prev => applyUndoSlice(prev, op.campaigns!));
+    if (op.people) setAllPeople(prev => applyUndoSlice(prev, op.people!));
+    if (op.events) setAllEvents(prev => applyUndoSlice(prev, op.events!));
+    if (op.customTypes) setCustomEventTypes(op.customTypes);
   }, [readOnly]);
 
   const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
@@ -609,7 +666,7 @@ export default function SimpleScheduleView({
     if (dayOffset === 0) return;
 
     const ids = new Set([draggedEventId, ...eventIds]);
-    pushEventUndo();
+    pushUndo({ events: { restore: allEvents.filter(e => ids.has(e.id)), removeIds: [] } });
     setAllEvents(allEvents.map(event => {
       if (!ids.has(event.id) || getLockedCampaign(event.campaignId)) return event;
       return {
@@ -631,7 +688,7 @@ export default function SimpleScheduleView({
 
     const gesture = resizeGestureRef.current;
     if (gesture?.eventId !== eventId || !gesture.pushed) {
-      pushEventUndo();
+      pushUndo({ events: { restore: [current], removeIds: [] } });
       if (gesture?.eventId === eventId) gesture.pushed = true;
     }
 
@@ -738,14 +795,15 @@ export default function SimpleScheduleView({
         .filter((pasted): pasted is Event => pasted !== null);
 
       if (pastedEvents.length === 0) {
-        if (skippedLocked) alert('Copied events belong to a locked campaign.');
+        if (skippedLocked) notify('Copied events belong to a locked campaign.', 'info');
         return;
       }
 
+      pushUndo({ events: { restore: [], removeIds: pastedEvents.map(pasted => pasted.id) } });
       setAllEvents(prev => [...prev, ...pastedEvents]);
       setSelectedEventIds(new Set(pastedEvents.map(pasted => pasted.id)));
       setClipboardEvents(pastedEvents.map(({ id, ...rest }) => rest));
-      if (skippedLocked) alert('Some copied events were skipped because their campaign is locked.');
+      if (skippedLocked) notify('Some copied events were skipped because their campaign is locked.', 'info');
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -769,7 +827,7 @@ export default function SimpleScheduleView({
     <div className="flex flex-col h-full min-w-0 w-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 min-w-0">
             {onBack && (
               <button
@@ -825,6 +883,9 @@ export default function SimpleScheduleView({
               >
                 <ChevronRight size={20} className="text-gray-600" />
               </button>
+              <span className="ml-1 text-sm font-medium text-gray-700 whitespace-nowrap tabular-nums">
+                {format(currentDate, 'MMM yyyy')}
+              </span>
             </div>
           </div>
 
@@ -1110,7 +1171,7 @@ export default function SimpleScheduleView({
         isOpen={isManageEventsModalOpen}
         onClose={() => setIsManageEventsModalOpen(false)}
         customEvents={customEventTypes}
-        onUpdateCustomEvents={setCustomEventTypes}
+        onUpdateCustomEvents={handleUpdateCustomEventTypes}
       />
 
       {/* Edit Campaign Modal */}

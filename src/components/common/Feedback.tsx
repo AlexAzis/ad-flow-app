@@ -9,10 +9,17 @@ import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 
 type Tone = 'error' | 'info' | 'success';
 
+interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 interface Toast {
   id: number;
   message: string;
   tone: Tone;
+  action?: ToastAction;
+  durationMs: number;
 }
 
 interface ConfirmRequest {
@@ -31,11 +38,15 @@ let confirmRequest: ConfirmRequest | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
 
-export function notify(message: string, tone: Tone = 'error') {
+export function notify(
+  message: string,
+  tone: Tone = 'error',
+  options?: { action?: ToastAction; durationMs?: number }
+) {
   const id = nextId++;
-  toasts = [...toasts, { id, message, tone }];
+  toasts = [...toasts, { id, message, tone, action: options?.action, durationMs: options?.durationMs ?? TOAST_MS }];
   emit();
-  setTimeout(() => dismiss(id), TOAST_MS);
+  setTimeout(() => dismiss(id), options?.durationMs ?? TOAST_MS);
 }
 
 function dismiss(id: number) {
@@ -145,6 +156,17 @@ export default function FeedbackHost() {
             >
               <Icon size={16} className={`flex-shrink-0 mt-0.5 ${className}`} />
               <p className="flex-1 text-sm text-gray-700">{toast.message}</p>
+              {toast.action && (
+                <button
+                  onClick={() => {
+                    toast.action!.run();
+                    dismiss(toast.id);
+                  }}
+                  className="flex-shrink-0 text-sm font-medium text-gray-900 hover:underline"
+                >
+                  {toast.action.label}
+                </button>
+              )}
               <button onClick={() => dismiss(toast.id)} className="text-gray-400 hover:text-gray-600" title="Dismiss">
                 <X size={14} />
               </button>

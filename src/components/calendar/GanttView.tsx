@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { format, addDays, isSameDay, differenceInDays, startOfDay } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getBlockColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
@@ -88,14 +88,25 @@ export default function GanttView({
     setEventDragData(e.dataTransfer, details);
   };
 
+  const [dropDay, setDropDay] = useState<string | null>(null);
+
+  // Delegated from the scroller: highlights the day column under the cursor
+  // and clears when the pointer is over anything that isn't a drop target
   const handleDragOver = (e: React.DragEvent) => {
+    const cell = e.target instanceof Element ? e.target.closest('[data-drop-day]') : null;
+    if (!cell) {
+      setDropDay(null);
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDropDay(cell.getAttribute('data-drop-day'));
   };
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
+    setDropDay(null);
     const payload = getEventDragData(e.dataTransfer);
     if (payload && onEventsDrop) {
       onEventsDrop(payload.draggedEventId, payload.eventIds, date);
@@ -110,7 +121,15 @@ export default function GanttView({
   const labelWidth = Math.max(200, ...visibleCampaigns.map(c => c.name.length * 7.5 + 40), 220);
 
   return (
-    <div className="h-full overflow-auto bg-white" ref={scrollerRef}>
+    <div
+      className="h-full overflow-auto bg-white"
+      ref={scrollerRef}
+      onDragOver={handleDragOver}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDay(null);
+      }}
+      onDragEnd={() => setDropDay(null)}
+    >
       <div style={{ width: labelWidth + days.length * DAY_WIDTH, minWidth: '100%' }}>
         {/* Sticky Date Header */}
         <div className="sticky top-0 z-20 flex h-14 bg-white border-b border-gray-200">
@@ -283,9 +302,9 @@ export default function GanttView({
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
                         [isPast && 'cell-past', (isWeekend || isBankHoliday) && 'cell-off'].filter(Boolean).join(' ')
-                      } ${isToday ? 'cell-today' : ''}`}
+                      } ${isToday ? 'cell-today' : ''} ${dropDay === day.toISOString() ? 'ring-2 ring-inset ring-blue-500' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
-                      onDragOver={handleDragOver}
+                      data-drop-day={day.toISOString()}
                       onDrop={(e) => handleDrop(e, day)}
                     />
                   );

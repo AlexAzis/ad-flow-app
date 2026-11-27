@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { format, addDays, isSameDay, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
 import { getBlockColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
@@ -99,14 +99,25 @@ export default function VerticalView({
     setEventDragData(e.dataTransfer, details);
   };
 
+  const [dropDay, setDropDay] = useState<string | null>(null);
+
+  // Delegated from the scroller: highlights the day row under the cursor and
+  // clears when the pointer is over anything that isn't a drop target
   const handleDragOver = (e: React.DragEvent) => {
+    const cell = e.target instanceof Element ? e.target.closest('[data-drop-day]') : null;
+    if (!cell) {
+      setDropDay(null);
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDropDay(cell.getAttribute('data-drop-day'));
   };
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
+    setDropDay(null);
     const payload = getEventDragData(e.dataTransfer);
     if (payload && onEventsDrop) {
       onEventsDrop(payload.draggedEventId, payload.eventIds, date);
@@ -117,7 +128,15 @@ export default function VerticalView({
     <div className="flex flex-col h-full max-h-full overflow-hidden">
       {/* Header and rows live inside one scroller with a shared content width,
           so the columns always line up (scrollbars included) */}
-      <div className="flex-1 overflow-auto min-h-0" ref={scrollerRef}>
+      <div
+        className="flex-1 overflow-auto min-h-0"
+        ref={scrollerRef}
+        onDragOver={handleDragOver}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDay(null);
+        }}
+        onDragEnd={() => setDropDay(null)}
+      >
         <div style={{ width: 'fit-content', minWidth: '100%' }}>
           {/* Header Row */}
           <div className="sticky top-0 z-20 flex h-12 border-b border-gray-200 bg-gray-50">
@@ -161,13 +180,13 @@ export default function VerticalView({
               key={day.toISOString()}
               className={`flex border-b border-gray-200 ${
                 [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off', isToday && 'cell-today'].filter(Boolean).join(' ')
-              }`}
+              } ${dropDay === day.toISOString() ? 'ring-2 ring-inset ring-blue-500' : ''}`}
               style={{ height: rowHeight }}
               data-export-cell
+              data-drop-day={day.toISOString()}
               data-view-start={index === scrollStartIdx ? true : undefined}
               data-export-start={index === exportStartIdx ? true : undefined}
               data-export-end={index === exportEndIdx ? true : undefined}
-              onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}
             >
               {/* Date Column */}

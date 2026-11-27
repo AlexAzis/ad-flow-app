@@ -52,6 +52,8 @@ interface SimpleScheduleViewProps {
 
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
 const SIDEBAR_KEY = 'argus:sidebarCollapsed';
+const viewPrefsKey = (scheduleId: string) => `argus:view:${scheduleId}`;
+const VIEW_MODES: ViewMode[] = ['grid', 'gantt', 'vertical', 'summary', 'team'];
 const SAVE_DELAY_MS = 400;
 const PASTE_OFFSET_DAYS = 7;
 
@@ -129,6 +131,21 @@ export default function SimpleScheduleView({
       return !prev;
     });
   };
+
+  // Reopen each schedule on the view and zoom it was last left on
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(viewPrefsKey(scheduleId)) || 'null');
+      if (saved && VIEW_MODES.includes(saved.view)) setViewMode(saved.view);
+      if (typeof saved?.zoom === 'number' && saved.zoom >= 0.5 && saved.zoom <= 1.5) setZoom(saved.zoom);
+    } catch {
+      // Malformed prefs just fall back to the defaults
+    }
+  }, [scheduleId]);
+
+  useEffect(() => {
+    localStorage.setItem(viewPrefsKey(scheduleId), JSON.stringify({ view: viewMode, zoom }));
+  }, [scheduleId, viewMode, zoom]);
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<{ name: string; view?: string }[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
@@ -454,8 +471,12 @@ export default function SimpleScheduleView({
     const current = allEvents.find(e => e.id === id);
     const locked = current && getLockedCampaign(current.campaignId);
     if (locked) return warnLocked(locked);
-    if (current) pushUndo({ events: { restore: [current], removeIds: [] } });
+    const op = current ? pushUndo({ events: { restore: [current], removeIds: [] } }) : undefined;
     setAllEvents(allEvents.filter(event => event.id !== id));
+    if (op) notify('Event deleted.', 'info', {
+      action: { label: 'Undo', run: () => undoFromToast(op) },
+      durationMs: 8000,
+    });
   };
 
   // Convert people names to person IDs, creating people as needed
@@ -540,12 +561,16 @@ export default function SimpleScheduleView({
     const locked = getLockedCampaign(id);
     if (locked) return warnLocked(locked);
     const campaign = allCampaigns.find(c => c.id === id);
-    pushUndo({
+    const op = pushUndo({
       campaigns: { restore: campaign ? [campaign] : [], removeIds: [] },
       events: { restore: allEvents.filter(e => e.campaignId === id), removeIds: [] },
     });
     setAllCampaigns(allCampaigns.filter(c => c.id !== id));
     setAllEvents(allEvents.filter(e => e.campaignId !== id));
+    notify('Campaign deleted.', 'info', {
+      action: { label: 'Undo', run: () => undoFromToast(op) },
+      durationMs: 8000,
+    });
   };
 
   const handleArchiveCampaign = async (id: string) => {
@@ -651,8 +676,9 @@ export default function SimpleScheduleView({
     });
   };
 
-  const pushUndo = (op: UndoOp) => {
+  const pushUndo = (op: UndoOp): UndoOp => {
     undoStack.current = [...undoStack.current.slice(-49), op];
+    return op;
   };
 
   const handleEventResizeStart = (eventId: string) => {
@@ -663,15 +689,27 @@ export default function SimpleScheduleView({
     resizeGestureRef.current = null;
   };
 
-  const handleUndo = useCallback(() => {
-    if (readOnly) return;
-    const op = undoStack.current.pop();
-    if (!op) return;
+  const applyUndoOp = useCallback((op: UndoOp) => {
     if (op.campaigns) setAllCampaigns(prev => applyUndoSlice(prev, op.campaigns!));
     if (op.people) setAllPeople(prev => applyUndoSlice(prev, op.people!));
     if (op.events) setAllEvents(prev => applyUndoSlice(prev, op.events!));
     if (op.customTypes) setCustomEventTypes(op.customTypes);
-  }, [readOnly]);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (readOnly) return;
+    const op = undoStack.current.pop();
+    if (op) applyUndoOp(op);
+  }, [readOnly, applyUndoOp]);
+
+  // Toast "Undo" reverses that specific operation rather than whatever is on
+  // top of the stack. It only applies while the op is still pending, so a
+  // stale toast can't resurrect something already undone or re-deleted.
+  const undoFromToast = (op: UndoOp) => {
+    if (!undoStack.current.includes(op)) return;
+    undoStack.current = undoStack.current.filter(o => o !== op);
+    applyUndoOp(op);
+  };
 
   const handleEventsDrop = (draggedEventId: string, eventIds: string[], newDate: Date) => {
     if (readOnly) return;
@@ -885,7 +923,7 @@ export default function SimpleScheduleView({
     <div className="flex flex-col h-full min-w-0 w-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-4 min-w-0">
             {onBack && (
               <button
@@ -896,20 +934,20 @@ export default function SimpleScheduleView({
                 <ArrowLeft size={20} className="text-gray-600" />
               </button>
             )}
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-gray-800">{scheduleName}</h1>
-              <span className="text-xs font-medium text-white bg-gray-900 px-2.5 py-1 rounded-full flex items-center gap-1">
+            <div className="flex items-center gap-3 min-w-0">
+              <h1 className="text-xl font-semibold text-gray-800 truncate">{scheduleName}</h1>
+              <span className="hidden sm:flex text-xs font-medium text-white bg-gray-900 px-2.5 py-1 rounded-full items-center gap-1 flex-shrink-0">
                 <ShieldCheck size={11} />
                 {roleLabel[role]}
               </span>
               {readOnly ? (
-                <span className="text-xs text-gray-400 whitespace-nowrap">Read-only</span>
+                <span className="hidden sm:inline text-xs text-gray-400 whitespace-nowrap">Read-only</span>
               ) : saveState === 'error' ? (
-                <button onClick={saveNow} className="text-xs text-red-600 underline whitespace-nowrap">
+                <button onClick={saveNow} className="hidden sm:inline text-xs text-red-600 underline whitespace-nowrap">
                   Couldn’t save. Retry
                 </button>
               ) : (
-                <span className="text-xs text-gray-400 whitespace-nowrap">
+                <span className="hidden sm:inline text-xs text-gray-400 whitespace-nowrap">
                   {saveState === 'saving' ? 'Saving…' : 'Saved'}
                 </span>
               )}
@@ -952,6 +990,9 @@ export default function SimpleScheduleView({
               <img src={scheduleLogoUrl} alt={scheduleName} className="max-h-[72px] max-w-full object-contain" />
             </div>
           )}
+          {/* Below the breakpoint that fits everything on one line, the
+              controls drop to a second row, right-aligned */}
+          <div className={`flex justify-end w-full ${sidebarCollapsed ? 'min-[1280px]:contents' : 'min-[1480px]:contents'}`}>
           <div className="flex items-center gap-2 flex-shrink-0">
             <div className="flex flex-col items-center gap-0.5">
               <div className="flex items-center justify-center gap-1.5">
@@ -1028,7 +1069,7 @@ export default function SimpleScheduleView({
                 <span className="h-px w-4 bg-gray-300" />
               </div>
             <div className="flex items-start gap-1 bg-gray-100 rounded-lg p-1">
-              {(['grid', 'gantt', 'vertical', 'summary', 'team'] as ViewMode[]).map(mode => (
+              {VIEW_MODES.map(mode => (
                 <div key={mode} className="flex flex-col items-center">
                   <button
                     onClick={() => setViewMode(mode)}
@@ -1050,6 +1091,7 @@ export default function SimpleScheduleView({
               ))}
             </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

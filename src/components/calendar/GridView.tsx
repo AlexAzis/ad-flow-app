@@ -96,6 +96,7 @@ export default function GridView({
   } | null>(null);
   const resizeStateRef = useRef(resizeState);
   resizeStateRef.current = resizeState;
+  const [dropDay, setDropDay] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resizeState) return;
@@ -201,14 +202,23 @@ export default function GridView({
     });
   };
 
+  // Delegated from the scroller: highlights the day cell under the cursor and
+  // clears when the pointer is over anything that isn't a drop target
   const handleDragOver = (e: React.DragEvent) => {
+    const cell = e.target instanceof Element ? e.target.closest('[data-drop-day]') : null;
+    if (!cell) {
+      setDropDay(null);
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDropDay(cell.getAttribute('data-drop-day'));
   };
 
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
+    setDropDay(null);
     const payload = getEventDragData(e.dataTransfer);
     if (payload && onEventsDrop) {
       onEventsDrop(payload.draggedEventId, payload.eventIds, date);
@@ -322,7 +332,15 @@ export default function GridView({
   return (
     <div className="flex flex-col min-w-0 h-full pr-3">
       {/* Calendar Grid */}
-      <div className="flex-1 overflow-auto" ref={gridRef}>
+      <div
+        className="flex-1 overflow-auto"
+        ref={gridRef}
+        onDragOver={handleDragOver}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDay(null);
+        }}
+        onDragEnd={() => setDropDay(null)}
+      >
         {/* Weekday Header: inside the scroller so its columns always match the
             grid width, including when a scrollbar appears */}
         <div className="sticky top-0 z-20 flex h-10 border-b border-gray-200 bg-gray-50">
@@ -407,9 +425,9 @@ export default function GridView({
                       key={day.toISOString()}
                       className={`flex-1 border-r border-gray-200 h-full relative ${
                         [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off', isToday && 'cell-today'].filter(Boolean).join(' ')
-                      }`}
+                      } ${dropDay === day.toISOString() ? 'ring-2 ring-inset ring-blue-500' : ''}`}
+                      data-drop-day={day.toISOString()}
                       onDoubleClick={() => onDateClick(day)}
-                      onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
                     >
                       {/* Date number + misc lozenges on one aligned row */}

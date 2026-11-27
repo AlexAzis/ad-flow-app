@@ -52,6 +52,15 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
 
   const handleNewSchedule = () => setIsNewScheduleOpen(true);
 
+  const scheduleCount = schedules?.length ?? 0;
+  const ownedCount = schedules?.filter(s => s.role === 'owner').length ?? 0;
+  const sharedCount = scheduleCount - ownedCount;
+  const statsText = scheduleCount === 0
+    ? ''
+    : sharedCount > 0
+      ? `${scheduleCount} ${scheduleCount === 1 ? 'schedule' : 'schedules'} · ${ownedCount} owned · ${sharedCount} shared`
+      : `${scheduleCount} ${scheduleCount === 1 ? 'schedule' : 'schedules'} · all owned`;
+
   return (
     <div className="h-full w-full flex bg-gray-50">
       {/* Left Sidebar */}
@@ -109,7 +118,10 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-lg font-semibold text-gray-800">Schedules</h1>
+          <div>
+            <h1 className="text-lg font-semibold text-gray-800">Dashboard</h1>
+            {statsText && <p className="text-xs text-gray-500 mt-0.5">{statsText}</p>}
+          </div>
           <div className="flex items-center gap-3">
             {isAdmin && (
               <button
@@ -179,17 +191,33 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
             </div>
           )}
           {schedules?.length === 0 && (
-            <p className="text-sm text-gray-500">You don’t have any schedules yet. Create one to get started.</p>
+            <div className="h-full flex items-center justify-center">
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-8 py-10 text-center max-w-sm">
+                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                  <LayoutDashboard size={22} className="text-gray-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-800">No schedules yet</h3>
+                <p className="mt-1 text-sm text-gray-500">Create a schedule to start planning campaigns and blocks.</p>
+                <button
+                  onClick={handleNewSchedule}
+                  className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium inline-flex items-center gap-2"
+                >
+                  <Plus size={15} />
+                  New schedule
+                </button>
+              </div>
+            </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {(schedules ?? []).map((schedule) => (
+            {(schedules ?? []).map((schedule, index) => (
               <div
                 key={schedule.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => onOpenSchedule(schedule)}
                 onKeyDown={(e) => e.key === 'Enter' && onOpenSchedule(schedule)}
-                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md transition-shadow h-40 flex flex-col cursor-pointer"
+                className="card-enter bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 transition-all duration-200 h-40 flex flex-col cursor-pointer"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
                 {/* Card Header */}
                 <div className="flex items-start justify-between mb-3">

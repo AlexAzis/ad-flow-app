@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings, LayoutDashboard } from 'lucide-react';
-import { scheduleColor } from '@/lib/colorUtils';
+import { scheduleAccent } from '@/lib/colorUtils';
 import { acceptScheduleInvites, checkIsSiteAdmin, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
 import AdminOverviewModal from './AdminOverviewModal';
 import InviteUserModal from './InviteUserModal';
@@ -130,7 +130,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
               ) : (
                 <div
                   className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: scheduleColor(schedule.id) }}
+                  style={{ backgroundColor: scheduleAccent(schedule) }}
                 >
                   <span className="text-white text-[10px] font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
                 </div>
@@ -249,7 +249,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 style={{
                   animationDelay: `${Math.min(index, 8) * 40}ms`,
                   borderTopWidth: '4px',
-                  borderTopColor: scheduleColor(schedule.id),
+                  borderTopColor: scheduleAccent(schedule),
                 }}
               >
                 {/* Card Header */}
@@ -263,7 +263,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                   ) : (
                     <div
                       className="w-12 h-12 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: scheduleColor(schedule.id) }}
+                      style={{ backgroundColor: scheduleAccent(schedule) }}
                     >
                       <span className="text-white font-bold">{schedule.name.charAt(0).toUpperCase()}</span>
                     </div>

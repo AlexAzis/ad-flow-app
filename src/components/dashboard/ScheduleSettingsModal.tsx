@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import MembersPanel from '@/components/common/MembersPanel';
 import ArchivedCampaignsModal from './ArchivedCampaignsModal';
-import { scheduleColor } from '@/lib/colorUtils';
+import { campaignColors, scheduleAccent } from '@/lib/colorUtils';
 import {
   deleteSchedule,
   removeScheduleLogo,
@@ -33,6 +33,7 @@ export default function ScheduleSettingsModal({
   const canEdit = schedule.role === 'owner';
   const [name, setName] = useState(schedule.name);
   const [description, setDescription] = useState(schedule.description ?? '');
+  const [color, setColor] = useState(() => scheduleAccent(schedule));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoRemoved, setLogoRemoved] = useState(false);
@@ -52,6 +53,7 @@ export default function ScheduleSettingsModal({
   };
 
   const shownLogo = logoPreview ?? (logoRemoved ? null : schedule.logoUrl);
+  const accentColor = scheduleAccent(schedule);
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -59,8 +61,16 @@ export default function ScheduleSettingsModal({
     setError('');
     setIsBusy(true);
     try {
-      if (trimmed !== schedule.name || description !== (schedule.description ?? '')) {
-        await updateScheduleDetails(schedule.id, { name: trimmed, description: description.trim() || null });
+      const detailsChanged =
+        trimmed !== schedule.name ||
+        description !== (schedule.description ?? '') ||
+        color !== accentColor;
+      if (detailsChanged) {
+        await updateScheduleDetails(schedule.id, {
+          name: trimmed,
+          description: description.trim() || null,
+          color,
+        });
       }
       if (logoFile) {
         await uploadScheduleLogo(schedule.id, logoFile);
@@ -126,7 +136,7 @@ export default function ScheduleSettingsModal({
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center"
-                    style={{ backgroundColor: scheduleColor(schedule.id) }}
+                    style={{ backgroundColor: color }}
                   >
                     <span className="text-white font-bold">{name.charAt(0).toUpperCase() || schedule.name.charAt(0).toUpperCase()}</span>
                   </div>
@@ -162,6 +172,34 @@ export default function ScheduleSettingsModal({
               />
             </div>
             <p className="text-xs text-gray-500 mt-2">Shown on the schedule card instead of the coloured letter.</p>
+          </div>
+
+          {/* Colour */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Schedule colour</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Used for the card accent and letter tile on the dashboard.
+            </p>
+            <div className="grid grid-cols-7 gap-2">
+              {campaignColors.map(colorOption => {
+                const isSelected = color === colorOption;
+                return (
+                  <button
+                    key={colorOption}
+                    type="button"
+                    onClick={() => setColor(colorOption)}
+                    disabled={!canEdit}
+                    className={`w-9 h-9 rounded-full border-2 transition-all ${
+                      isSelected
+                        ? 'border-gray-900 scale-110'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } disabled:cursor-default`}
+                    style={{ backgroundColor: colorOption }}
+                    title="Select this colour"
+                  />
+                );
+              })}
+            </div>
           </div>
 
           {/* Name & description */}

@@ -13,6 +13,7 @@ create table public.schedules (
   name text not null,
   description text,
   logo_url text,
+  color text,
   created_by uuid not null default auth.uid() references auth.users(id),
   created_at timestamptz not null default now()
 );

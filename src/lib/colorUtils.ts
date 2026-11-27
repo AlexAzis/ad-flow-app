@@ -20,6 +20,10 @@ export const campaignColors = [
 export const scheduleColor = (id: string) =>
   campaignColors[Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % campaignColors.length];
 
+// A schedule's chosen accent colour, or the derived one when none is stored
+export const scheduleAccent = (schedule: { id: string; color?: string | null }) =>
+  schedule.color ?? scheduleColor(schedule.id);
+
 export interface ColorShades {
   base: string;
   creativeDev: string;

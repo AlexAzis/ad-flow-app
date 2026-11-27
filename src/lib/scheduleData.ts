@@ -11,6 +11,7 @@ export interface ScheduleSummary {
   name: string;
   description: string | null;
   logoUrl: string | null;
+  color: string | null;
   role: ScheduleRole;
   memberCount: number;
 }
@@ -27,7 +28,7 @@ const PAGE_SIZE = 1000;
 export async function listSchedules(userId: string): Promise<ScheduleSummary[]> {
   const { data, error } = await supabase
     .from('schedules')
-    .select('id, name, description, logo_url, schedule_members(user_id, role)')
+    .select('id, name, description, logo_url, color, schedule_members(user_id, role)')
     .order('created_at');
   if (error) throw error;
   return (data ?? []).map(row => {
@@ -37,6 +38,7 @@ export async function listSchedules(userId: string): Promise<ScheduleSummary[]> 
       name: row.name,
       description: row.description,
       logoUrl: row.logo_url,
+      color: row.color ?? null,
       role: members.find(m => m.user_id === userId)?.role ?? 'viewer',
       memberCount: members.length,
     };
@@ -52,11 +54,16 @@ export async function createSchedule(name: string): Promise<string> {
 
 export async function updateScheduleDetails(
   scheduleId: string,
-  fields: { name: string; description: string | null }
+  fields: { name: string; description: string | null; color?: string }
 ): Promise<void> {
+  const update: { name: string; description: string | null; color?: string } = {
+    name: fields.name,
+    description: fields.description,
+  };
+  if (fields.color !== undefined) update.color = fields.color;
   const { error } = await supabase
     .from('schedules')
-    .update({ name: fields.name, description: fields.description })
+    .update(update)
     .eq('id', scheduleId);
   if (error) throw error;
 }

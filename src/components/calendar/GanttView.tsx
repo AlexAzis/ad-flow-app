@@ -127,7 +127,7 @@ export default function GanttView({
                 <div
                   key={day.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-200 flex flex-col items-center justify-center ${
-                    isWeekend ? 'cell-off' : 'bg-white'
+                    isToday ? 'cell-today' : isWeekend ? 'cell-off' : 'bg-white'
                   }`}
                   style={{ width: DAY_WIDTH }}
                   data-export-cell
@@ -136,7 +136,7 @@ export default function GanttView({
                   data-export-end={index === exportEndIdx ? true : undefined}
                 >
                   {showMonth && (
-                    <span className="text-[9px] font-semibold text-gray-500 uppercase leading-none mb-0.5">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase leading-none mb-0.5">
                       {format(day, 'MMM')}
                     </span>
                   )}
@@ -149,7 +149,7 @@ export default function GanttView({
                   >
                     {format(day, 'd')}
                   </span>
-                  <span className="text-[9px] text-gray-500 leading-none mt-0.5">{format(day, 'EEE')}</span>
+                  <span className="text-[10px] text-gray-500 leading-none mt-0.5">{format(day, 'EEE')}</span>
                 </div>
               );
             })}
@@ -197,7 +197,7 @@ export default function GanttView({
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
                         [isPast && 'cell-past', (isWeekend || isBankHoliday) && 'cell-off'].filter(Boolean).join(' ')
-                      } ${isToday ? 'bg-blue-50' : ''}`}
+                      } ${isToday ? 'cell-today' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                     />
                   );
@@ -208,7 +208,7 @@ export default function GanttView({
                     <div
                       key={event.id}
                       className="absolute rounded px-2 text-xs overflow-hidden bg-gray-200 flex flex-col justify-center"
-                      title={blockTooltip(event)}
+                      data-tooltip={blockTooltip(event)}
                       style={{
                         top: 8 + lane * 44,
                         left: startOffset * DAY_WIDTH + 1,
@@ -283,7 +283,7 @@ export default function GanttView({
                       key={day.toISOString()}
                       className={`absolute top-0 bottom-0 border-r border-gray-100 ${
                         [isPast && 'cell-past', (isWeekend || isBankHoliday) && 'cell-off'].filter(Boolean).join(' ')
-                      } ${isToday ? 'bg-blue-50' : ''}`}
+                      } ${isToday ? 'cell-today' : ''}`}
                       style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, day)}
@@ -314,7 +314,7 @@ export default function GanttView({
                         backgroundColor: eventColor,
                         boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                       }}
-                      title={blockTooltip(event, { campaign: campaign.name, people: personNames })}
+                      data-tooltip={blockTooltip(event, { campaign: campaign.name, people: personNames })}
                       data-selected-event={isSelected || undefined}
                       draggable={!campaign.locked}
                       onDragStart={(e) => handleDragStart(e, event)}
@@ -334,7 +334,7 @@ export default function GanttView({
                       </div>
                       {(showPeople || showEventNotes) && (
                         <div
-                          className="truncate text-[9px] leading-tight"
+                          className="truncate text-[10px] leading-tight"
                           style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                         >
                           {showPeople && personNames && <span>{personNames}</span>}

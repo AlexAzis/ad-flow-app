@@ -1,5 +1,6 @@
 'use client';
 
+import DismissLayer, { closeOnBackdrop } from '@/components/common/DismissLayer';
 import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Unlock, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Campaign, Person } from '@/lib/types';
@@ -145,7 +146,8 @@ export default function EditCampaignModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onMouseDown={closeOnBackdrop(onClose)}>
+        <DismissLayer onClose={onClose} />
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
@@ -372,7 +374,8 @@ export default function EditCampaignModal({
     </div>
 
       {showDeleteOptions && campaign && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onMouseDown={closeOnBackdrop(() => setShowDeleteOptions(false))}>
+          <DismissLayer onClose={() => setShowDeleteOptions(false)} />
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete campaign?</h3>
             <p className="text-sm text-gray-600 mb-5">

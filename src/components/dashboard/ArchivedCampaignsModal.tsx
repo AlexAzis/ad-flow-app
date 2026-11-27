@@ -1,5 +1,6 @@
 'use client';
 
+import DismissLayer, { closeOnBackdrop } from '@/components/common/DismissLayer';
 import { notify, confirmAction } from '@/components/common/Feedback';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
@@ -157,7 +158,8 @@ export default function ArchivedCampaignsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onMouseDown={closeOnBackdrop(onClose)}>
+      <DismissLayer onClose={onClose} />
       <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
@@ -264,7 +266,8 @@ export default function ArchivedCampaignsModal({
       </div>
 
       {isReinstating && selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onMouseDown={closeOnBackdrop(() => setIsReinstating(false))}>
+          <DismissLayer onClose={() => setIsReinstating(false)} />
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-1">Reinstate campaign</h3>
             <p className="text-sm text-gray-600 mb-5">

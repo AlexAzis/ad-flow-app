@@ -1,5 +1,6 @@
 'use client';
 
+import DismissLayer, { closeOnBackdrop } from '@/components/common/DismissLayer';
 import { useState } from 'react';
 import { X, Mail, UserPlus } from 'lucide-react';
 import { inviteNewUser } from '@/lib/scheduleData';
@@ -48,7 +49,8 @@ export default function InviteUserModal({ isOpen, onClose }: InviteUserModalProp
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onMouseDown={closeOnBackdrop(handleClose)}>
+      <DismissLayer onClose={handleClose} />
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">

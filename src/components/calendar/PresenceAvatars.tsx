@@ -31,7 +31,7 @@ export default function PresenceAvatars({ users, size = 'md' }: PresenceAvatarsP
   if (size === 'sm' && users.length > 3) {
     return (
       <div className="flex items-center" title={users.join('\n')}>
-        <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold text-white bg-gray-800 border border-white">
+        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold text-white bg-gray-800 border border-white">
           {users.length}
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function PresenceAvatars({ users, size = 'md' }: PresenceAvatarsP
   const overflow = users.length - shown.length;
   const dot =
     size === 'sm'
-      ? 'w-4 h-4 text-[7px] border'
+      ? 'w-5 h-5 text-[10px] border'
       : 'w-6 h-6 text-[10px] border-2';
   return (
     <div className="flex items-center" title={`${users.length} online`}>

@@ -167,7 +167,17 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
         {/* Schedule Cards */}
         <div className="flex-1 overflow-auto p-6">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-          {!error && schedules === null && <p className="text-sm text-gray-500">Loading schedules…</p>}
+          {!error && schedules === null && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse" aria-label="Loading schedules">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 h-40 flex flex-col">
+                  <div className="w-12 h-12 rounded-lg bg-gray-200" />
+                  <div className="mt-4 h-3.5 w-2/3 rounded bg-gray-200" />
+                  <div className="mt-2 h-3 w-1/3 rounded bg-gray-100" />
+                </div>
+              ))}
+            </div>
+          )}
           {schedules?.length === 0 && (
             <p className="text-sm text-gray-500">You don’t have any schedules yet. Create one to get started.</p>
           )}

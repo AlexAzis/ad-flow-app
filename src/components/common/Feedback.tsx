@@ -87,12 +87,16 @@ export default function FeedbackHost() {
 
   useEffect(() => {
     if (!confirmRequest) return;
+    // Capture phase so Esc/Enter answer the confirm without also reaching a
+    // pop-up underneath it
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') settleConfirm(false);
-      if (e.key === 'Enter') settleConfirm(true);
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      e.preventDefault();
+      e.stopPropagation();
+      settleConfirm(e.key === 'Enter');
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   });
 
   const request = confirmRequest;

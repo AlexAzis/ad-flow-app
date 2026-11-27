@@ -160,7 +160,7 @@ export default function VerticalView({
             <div
               key={day.toISOString()}
               className={`flex border-b border-gray-200 ${
-                [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off'].filter(Boolean).join(' ')
+                [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off', isToday && 'cell-today'].filter(Boolean).join(' ')
               }`}
               style={{ height: rowHeight }}
               data-export-cell
@@ -183,7 +183,7 @@ export default function VerticalView({
                     {format(day, 'd MMM')}
                   </span>
                   {bankHolidayName && (
-                    <span className="text-[9px] text-gray-400 block mt-0.5">{bankHolidayName}</span>
+                    <span className="text-[10px] leading-tight text-gray-400 block mt-0.5">{bankHolidayName}</span>
                   )}
                 </div>
               </div>
@@ -212,7 +212,7 @@ export default function VerticalView({
                             backgroundColor: eventColor,
                             boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                           }}
-                          title={blockTooltip(event, { campaign: campaign.name, people: personNames })}
+                          data-tooltip={blockTooltip(event, { campaign: campaign.name, people: personNames })}
                           data-selected-event={isSelected || undefined}
                           draggable={!campaign.locked}
                           onDragStart={(e) => handleDragStart(e, event)}
@@ -232,7 +232,7 @@ export default function VerticalView({
                           </div>
                           {(showPeople || showEventNotes) && (
                             <div
-                              className="truncate text-[9px] leading-tight"
+                              className="truncate text-[10px] leading-tight"
                               style={{ color: event.stage === 'Delivery' && !eventIsPast ? 'rgba(255,255,255,0.8)' : getSubTextColor(eventColor) }}
                             >
                               {showPeople && personNames && <span>{personNames}</span>}
@@ -255,7 +255,7 @@ export default function VerticalView({
                     <div
                       key={event.id}
                       className="rounded px-2 text-xs h-8 bg-gray-200 flex-1 min-w-0 overflow-hidden flex flex-col justify-center"
-                      title={blockTooltip(event)}
+                      data-tooltip={blockTooltip(event)}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);

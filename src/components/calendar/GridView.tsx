@@ -314,8 +314,8 @@ export default function GridView({
   );
   const monthLabel = (date: Date, small?: boolean) => (
     <span className="flex flex-col items-center leading-tight">
-      <span className={`${small ? 'text-[8px]' : 'text-[11px]'} font-medium text-gray-700`}>{format(date, 'MMM')}</span>
-      <span className={`${small ? 'text-[7px]' : 'text-[9px]'} text-gray-500`}>{format(date, 'yyyy')}</span>
+      <span className={`${small ? 'text-[10px]' : 'text-[11px]'} font-medium text-gray-700`}>{format(date, 'MMM')}</span>
+      <span className={`text-[10px] text-gray-500`}>{format(date, 'yyyy')}</span>
     </span>
   );
 
@@ -406,7 +406,7 @@ export default function GridView({
                     <div
                       key={day.toISOString()}
                       className={`flex-1 border-r border-gray-200 h-full relative ${
-                        [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off'].filter(Boolean).join(' ')
+                        [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off', isToday && 'cell-today'].filter(Boolean).join(' ')
                       }`}
                       onDoubleClick={() => onDateClick(day)}
                       onDragOver={handleDragOver}
@@ -436,7 +436,7 @@ export default function GridView({
                                   key={event.id}
                                   className="rounded-full px-1.5 text-[11px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 truncate max-w-full"
                                   style={{ height: MISC_PILL_HEIGHT, lineHeight: `${MISC_PILL_HEIGHT}px` }}
-                                  title={blockTooltip(event)}
+                                  data-tooltip={blockTooltip(event)}
                                   onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     if (onEventDoubleClick) onEventDoubleClick(event);
@@ -453,7 +453,7 @@ export default function GridView({
                       {/* Bank Holiday label - centered, in line with date number */}
                       {bankHolidayName && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <span className="text-[9px] text-gray-400 whitespace-nowrap">
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">
                             {bankHolidayName}
                           </span>
                         </div>
@@ -483,7 +483,7 @@ export default function GridView({
                         backgroundColor: eventColor,
                         boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                       }}
-                      title={blockTooltip(event, { campaign: campaign?.name, people: personNames })}
+                      data-tooltip={blockTooltip(event, { campaign: campaign?.name, people: personNames })}
                       data-selected-event={isSelected || undefined}
                       draggable={!resizeState && !campaign?.locked}
                       onDragStart={(e) => handleDragStart(e, event)}

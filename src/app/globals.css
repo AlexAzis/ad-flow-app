@@ -27,12 +27,16 @@ body {
 }
 
 /* Calendar cell backgrounds: weekends and bank holidays share one light
-   shade; past days are a solid grey, declared last so it wins on past
-   weekends */
+   shade; past days are a solid grey; today gets a faint blue tint in every
+   view. Later rules win, so today beats weekend and past beats weekend */
 .cell-off {
   background-color: #f6f7f9;
 }
 
 .cell-past {
   background-color: #ebedf0;
+}
+
+.cell-today {
+  background-color: #eff6ff;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot, Lock } from 'lucide-react';
+import { Filter, Plus, Settings, StickyNote, Users, CalendarX, CircleDot, Lock, PanelLeftClose, PanelLeftOpen, Keyboard } from 'lucide-react';
 import { Campaign, Person, Event } from '@/lib/types';
 import { getAllStages } from '@/lib/eventTypes';
 import { getEventTitles } from '@/lib/eventTitles';
@@ -31,6 +31,9 @@ interface FilterSidebarProps {
   onNewCampaign?: () => void;
   onManageEvents?: () => void;
   onClearFilters?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  onShowShortcuts?: () => void;
 }
 
 export default function FilterSidebar({
@@ -57,6 +60,9 @@ export default function FilterSidebar({
   onNewCampaign,
   onManageEvents,
   onClearFilters,
+  collapsed = false,
+  onToggleCollapsed,
+  onShowShortcuts,
 }: FilterSidebarProps) {
   // Only show event titles used by the selected campaigns, grouped by stage.
   // With no campaign filter selected, every used event title remains available.
@@ -102,22 +108,60 @@ export default function FilterSidebar({
     </button>
   );
 
+  const hasActiveFilters =
+    selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0;
+
+  // Collapsed: a thin rail that gives the schedule the room back. The dot
+  // shows filters are still applied while hidden.
+  if (collapsed) {
+    return (
+      <aside className="w-11 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-3 h-full">
+        <button
+          onClick={onToggleCollapsed}
+          className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600"
+          title="Show filters"
+        >
+          <PanelLeftOpen size={18} />
+        </button>
+        <button
+          onClick={onToggleCollapsed}
+          className="relative p-1.5 hover:bg-gray-100 rounded-lg text-gray-600"
+          title={hasActiveFilters ? 'Filters applied' : 'Filters'}
+        >
+          <Filter size={16} />
+          {hasActiveFilters && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-gray-900 border border-white" />}
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="w-[230px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Filter size={16} className="text-gray-700" />
           <span className="font-semibold text-gray-800 text-sm">Filters</span>
         </div>
-        {(selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0) && (
-          <button
-            onClick={onClearFilters}
-            className="text-xs text-gray-500 hover:text-gray-800 font-medium"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <button
+              onClick={onClearFilters}
+              className="text-xs text-gray-500 hover:text-gray-800 font-medium"
+            >
+              Clear all
+            </button>
+          )}
+          {onToggleCollapsed && (
+            <button
+              onClick={onToggleCollapsed}
+              className="p-1 hover:bg-gray-100 rounded-lg text-gray-500"
+              title="Hide filters"
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -246,6 +290,16 @@ export default function FilterSidebar({
             >
               <Settings size={16} />
               <span>Manage Events</span>
+            </button>
+          )}
+          {onShowShortcuts && (
+            <button
+              onClick={onShowShortcuts}
+              className="w-full flex items-center justify-center gap-1.5 pt-1 text-xs text-gray-500 hover:text-gray-800"
+            >
+              <Keyboard size={13} />
+              <span>Keyboard shortcuts</span>
+              <kbd className="ml-0.5 px-1 rounded border border-gray-300 text-[10px] leading-4 font-sans">?</kbd>
             </button>
           )}
         </div>

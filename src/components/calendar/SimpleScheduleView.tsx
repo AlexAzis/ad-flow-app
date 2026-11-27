@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Plus, Minus, ArrowLeft, ShieldCheck, Users, FilterX, CalendarPlus, LayoutGrid } from 'lucide-react';
 import { Event, Campaign, Person, ViewMode } from '@/lib/types';
 import { format, addDays, addMonths, differenceInCalendarDays, startOfMonth } from 'date-fns';
 import {
@@ -27,6 +27,7 @@ import VerticalView from './VerticalView';
 import SummaryView from './SummaryView';
 import TeamView from './TeamView';
 import FilterSidebar from './FilterSidebar';
+import ShortcutsModal from './ShortcutsModal';
 import AddEventModal from './AddEventModal';
 import EditEventModal from './EditEventModal';
 import NewCampaignModal from './NewCampaignModal';
@@ -50,6 +51,7 @@ interface SimpleScheduleViewProps {
 }
 
 const roleLabel = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+const SIDEBAR_KEY = 'argus:sidebarCollapsed';
 const SAVE_DELAY_MS = 400;
 const PASTE_OFFSET_DAYS = 7;
 
@@ -113,6 +115,20 @@ export default function SimpleScheduleView({
   const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
   const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // The filter sidebar can be hidden to give the schedule more room; the
+  // choice is remembered on this device
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    setSidebarCollapsed(localStorage.getItem(SIDEBAR_KEY) === '1');
+  }, []);
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      localStorage.setItem(SIDEBAR_KEY, prev ? '0' : '1');
+      return !prev;
+    });
+  };
   const [selectedCampaignToEdit, setSelectedCampaignToEdit] = useState<Campaign | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<{ name: string; view?: string }[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<Campaign[]>(campaigns);
@@ -753,7 +769,8 @@ export default function SimpleScheduleView({
         isNewCampaignModalOpen ||
         isManageEventsModalOpen ||
         isEditCampaignModalOpen ||
-        isMembersModalOpen
+        isMembersModalOpen ||
+        isShortcutsOpen
       ) return;
 
       if (isUndo) {
@@ -819,9 +836,50 @@ export default function SimpleScheduleView({
     isManageEventsModalOpen,
     isMembersModalOpen,
     isNewCampaignModalOpen,
+    isShortcutsOpen,
     readOnly,
     selectedEventIds,
   ]);
+
+  // '?' opens the shortcuts panel when nothing else is open or being typed in
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (document.querySelector('[data-dismiss-layer]')) return;
+      e.preventDefault();
+      setIsShortcutsOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Empty state shown over the schedule when there's nothing to see
+  const hasFilters = selectedCampaigns.size > 0 || selectedPeople.size > 0 || selectedStages.size > 0 || selectedEvents.size > 0;
+  const emptyState =
+    allCampaigns.length === 0 && allEvents.length === 0
+      ? {
+          icon: <LayoutGrid size={22} className="text-gray-400" />,
+          title: 'No campaigns yet',
+          text: readOnly ? 'Campaigns added to this schedule will appear here.' : 'Add a campaign to start planning blocks.',
+          action: readOnly ? null : { label: 'New campaign', onClick: () => setIsNewCampaignModalOpen(true) },
+        }
+      : viewEvents.length === 0 && hasFilters
+      ? {
+          icon: <FilterX size={22} className="text-gray-400" />,
+          title: 'No blocks match these filters',
+          text: 'Try removing a filter to see more of the schedule.',
+          action: { label: 'Clear filters', onClick: handleClearFilters },
+        }
+      : allEvents.length === 0
+      ? {
+          icon: <CalendarPlus size={22} className="text-gray-400" />,
+          title: 'No blocks yet',
+          text: readOnly ? 'Blocks added to this schedule will appear here.' : 'Double-click a day in Grid view to add the first block.',
+          action: readOnly || viewMode === 'grid' ? null : { label: 'Go to Grid view', onClick: () => setViewMode('grid') },
+        }
+      : null;
 
   return (
     <div className="flex flex-col h-full min-w-0 w-full">
@@ -895,11 +953,11 @@ export default function SimpleScheduleView({
             </div>
           )}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center justify-center gap-2">
-                <span className="h-px w-5 bg-gray-300" />
-                <span className="text-xs font-semibold text-gray-500 tracking-wider">ZOOM</span>
-                <span className="h-px w-5 bg-gray-300" />
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-px w-4 bg-gray-300" />
+                <span className="text-[10px] leading-none font-semibold text-gray-500 tracking-wider">ZOOM</span>
+                <span className="h-px w-4 bg-gray-300" />
               </div>
               <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                 <button
@@ -927,11 +985,11 @@ export default function SimpleScheduleView({
                 </button>
               </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center justify-center gap-2">
-                <span className="h-px w-5 bg-gray-300" />
-                <span className="text-xs font-semibold text-gray-500 tracking-wider">EXPORT</span>
-                <span className="h-px w-5 bg-gray-300" />
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-px w-4 bg-gray-300" />
+                <span className="text-[10px] leading-none font-semibold text-gray-500 tracking-wider">EXPORT</span>
+                <span className="h-px w-4 bg-gray-300" />
               </div>
               <div className="relative">
                 <button
@@ -963,11 +1021,11 @@ export default function SimpleScheduleView({
               )}
               </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center justify-center gap-2">
-                <span className="h-px w-5 bg-gray-300" />
-                <span className="text-xs font-semibold text-gray-500 tracking-wider">VIEWS</span>
-                <span className="h-px w-5 bg-gray-300" />
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-px w-4 bg-gray-300" />
+                <span className="text-[10px] leading-none font-semibold text-gray-500 tracking-wider">VIEWS</span>
+                <span className="h-px w-4 bg-gray-300" />
               </div>
             <div className="flex items-start gap-1 bg-gray-100 rounded-lg p-1">
               {(['grid', 'gantt', 'vertical', 'summary', 'team'] as ViewMode[]).map(mode => (
@@ -982,7 +1040,7 @@ export default function SimpleScheduleView({
                   >
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                   </button>
-                  <div className="h-4 mt-0.5 flex items-center justify-center">
+                  <div className="h-5 mt-0.5 flex items-center justify-center">
                     <PresenceAvatars
                       users={onlineUsers.filter(u => u.view === mode).map(u => u.name)}
                       size="sm"
@@ -1034,9 +1092,32 @@ export default function SimpleScheduleView({
           onNewCampaign={readOnly ? undefined : () => setIsNewCampaignModalOpen(true)}
           onManageEvents={readOnly ? undefined : () => setIsManageEventsModalOpen(true)}
           onClearFilters={handleClearFilters}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onShowShortcuts={() => setIsShortcutsOpen(true)}
         />
 
-        <div className="flex-1 min-w-0 overflow-hidden bg-white flex flex-col">
+        <div className="relative flex-1 min-w-0 overflow-hidden bg-white flex flex-col">
+          {/* Sits outside the export area so it never appears in exports */}
+          {emptyState && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-6">
+              <div className="pointer-events-auto bg-white border border-gray-200 rounded-xl shadow-lg px-6 py-5 max-w-xs text-center">
+                <div className="mx-auto mb-2 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  {emptyState.icon}
+                </div>
+                <h3 className="text-sm font-semibold text-gray-800">{emptyState.title}</h3>
+                <p className="mt-1 text-sm text-gray-500">{emptyState.text}</p>
+                {emptyState.action && (
+                  <button
+                    onClick={emptyState.action.onClick}
+                    className="mt-3 px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                  >
+                    {emptyState.action.label}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <div ref={exportRef} className="w-full h-full flex flex-col bg-white" style={{ zoom }}>
           {viewMode === 'gantt' ? (
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
@@ -1189,6 +1270,8 @@ export default function SimpleScheduleView({
       />
 
       {/* Members & Invites Modal */}
+      <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
       <MembersModal
         isOpen={isMembersModalOpen}
         onClose={() => setIsMembersModalOpen(false)}

@@ -21,7 +21,7 @@ interface SummaryViewProps {
   selectedCampaigns?: Set<string>;
 }
 
-const WEEK_WIDTH = 44;
+const WEEK_WIDTH = 52;
 
 // Stage abbreviations for the compact pills
 const stageAbbr: Record<string, string> = {
@@ -174,7 +174,7 @@ export default function SummaryView({
                   <div
                     key={weekStart.toISOString()}
                     className={`flex-shrink-0 border-r border-gray-200 flex items-center justify-center ${
-                      isPastWeek(weekStart) ? 'cell-past' : 'bg-white'
+                      isCurrent ? 'cell-today' : isPastWeek(weekStart) ? 'cell-past' : 'bg-white'
                     }`}
                     style={{ width: WEEK_WIDTH }}
                     data-export-cell
@@ -182,7 +182,7 @@ export default function SummaryView({
                     data-export-start={index === exportStartIdx ? true : undefined}
                     data-export-end={index === exportEndIdx ? true : undefined}
                   >
-                    <span className={`text-[9px] font-medium ${isCurrent ? 'w-4 h-4 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold' : 'text-gray-600'}`}>
+                    <span className={`text-[10px] font-medium ${isCurrent ? 'w-5 h-5 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold' : 'text-gray-600'}`}>
                       {format(weekStart, 'd')}
                     </span>
                   </div>
@@ -221,7 +221,7 @@ export default function SummaryView({
                 <div
                   key={weekStart.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                    isPast ? 'cell-past' : ''
+                    isCurrentWeek(weekStart) ? 'cell-today' : isPast ? 'cell-past' : ''
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
@@ -231,14 +231,14 @@ export default function SummaryView({
                       <div
                         key={stage}
                         className="rounded px-1 flex-1 min-h-0 flex items-center justify-center overflow-hidden"
-                        title={stageTooltip(campaign, stage, weekStart)}
+                        data-tooltip={stageTooltip(campaign, stage, weekStart)}
                         style={{
                           backgroundColor: stageColor,
                         }}
                       >
                         <span
                           className="truncate leading-none"
-                          style={{ fontSize: 7, color: stage === 'Delivery' && !isPast ? '#FFFFFF' : getTextColor(stageColor), fontWeight: 500 }}
+                          style={{ fontSize: 10, color: stage === 'Delivery' && !isPast ? '#FFFFFF' : getTextColor(stageColor), fontWeight: 500 }}
                         >
                           {stageAbbr[stage] || stage.slice(0, 4)}
                         </span>
@@ -270,16 +270,16 @@ export default function SummaryView({
               <div
                 key={weekStart.toISOString()}
                 className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                  isPast ? 'cell-past' : ''
+                  isCurrentWeek(weekStart) ? 'cell-today' : isPast ? 'cell-past' : ''
                 }`}
                 style={{ width: WEEK_WIDTH }}
               >
                 {miscEvents.length > 0 && (
                   <div
                     className="rounded px-1 flex-1 min-h-0 flex items-center justify-center bg-gray-300 overflow-hidden"
-                    title={miscEvents.map(e => `${e.title} (${blockDates(new Date(e.startDate), new Date(e.endDate))})`).join('\n')}
+                    data-tooltip={miscEvents.map(e => `${e.title} (${blockDates(new Date(e.startDate), new Date(e.endDate))})`).join('\n')}
                   >
-                    <span className="truncate leading-none text-gray-600" style={{ fontSize: 7, fontWeight: 500 }}>
+                    <span className="truncate leading-none text-gray-600" style={{ fontSize: 10, fontWeight: 500 }}>
                       Misc
                     </span>
                   </div>

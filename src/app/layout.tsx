@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import FeedbackHost from "@/components/common/Feedback";
+import TooltipHost from "@/components/common/TooltipHost";
 
 const dmSans = DM_Sans({ subsets: ["latin"] });
 
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className={dmSans.className}>
         {children}
         <FeedbackHost />
+        <TooltipHost />
       </body>
     </html>
   );

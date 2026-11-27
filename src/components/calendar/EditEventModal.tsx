@@ -1,5 +1,6 @@
 'use client';
 
+import DismissLayer, { closeOnBackdrop } from '@/components/common/DismissLayer';
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Event, Campaign, Person } from '@/lib/types';
@@ -141,7 +142,8 @@ export default function EditEventModal({
   const isMisc = !!event.isMisc;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onMouseDown={closeOnBackdrop(onClose)}>
+      <DismissLayer onClose={onClose} />
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">

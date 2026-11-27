@@ -105,7 +105,7 @@ export default function AddEventModal({
     .sort((a, b) => a.localeCompare(b));
 
   const pillClass = (selected: boolean) =>
-    `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+    `px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
       selected
         ? 'bg-gray-800 text-white border-gray-800'
         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
@@ -167,9 +167,9 @@ export default function AddEventModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">Add Event</h2>
           <button
             onClick={onClose}
@@ -180,9 +180,9 @@ export default function AddEventModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
           {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Start Date
@@ -191,7 +191,7 @@ export default function AddEventModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -203,7 +203,7 @@ export default function AddEventModal({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -218,6 +218,7 @@ export default function AddEventModal({
               campaigns={availableCampaigns}
               value={campaignId}
               onChange={setCampaignId}
+              compact
               clearable={stage === 'Misc'}
               placeholder={stage === 'Misc' ? 'No campaign' : undefined}
               clearLabel="No campaign"
@@ -237,7 +238,7 @@ export default function AddEventModal({
                 setEventTitles([]);
                 if (e.target.value === 'Misc') setPersonName(''); // Misc events don't inherit the campaign's people
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               {Object.keys(eventTypesByStage).map((stageName) => (
                 <option key={stageName} value={stageName}>
@@ -260,7 +261,7 @@ export default function AddEventModal({
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   placeholder="e.g. Alex Holiday"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   required
                 />
               </>
@@ -280,7 +281,7 @@ export default function AddEventModal({
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {stageTitles.map((title) => (
                     <button
                       key={title}
@@ -293,7 +294,7 @@ export default function AddEventModal({
                   ))}
                 </div>
                 {eventTitles.length > 0 && (
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-gray-500">
                     {joinEventTitles(eventTitles)}
                   </p>
                 )}
@@ -311,7 +312,7 @@ export default function AddEventModal({
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="Type names, separated by commas..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
 
@@ -325,12 +326,12 @@ export default function AddEventModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Time, address, location..."
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             />
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}

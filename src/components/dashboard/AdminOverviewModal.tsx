@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '@/components/common/Feedback';
 import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import {
@@ -154,8 +155,12 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
   const deleteAccountItem = (userId: string, email: string) => (
     <button
       disabled={isBusy}
-      onClick={() => {
-        if (!window.confirm(`Permanently delete ${email} and remove them from Argus? Their memberships will be removed. This cannot be undone.`)) {
+      onClick={async () => {
+        if (!(await confirmAction({
+          title: 'Delete Argus account?',
+          message: `${email} will be removed from Argus along with their memberships. This can’t be undone.`,
+          confirmLabel: 'Delete account',
+        }))) {
           setOpenMenu(null);
           return;
         }
@@ -184,8 +189,12 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
             <div className={`absolute right-0 ${openMenu.up ? 'bottom-full mb-1' : 'mt-1'} w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1`}>
               <button
                 disabled={isBusy}
-                onClick={() => {
-                  if (!window.confirm(`Remove ${member.email} from "${schedule.name}"? They will lose access to this schedule.`)) {
+                onClick={async () => {
+                  if (!(await confirmAction({
+                    title: 'Remove from schedule?',
+                    message: `${member.email} will lose access to “${schedule.name}”.`,
+                    confirmLabel: 'Remove',
+                  }))) {
                     setOpenMenu(null);
                     return;
                   }
@@ -240,8 +249,12 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
           </span>
           <button
             disabled={isBusy || membersMissing}
-            onClick={() => {
-              if (!window.confirm(`Permanently delete "${schedule.name}"? This removes the schedule and all its campaigns, events, people, members and invites. This cannot be undone.`)) return;
+            onClick={async () => {
+              if (!(await confirmAction({
+                title: `Delete “${schedule.name}”?`,
+                message: 'This removes the schedule and all its campaigns, events, people, members and invites. This can’t be undone.',
+                confirmLabel: 'Delete schedule',
+              }))) return;
               runAction(() => adminDeleteSchedule(schedule.id));
             }}
             className="p-1 hover:bg-red-100 rounded text-red-500 disabled:opacity-50 flex-shrink-0"
@@ -261,8 +274,12 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
             <span className="text-xs text-gray-400 whitespace-nowrap">Pending — {invite.role}</span>
             <button
               disabled={isBusy}
-              onClick={() => {
-                if (!window.confirm(`Cancel the invite for ${invite.email}?`)) return;
+              onClick={async () => {
+                if (!(await confirmAction({
+                  title: 'Cancel invite?',
+                  message: `The invite for ${invite.email} will be withdrawn.`,
+                  confirmLabel: 'Withdraw invite',
+                }))) return;
                 runAction(() => adminCancelInvite(schedule.id, invite.email));
               }}
               className="p-1 hover:bg-red-100 rounded text-red-500 disabled:opacity-50 flex-shrink-0"

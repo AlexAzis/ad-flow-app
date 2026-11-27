@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { Campaign } from '@/lib/types';
 import { campaignColors } from '@/lib/colorUtils';
+import { notify } from '@/components/common/Feedback';
 
 interface NewCampaignModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export default function NewCampaignModal({
     e.preventDefault();
 
     if (!name || !color) {
-      alert('Please fill in all fields');
+      notify('Please enter a campaign name and choose a colour.');
       return;
     }
 
@@ -85,7 +86,7 @@ export default function NewCampaignModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cinema Xmas ROI - 888481"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
               required
             />
           </div>
@@ -100,7 +101,7 @@ export default function NewCampaignModal({
               value={client}
               onChange={(e) => setClient(e.target.value)}
               placeholder="e.g., Sky"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
 
@@ -114,7 +115,7 @@ export default function NewCampaignModal({
               value={peopleNames}
               onChange={(e) => setPeopleNames(e.target.value)}
               placeholder="e.g., Alex, Kelly, Rob"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
             <p className="text-xs text-gray-500 mt-1">Names here will be allocated to all new events in this campaign.</p>
           </div>
@@ -135,7 +136,7 @@ export default function NewCampaignModal({
                     onClick={() => setColor(colorOption)}
                     className={`relative w-10 h-10 rounded-full border-2 transition-all ${
                       isSelected
-                        ? 'border-blue-500 scale-110'
+                        ? 'border-gray-900 scale-110'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     style={{ backgroundColor: colorOption }}
@@ -168,7 +169,7 @@ export default function NewCampaignModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium"
             >
               Create Campaign
             </button>

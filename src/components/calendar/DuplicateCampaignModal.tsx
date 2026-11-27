@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Campaign } from '@/lib/types';
 import { campaignColors } from '@/lib/colorUtils';
+import { notify } from '@/components/common/Feedback';
 
 export interface DuplicateCampaignDetails {
   name: string;
@@ -45,11 +46,11 @@ export default function DuplicateCampaignModal({
 
     const parsedWeeks = Number(weeks);
     if (!name.trim()) {
-      alert('Please enter a name for the duplicated campaign.');
+      notify('Please enter a name for the duplicated campaign.');
       return;
     }
     if (weeks.trim() === '' || !Number.isInteger(parsedWeeks)) {
-      alert('Please enter a whole number of weeks to shift by.');
+      notify('Please enter a whole number of weeks to shift by.');
       return;
     }
 
@@ -89,7 +90,7 @@ export default function DuplicateCampaignModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
               required
             />
           </div>
@@ -104,7 +105,7 @@ export default function DuplicateCampaignModal({
               step={1}
               value={weeks}
               onChange={(e) => setWeeks(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
               required
             />
             <p className="mt-1 text-xs text-gray-500">
@@ -162,7 +163,7 @@ export default function DuplicateCampaignModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium"
             >
               Duplicate campaign
             </button>

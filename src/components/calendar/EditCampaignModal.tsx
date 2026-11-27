@@ -169,7 +169,7 @@ export default function EditCampaignModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
               disabled={isLocked}
               required
             />
@@ -184,7 +184,7 @@ export default function EditCampaignModal({
               type="text"
               value={client}
               onChange={(e) => setClient(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
               disabled={isLocked}
             />
           </div>
@@ -199,7 +199,7 @@ export default function EditCampaignModal({
               value={peopleNames}
               onChange={(e) => setPeopleNames(e.target.value)}
               placeholder="e.g., Alex, Kelly, Rob"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
               disabled={isLocked}
             />
             <p className="text-xs text-gray-500 mt-1">Names here will be allocated to all new events in this campaign.</p>
@@ -209,7 +209,7 @@ export default function EditCampaignModal({
                 checked={replaceEventNames}
                 onChange={(e) => setReplaceEventNames(e.target.checked)}
                 disabled={isLocked}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:opacity-50"
               />
               Replace all campaign events with name(s)?
             </label>
@@ -362,7 +362,7 @@ export default function EditCampaignModal({
             </button>
             <button
               type="submit"
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium whitespace-nowrap"
+              className="px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium whitespace-nowrap"
             >
               Update Campaign
             </button>

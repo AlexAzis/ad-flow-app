@@ -8,6 +8,7 @@ import { eventTypesByStage } from '@/lib/eventTypes';
 import { joinEventTitles } from '@/lib/eventTitles';
 import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
+import { notify } from '@/components/common/Feedback';
 
 interface AddEventModalProps {
   isOpen: boolean;
@@ -122,13 +123,13 @@ export default function AddEventModal({
 
     const isMisc = stage === 'Misc';
     if ((!isMisc && !campaignId) || (isMisc ? !eventTitle : eventTitles.length === 0)) {
-      alert(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
+      notify(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
       return;
     }
 
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!isMisc && campaign?.locked) {
-      alert(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`);
+      notify(`"${campaign.name}" is locked${campaign.lockedBy ? ` by ${campaign.lockedBy}` : ''}. Unlock the campaign to make changes.`, 'info');
       return;
     }
     const eventColor = isMisc ? '#E5E5E5' : (campaign ? getStageColor(campaign.color, stage) : '#999999');
@@ -190,7 +191,7 @@ export default function AddEventModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -202,7 +203,7 @@ export default function AddEventModal({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -236,7 +237,7 @@ export default function AddEventModal({
                 setEventTitles([]);
                 if (e.target.value === 'Misc') setPersonName(''); // Misc events don't inherit the campaign's people
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               {Object.keys(eventTypesByStage).map((stageName) => (
                 <option key={stageName} value={stageName}>
@@ -259,7 +260,7 @@ export default function AddEventModal({
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   placeholder="e.g. Alex Holiday"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   required
                 />
               </>
@@ -273,7 +274,7 @@ export default function AddEventModal({
                     <button
                       type="button"
                       onClick={onManageEvents}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                      className="text-xs font-medium text-gray-700 underline hover:text-gray-900"
                     >
                       Manage events
                     </button>
@@ -310,7 +311,7 @@ export default function AddEventModal({
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="Type names, separated by commas..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
 
@@ -324,7 +325,7 @@ export default function AddEventModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Time, address, location..."
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             />
           </div>
 
@@ -339,7 +340,7 @@ export default function AddEventModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium"
             >
               Add Event
             </button>

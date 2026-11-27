@@ -73,7 +73,7 @@ export default function InviteUserModal({ isOpen, onClose }: InviteUserModalProp
                 onKeyDown={e => e.key === 'Enter' && handleInvite()}
                 placeholder="their@email.com"
                 autoFocus
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
             <button

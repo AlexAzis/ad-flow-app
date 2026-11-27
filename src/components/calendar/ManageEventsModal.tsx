@@ -78,7 +78,7 @@ export default function ManageEventsModal({
                   onClick={() => setSelectedStage(stage)}
                   className={`w-full text-left px-3 py-2 rounded-lg mb-1 text-sm font-medium ${
                     selectedStage === stage
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-gray-900 text-white'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -122,11 +122,11 @@ export default function ManageEventsModal({
                   onChange={(e) => setNewEventName(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAddEvent()}
                   placeholder="Add new event type..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
                 <button
                   onClick={handleAddEvent}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center gap-2"
                 >
                   <Plus size={18} />
                   <span>Add</span>

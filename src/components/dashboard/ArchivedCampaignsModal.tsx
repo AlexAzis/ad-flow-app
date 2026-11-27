@@ -1,5 +1,6 @@
 'use client';
 
+import { notify, confirmAction } from '@/components/common/Feedback';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RotateCcw, Trash2, X } from 'lucide-react';
 import { endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
@@ -100,7 +101,7 @@ export default function ArchivedCampaignsModal({
       });
     } catch (err) {
       console.error('Archive export failed', err);
-      alert('Sorry, the export failed. Please try again.');
+      notify('Sorry, the export failed. Please try again.');
     } finally {
       setExporting(null);
     }
@@ -128,7 +129,7 @@ export default function ArchivedCampaignsModal({
       await loadArchives();
     } catch (err) {
       console.error('Could not reinstate campaign', err);
-      alert('The campaign couldn’t be reinstated. Please try again.');
+      notify('The campaign couldn’t be reinstated. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -136,9 +137,11 @@ export default function ArchivedCampaignsModal({
 
   const handleDeleteArchive = async () => {
     if (!selected || isDeleting) return;
-    const confirmed = window.confirm(
-      `Delete “${selected.summary.name}” permanently? This archive will be removed and cannot be reinstated.`
-    );
+    const confirmed = await confirmAction({
+      title: 'Delete archive?',
+      message: `“${selected.summary.name}” will be removed permanently and can’t be reinstated.`,
+      confirmLabel: 'Delete',
+    });
     if (!confirmed) return;
     setIsDeleting(true);
     try {
@@ -147,7 +150,7 @@ export default function ArchivedCampaignsModal({
       await loadArchives();
     } catch (err) {
       console.error('Could not delete archive', err);
-      alert('The archive couldn’t be deleted. Please try again.');
+      notify('The archive couldn’t be deleted. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -274,7 +277,7 @@ export default function ArchivedCampaignsModal({
                   type="text"
                   value={reName}
                   onChange={e => setReName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
               </div>
               <div>
@@ -297,7 +300,7 @@ export default function ArchivedCampaignsModal({
                   type="date"
                   value={reStart}
                   onChange={e => setReStart(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">The earliest archived block will move to this day.</p>
               </div>

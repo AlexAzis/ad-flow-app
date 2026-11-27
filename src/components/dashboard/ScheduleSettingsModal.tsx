@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '@/components/common/Feedback';
 import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import MembersPanel from '@/components/common/MembersPanel';
@@ -77,9 +78,11 @@ export default function ScheduleSettingsModal({
 
   const handleDelete = async () => {
     if (!canEdit) return;
-    const confirmed = window.confirm(
-      `Delete "${schedule.name}"? This permanently removes the schedule, its campaigns, events, people, members and invites. This cannot be undone.`
-    );
+    const confirmed = await confirmAction({
+      title: `Delete “${schedule.name}”?`,
+      message: 'This permanently removes the schedule, its campaigns, events, people, members and invites. This can’t be undone.',
+      confirmLabel: 'Delete schedule',
+    });
     if (!confirmed) return;
 
     setError('');
@@ -171,7 +174,7 @@ export default function ScheduleSettingsModal({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
               />
             </div>
             <div>
@@ -185,7 +188,7 @@ export default function ScheduleSettingsModal({
                 onChange={e => setDescription(e.target.value)}
                 disabled={!canEdit}
                 placeholder="No description"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
               />
             </div>
             {!canEdit && (

@@ -30,7 +30,7 @@ export default function CampaignSelect({ campaigns, value, onChange, clearable, 
       <button
         type="button"
         onClick={() => setIsOpen(open => !open)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between gap-2 text-left bg-white"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 flex items-center justify-between gap-2 text-left bg-white"
       >
         {selected ? option(selected) : <span className="text-gray-500">{placeholder ?? 'Select campaign'}</span>}
         <ChevronDown size={16} className="text-gray-500 flex-shrink-0" />

@@ -8,6 +8,7 @@ import { eventTypesByStage } from '@/lib/eventTypes';
 import { getEventTitles, joinEventTitles } from '@/lib/eventTitles';
 import CampaignSelect from './CampaignSelect';
 import { getStageColor } from '@/lib/colorUtils';
+import { notify } from '@/components/common/Feedback';
 
 interface EditEventModalProps {
   isOpen: boolean;
@@ -94,7 +95,7 @@ export default function EditEventModal({
     if (!event) return;
     const isMisc = !!event.isMisc;
     if ((!isMisc && !campaignId) || (isMisc ? !eventTitle : eventTitles.length === 0)) {
-      alert(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
+      notify(isMisc ? 'Please enter a name' : 'Please select a campaign and event');
       return;
     }
 
@@ -165,7 +166,7 @@ export default function EditEventModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -177,7 +178,7 @@ export default function EditEventModal({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -194,7 +195,7 @@ export default function EditEventModal({
                   type="text"
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   required
                 />
               </div>
@@ -235,7 +236,7 @@ export default function EditEventModal({
                 setEventTitle('');
                 setEventTitles([]);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
               {Object.keys(eventTypesByStage).map((stageName) => (
                 <option key={stageName} value={stageName}>
@@ -255,7 +256,7 @@ export default function EditEventModal({
                 <button
                   type="button"
                   onClick={onManageEvents}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  className="text-xs font-medium text-gray-700 underline hover:text-gray-900"
                 >
                   Manage events
                 </button>
@@ -291,7 +292,7 @@ export default function EditEventModal({
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="Type names, separated by commas..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             />
           </div>
 
@@ -305,7 +306,7 @@ export default function EditEventModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Time, address, location..."
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
             />
           </div>
 
@@ -328,7 +329,7 @@ export default function EditEventModal({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium"
               >
                 Update Event
               </button>

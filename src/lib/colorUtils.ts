@@ -63,6 +63,13 @@ function darkenColor(color: string, percent: number): string {
   return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
+// Colour for a block: past blocks keep their campaign hue at ~40% strength so
+// they read as done but stay identifiable
+export function getBlockColor(baseColor: string, stage: string, isPast: boolean): string {
+  const color = getStageColor(baseColor, stage);
+  return isPast ? lightenColor(color, 60) : color;
+}
+
 // Get color for a specific stage
 export function getStageColor(baseColor: string, stage: string): string {
   const shades = generateColorShades(baseColor);

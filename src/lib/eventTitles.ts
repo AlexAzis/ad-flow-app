@@ -5,7 +5,7 @@ export function getEventTitles(event: Pick<Event, 'title' | 'titles'>): string[]
 }
 
 export function joinEventTitles(titles: string[]): string {
-  return titles.join(' / ');
+  return titles.join(' · ');
 }
 
 export function getEventDisplayTitle(

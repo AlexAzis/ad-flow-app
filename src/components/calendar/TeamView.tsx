@@ -3,7 +3,8 @@
 import { useLayoutEffect, useRef } from 'react';
 import { format, addDays, isSameDay, differenceInDays, startOfDay } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBlockColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { blockTooltip } from '@/lib/blockTooltip';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 import { anchorDay, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
 import {
@@ -131,7 +132,7 @@ export default function TeamView({
                 <div
                   key={day.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-200 flex flex-col items-center justify-center ${
-                    isWeekend ? 'bg-[#F6F7F9]' : 'bg-white'
+                    isWeekend ? 'cell-off' : 'bg-white'
                   }`}
                   style={{ width: DAY_WIDTH }}
                   data-export-cell
@@ -243,7 +244,7 @@ export default function TeamView({
                           <div
                             key={day.toISOString()}
                             className={`absolute top-0 bottom-0 border-r border-gray-100 ${
-                              isPast ? 'bg-gray-100' : isWeekend || isBankHoliday ? 'bg-[#F6F7F9]' : ''
+                              [isPast && 'cell-past', (isWeekend || isBankHoliday) && 'cell-off'].filter(Boolean).join(' ')
                             } ${isToday ? 'bg-blue-50' : ''}`}
                             style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
                             onDragOver={handleDragOver}
@@ -257,7 +258,7 @@ export default function TeamView({
                         const campaign = group.campaign;
                         const eventEnd = new Date(event.endDate);
                         const eventIsPast = eventEnd < new Date(new Date().setHours(0, 0, 0, 0));
-                        const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : '#E5E7EB');
+                        const eventColor = campaign ? getBlockColor(campaign.color, event.stage, eventIsPast) : (eventIsPast ? '#D1D5DB' : '#E5E7EB');
                         const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                         if (startOffset + duration < 0 || startOffset >= days.length) return null;
@@ -274,6 +275,7 @@ export default function TeamView({
                               backgroundColor: eventColor,
                               boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                             }}
+                            title={blockTooltip(event, { campaign: campaign?.name ?? 'Misc.' })}
                             data-selected-event={isSelected || undefined}
                             draggable={!campaign?.locked}
                             onDragStart={(e) => handleDragStart(e, event)}

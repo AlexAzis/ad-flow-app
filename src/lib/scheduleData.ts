@@ -2,6 +2,7 @@ import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 
 import { supabase } from './supabase';
 import { Campaign, Event, Person } from './types';
 import { getStageColor } from './colorUtils';
+import { joinEventTitles } from './eventTitles';
 
 export type ScheduleRole = 'owner' | 'editor' | 'viewer';
 
@@ -379,7 +380,7 @@ export const eventFromRow = (row: any, campaign?: Campaign): Event => {
   const titles = String(row.title ?? '').split('\n').map((title: string) => title.trim()).filter(Boolean);
   return {
     id: row.id,
-    title: titles.length > 1 ? titles.join(' / ') : (titles[0] ?? row.title),
+    title: titles.length > 1 ? joinEventTitles(titles) : (titles[0] ?? row.title),
     titles: titles.length > 1 ? titles : undefined,
     campaignId: row.campaign_id ?? '',
     stage: row.stage,

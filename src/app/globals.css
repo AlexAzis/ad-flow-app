@@ -25,3 +25,18 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Calendar cell backgrounds: weekends and bank holidays share one solid
+   shade; past days get a light diagonal hatch layered on top, so a past
+   weekend still reads as both */
+.cell-off {
+  background-color: #f3f4f6;
+}
+
+.cell-past {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(107, 114, 128, 0.12) 0 1px,
+    transparent 1px 7px
+  );
+}

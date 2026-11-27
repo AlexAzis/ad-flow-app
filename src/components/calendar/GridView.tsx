@@ -3,7 +3,8 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { format, addDays, differenceInDays, differenceInWeeks, isSameDay, isSameMonth, startOfWeek } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBlockColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { blockTooltip } from '@/lib/blockTooltip';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 import { anchorWeek, LOOKBACK_DAYS } from '@/lib/visibleRange';
 import {
@@ -405,7 +406,7 @@ export default function GridView({
                     <div
                       key={day.toISOString()}
                       className={`flex-1 border-r border-gray-200 h-full relative ${
-                        isPast ? 'bg-gray-100' : isWeekend || bankHolidayName ? 'bg-[#F6F7F9]' : ''
+                        [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off'].filter(Boolean).join(' ')
                       }`}
                       onDoubleClick={() => onDateClick(day)}
                       onDragOver={handleDragOver}
@@ -435,7 +436,7 @@ export default function GridView({
                                   key={event.id}
                                   className="rounded-full px-1.5 text-[11px] text-gray-500 bg-gray-200 cursor-pointer hover:opacity-80 truncate max-w-full"
                                   style={{ height: MISC_PILL_HEIGHT, lineHeight: `${MISC_PILL_HEIGHT}px` }}
-                                  title={event.title}
+                                  title={blockTooltip(event)}
                                   onDoubleClick={(e) => {
                                     e.stopPropagation();
                                     if (onEventDoubleClick) onEventDoubleClick(event);
@@ -467,7 +468,7 @@ export default function GridView({
                   const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
                   const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                   const eventIsPast = readOnly ? false : new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
-                  const eventColor = eventIsPast ? '#D1D5DB' : (campaign ? getStageColor(campaign.color, event.stage) : event.color);
+                  const eventColor = campaign ? getBlockColor(campaign.color, event.stage, eventIsPast) : (eventIsPast ? '#D1D5DB' : event.color);
                   const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                   return (
@@ -482,6 +483,7 @@ export default function GridView({
                         backgroundColor: eventColor,
                         boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                       }}
+                      title={blockTooltip(event, { campaign: campaign?.name, people: personNames })}
                       data-selected-event={isSelected || undefined}
                       draggable={!resizeState && !campaign?.locked}
                       onDragStart={(e) => handleDragStart(e, event)}

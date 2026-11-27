@@ -3,7 +3,8 @@
 import { useLayoutEffect, useRef } from 'react';
 import { format, addDays, isSameDay, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { getBlockColor, getTextColor, getSubTextColor } from '@/lib/colorUtils';
+import { blockTooltip } from '@/lib/blockTooltip';
 import { getBankHolidaysForRange } from '@/lib/ukBankHolidays';
 import { anchorDay, exportEndIndex, LOOKBACK_DAYS } from '@/lib/visibleRange';
 import {
@@ -159,7 +160,7 @@ export default function VerticalView({
             <div
               key={day.toISOString()}
               className={`flex border-b border-gray-200 ${
-                isPast ? 'bg-gray-100' : isWeekend || bankHolidayName ? 'bg-[#F6F7F9]' : ''
+                [isPast && 'cell-past', (isWeekend || bankHolidayName) && 'cell-off'].filter(Boolean).join(' ')
               }`}
               style={{ height: rowHeight }}
               data-export-cell
@@ -200,7 +201,7 @@ export default function VerticalView({
                       const assigneeIds = event.assignees?.length ? event.assignees : (event.assignee ? [event.assignee] : []);
                       const personNames = assigneeIds.map(id => getPersonById(id)?.name).filter(Boolean).join(', ');
                       const eventIsPast = new Date(event.endDate) < new Date(new Date().setHours(0, 0, 0, 0));
-                      const eventColor = eventIsPast ? '#D1D5DB' : getStageColor(campaign.color, event.stage);
+                      const eventColor = getBlockColor(campaign.color, event.stage, eventIsPast);
                       const isSelected = selectedEventIds?.has(event.id) ?? false;
 
                       return (
@@ -211,7 +212,7 @@ export default function VerticalView({
                             backgroundColor: eventColor,
                             boxShadow: isSelected ? 'inset 0 0 0 2px #111827' : undefined,
                           }}
-                          title={event.title}
+                          title={blockTooltip(event, { campaign: campaign.name, people: personNames })}
                           data-selected-event={isSelected || undefined}
                           draggable={!campaign.locked}
                           onDragStart={(e) => handleDragStart(e, event)}
@@ -254,7 +255,7 @@ export default function VerticalView({
                     <div
                       key={event.id}
                       className="rounded px-2 text-xs h-8 bg-gray-200 flex-1 min-w-0 overflow-hidden flex flex-col justify-center"
-                      title={event.title}
+                      title={blockTooltip(event)}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         if (onEventDoubleClick) onEventDoubleClick(event);

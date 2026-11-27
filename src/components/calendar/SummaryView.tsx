@@ -3,7 +3,9 @@
 import { useLayoutEffect, useRef } from 'react';
 import { format, addWeeks, endOfWeek, isWithinInterval, startOfWeek, differenceInWeeks } from 'date-fns';
 import { Event, Campaign, Person } from '@/lib/types';
-import { getStageColor, getTextColor } from '@/lib/colorUtils';
+import { getBlockColor, getTextColor } from '@/lib/colorUtils';
+import { blockDates } from '@/lib/blockTooltip';
+import { joinEventTitles, getEventTitles } from '@/lib/eventTitles';
 import { anchorWeek, exportEndIndex, monthAfterEndIndex } from '@/lib/visibleRange';
 
 interface SummaryViewProps {
@@ -99,6 +101,19 @@ export default function SummaryView({
     return Array.from(stages);
   };
 
+  // Hover text for a stage pill: campaign, stage, then each block that week
+  const stageTooltip = (campaign: Campaign, stage: string, weekStart: Date) => {
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const blocks = events.filter(e =>
+      e.campaignId === campaign.id && !e.isMisc && e.stage === stage &&
+      new Date(e.startDate) <= weekEnd && new Date(e.endDate) >= weekStart
+    );
+    return [
+      `${campaign.name} · ${stage}`,
+      ...blocks.map(e => `${joinEventTitles(getEventTitles(e))} (${blockDates(new Date(e.startDate), new Date(e.endDate))})`),
+    ].join('\n');
+  };
+
   const getMiscForWeek = (weekStart: Date) => {
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
     return events.filter(e => {
@@ -159,7 +174,7 @@ export default function SummaryView({
                   <div
                     key={weekStart.toISOString()}
                     className={`flex-shrink-0 border-r border-gray-200 flex items-center justify-center ${
-                      isPastWeek(weekStart) ? 'bg-gray-100' : 'bg-white'
+                      isPastWeek(weekStart) ? 'bg-white cell-past' : 'bg-white'
                     }`}
                     style={{ width: WEEK_WIDTH }}
                     data-export-cell
@@ -206,16 +221,17 @@ export default function SummaryView({
                 <div
                   key={weekStart.toISOString()}
                   className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                    isPast ? 'bg-gray-100' : ''
+                    isPast ? 'cell-past' : ''
                   }`}
                   style={{ width: WEEK_WIDTH }}
                 >
                   {stages.map((stage) => {
-                    const stageColor = isPast ? '#D1D5DB' : getStageColor(campaign.color, stage);
+                    const stageColor = getBlockColor(campaign.color, stage, isPast);
                     return (
                       <div
                         key={stage}
                         className="rounded px-1 flex-1 min-h-0 flex items-center justify-center overflow-hidden"
+                        title={stageTooltip(campaign, stage, weekStart)}
                         style={{
                           backgroundColor: stageColor,
                         }}
@@ -254,12 +270,15 @@ export default function SummaryView({
               <div
                 key={weekStart.toISOString()}
                 className={`flex-shrink-0 border-r border-gray-100 p-0.5 flex flex-col gap-0.5 ${
-                  isPast ? 'bg-gray-100' : ''
+                  isPast ? 'cell-past' : ''
                 }`}
                 style={{ width: WEEK_WIDTH }}
               >
                 {miscEvents.length > 0 && (
-                  <div className="rounded px-1 flex-1 min-h-0 flex items-center justify-center bg-gray-300 overflow-hidden">
+                  <div
+                    className="rounded px-1 flex-1 min-h-0 flex items-center justify-center bg-gray-300 overflow-hidden"
+                    title={miscEvents.map(e => `${e.title} (${blockDates(new Date(e.startDate), new Date(e.endDate))})`).join('\n')}
+                  >
                     <span className="truncate leading-none text-gray-600" style={{ fontSize: 7, fontWeight: 500 }}>
                       Misc
                     </span>

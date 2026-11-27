@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 // One app-wide tooltip for anything with a data-tooltip attribute. It follows
 // the cursor, appears faster than the browser's built-in title tooltip, and
 // treats the first line as a heading.
-const SHOW_DELAY_MS = 150;
+const SHOW_DELAY_MS = 300;
 const OFFSET = 14;
 
 interface TipState {

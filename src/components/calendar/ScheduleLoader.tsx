@@ -29,7 +29,7 @@ export default function ScheduleLoader({ schedule, currentUser, onBack }: Schedu
   if (failed) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-sm text-gray-600">
-        <p>This schedule couldn’t be loaded.</p>
+        <p>This master schedule couldn’t be loaded.</p>
         <div className="flex gap-2">
           <button onClick={load} className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-100">Try again</button>
           <button onClick={onBack} className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-100">Back to schedules</button>
@@ -41,7 +41,7 @@ export default function ScheduleLoader({ schedule, currentUser, onBack }: Schedu
   // Outline of the schedule layout while it loads, so the page doesn't jump
   if (!content) {
     return (
-      <div className="h-full w-full flex flex-col animate-pulse" aria-label="Loading schedule">
+      <div className="h-full w-full flex flex-col animate-pulse" aria-label="Loading master schedule">
         <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-4 flex-shrink-0">
           <div className="w-9 h-9 rounded-full bg-gray-200" />
           <div className="h-5 w-44 rounded bg-gray-200" />

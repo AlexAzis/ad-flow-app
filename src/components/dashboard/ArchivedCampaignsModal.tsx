@@ -271,7 +271,7 @@ export default function ArchivedCampaignsModal({
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-1">Reinstate campaign</h3>
             <p className="text-sm text-gray-600 mb-5">
-              This recreates the archived event blocks on the schedule.
+              This recreates the archived event blocks on the master schedule.
             </p>
             <div className="space-y-4">
               <div>

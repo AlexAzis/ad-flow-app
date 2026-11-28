@@ -900,21 +900,21 @@ export default function SimpleScheduleView({
       ? {
           icon: <LayoutGrid size={22} className="text-gray-400" />,
           title: 'No campaigns yet',
-          text: readOnly ? 'Campaigns added to this schedule will appear here.' : 'Add a campaign to start planning blocks.',
+          text: readOnly ? 'Campaigns added to this master schedule will appear here.' : 'Add a campaign to start planning blocks.',
           action: readOnly ? null : { label: 'New campaign', onClick: () => setIsNewCampaignModalOpen(true) },
         }
       : viewEvents.length === 0 && hasFilters
       ? {
           icon: <FilterX size={22} className="text-gray-400" />,
           title: 'No blocks match these filters',
-          text: 'Try removing a filter to see more of the schedule.',
+          text: 'Try removing a filter to see more of the master schedule.',
           action: { label: 'Clear filters', onClick: handleClearFilters },
         }
       : allEvents.length === 0
       ? {
           icon: <CalendarPlus size={22} className="text-gray-400" />,
           title: 'No blocks yet',
-          text: readOnly ? 'Blocks added to this schedule will appear here.' : 'Double-click a day in Grid view to add the first block.',
+          text: readOnly ? 'Blocks added to this master schedule will appear here.' : 'Double-click a day in Grid view to add the first block.',
           action: readOnly || viewMode === 'grid' ? null : { label: 'Go to Grid view', onClick: () => setViewMode('grid') },
         }
       : null;
@@ -929,7 +929,7 @@ export default function SimpleScheduleView({
               <button
                 onClick={onBack}
                 className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
-                title="Back to schedules"
+                title="Back to master schedules"
               >
                 <ArrowLeft size={20} className="text-gray-600" />
               </button>

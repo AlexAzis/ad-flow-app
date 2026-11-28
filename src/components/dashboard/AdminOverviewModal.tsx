@@ -192,7 +192,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                 disabled={isBusy}
                 onClick={async () => {
                   if (!(await confirmAction({
-                    title: 'Remove from schedule?',
+                    title: 'Remove from master schedule?',
                     message: `${member.email} will lose access to “${schedule.name}”.`,
                     confirmLabel: 'Remove',
                   }))) {
@@ -203,7 +203,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
               >
-                Remove from schedule
+                Remove from master schedule
               </button>
               {user && !isSelf(user.email) && deleteAccountItem(user.id, user.email)}
             </div>
@@ -253,13 +253,13 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
             onClick={async () => {
               if (!(await confirmAction({
                 title: `Delete “${schedule.name}”?`,
-                message: 'This removes the schedule and all its campaigns, events, people, members and invites. This can’t be undone.',
-                confirmLabel: 'Delete schedule',
+                message: 'This removes the master schedule and all its campaigns, events, people, members and invites. This can’t be undone.',
+                confirmLabel: 'Delete master schedule',
               }))) return;
               runAction(() => adminDeleteSchedule(schedule.id));
             }}
             className="p-1 hover:bg-red-100 rounded text-red-500 disabled:opacity-50 flex-shrink-0"
-            title="Delete schedule"
+            title="Delete master schedule"
           >
             <Trash2 size={13} />
           </button>
@@ -335,14 +335,14 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
               {/* Summary strip */}
               <div className="flex flex-wrap gap-3 mb-6">
                 {stat(<Users size={16} className="text-gray-400" />, users.length, 'accounts')}
-                {stat(<CalendarDays size={16} className="text-gray-400" />, schedules.length, 'schedules')}
+                {stat(<CalendarDays size={16} className="text-gray-400" />, schedules.length, 'master schedules')}
                 {stat(<UserCheck size={16} className="text-gray-400" />, totalSeats, 'seats in use')}
                 {stat(<MailPlus size={16} className="text-gray-400" />, totalPending, 'pending invites')}
               </div>
 
               {/* Owners */}
               {ownerSections.length === 0 && schedules.length === 0 && (
-                <p className="text-sm text-gray-500 mb-6">No schedules have been created yet.</p>
+                <p className="text-sm text-gray-500 mb-6">No master schedules have been created yet.</p>
               )}
               {ownerSections.map(({ user, schedules: owned }) => (
                 <div key={user.id} className="border border-gray-200 rounded-xl mb-4">
@@ -358,7 +358,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                         <span className="text-[10px] font-medium text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">OWNER</span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        Joined {fmtDate(user.createdAt)} · Last sign-in {fmtDate(user.lastSignInAt)} · Owns {owned.length} {owned.length === 1 ? 'schedule' : 'schedules'}
+                        Joined {fmtDate(user.createdAt)} · Last sign-in {fmtDate(user.lastSignInAt)} · Owns {owned.length} {owned.length === 1 ? 'master schedule' : 'master schedules'}
                       </div>
                     </div>
                     {!isSelf(user.email) && (
@@ -392,7 +392,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
               {orphanSchedules.length > 0 && (
                 <div className="border border-amber-200 rounded-xl mb-4">
                   <div className="bg-amber-50 px-4 py-3 rounded-t-xl">
-                    <span className="text-sm font-semibold text-amber-800">Schedules with no owner</span>
+                    <span className="text-sm font-semibold text-amber-800">Master schedules with no owner</span>
                   </div>
                   <div className="divide-y divide-gray-100">
                     {orphanSchedules.map(scheduleBlock)}
@@ -412,7 +412,7 @@ export default function AdminOverviewModal({ isOpen, onClose, data: presetData, 
                         <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
                           joined {fmtDate(user.createdAt)} · last seen {fmtDate(user.lastSignInAt)}
                           {(membershipsByUser.get(user.id) ?? 0) > 0 &&
-                            ` · member of ${membershipsByUser.get(user.id)} schedule${membershipsByUser.get(user.id) === 1 ? '' : 's'}`}
+                            ` · member of ${membershipsByUser.get(user.id)} master schedule${membershipsByUser.get(user.id) === 1 ? '' : 's'}`}
                         </span>
                         {!isSelf(user.email) && (
                           <div className="relative flex-shrink-0">

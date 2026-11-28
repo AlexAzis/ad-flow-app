@@ -63,7 +63,7 @@ export default function InviteUserModal({ isOpen, onClose }: InviteUserModalProp
         <div className="p-6 space-y-4">
           <p className="text-sm text-gray-600">
             They’ll get an email to create their account, then land on an empty
-            dashboard where they can make their own schedules.
+            dashboard where they can make their own master schedules.
           </p>
           <div className="flex gap-2">
             <div className="flex-1 relative">

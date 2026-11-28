@@ -4,7 +4,10 @@ Next.js + Supabase ad-production scheduling app. Deploys via Vercel from `main`.
 
 ## Shared vocabulary (use these terms consistently)
 
-- **Schedule** — the whole board/document (e.g. "TV Products"), not a single project.
+- **Master schedule** — the whole board/document (e.g. "TV Products"); contains
+  many campaign schedules. UI label is "master schedule(s)"; code keeps `schedule`.
+- **Campaign schedule** — the set of blocks belonging to one campaign within a
+  master schedule.
 - **Campaign** — a coloured project with client, logo and people.
 - **Block** — the coloured event bars on the calendar.
 - **Pill** — the small grey misc lozenges (leave, notes).

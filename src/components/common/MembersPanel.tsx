@@ -68,20 +68,20 @@ export default function MembersPanel({ scheduleId, role, currentUser }: MembersP
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
     if (access?.members.some(m => m.email?.toLowerCase() === email)) {
-      setActionError('That person is already a member of this schedule.');
+      setActionError('That person is already a member of this master schedule.');
       return;
     }
     run(async () => {
       const outcome = await inviteToSchedule(scheduleId, email, inviteRole);
       if (outcome === 'already-member') {
-        setActionError('That person is already a member of this schedule.');
+        setActionError('That person is already a member of this master schedule.');
         return;
       }
       setInviteEmail('');
       setNotice(
         outcome === 'emailed'
           ? `Invite email sent to ${email}. They’ll get access once they sign in.`
-          : `Invite recorded for ${email} — the schedule will appear next time they sign in.`
+          : `Invite recorded for ${email} — the master schedule will appear next time they sign in.`
       );
     });
   };
@@ -221,7 +221,7 @@ export default function MembersPanel({ scheduleId, role, currentUser }: MembersP
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            New users get an invite email; existing users see the schedule next time they sign in.
+            New users get an invite email; existing users see the master schedule next time they sign in.
           </p>
         </div>
       )}

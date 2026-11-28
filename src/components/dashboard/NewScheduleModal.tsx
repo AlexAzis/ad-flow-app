@@ -57,7 +57,7 @@ export default function NewScheduleModal({ isOpen, onClose, onCreated }: NewSche
       handleClose();
     } catch (err) {
       console.error('Could not create schedule', err);
-      setError('Sorry, the schedule couldn’t be created. Please try again.');
+      setError('Sorry, the master schedule couldn’t be created. Please try again.');
     } finally {
       setIsBusy(false);
     }
@@ -69,7 +69,7 @@ export default function NewScheduleModal({ isOpen, onClose, onCreated }: NewSche
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">New schedule</h2>
+          <h2 className="text-lg font-semibold text-gray-800">New master schedule</h2>
           <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg">
             <X size={20} className="text-gray-500" />
           </button>
@@ -128,7 +128,7 @@ export default function NewScheduleModal({ isOpen, onClose, onCreated }: NewSche
                 onChange={e => pickLogo(e.target.files?.[0] ?? null)}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-2">Shown on the schedule card instead of the coloured letter.</p>
+            <p className="text-xs text-gray-500 mt-2">Shown on the master schedule card instead of the coloured letter.</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -146,7 +146,7 @@ export default function NewScheduleModal({ isOpen, onClose, onCreated }: NewSche
             disabled={isBusy || !name.trim()}
             className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium disabled:opacity-50"
           >
-            {isBusy ? 'Creating…' : 'Create schedule'}
+            {isBusy ? 'Creating…' : 'Create master schedule'}
           </button>
         </div>
       </div>

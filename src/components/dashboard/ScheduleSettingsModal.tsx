@@ -91,8 +91,8 @@ export default function ScheduleSettingsModal({
     if (!canEdit) return;
     const confirmed = await confirmAction({
       title: `Delete “${schedule.name}”?`,
-      message: 'This permanently removes the schedule, its campaigns, events, people, members and invites. This can’t be undone.',
-      confirmLabel: 'Delete schedule',
+      message: 'This permanently removes the master schedule, its campaigns, events, people, members and invites. This can’t be undone.',
+      confirmLabel: 'Delete master schedule',
     });
     if (!confirmed) return;
 
@@ -104,7 +104,7 @@ export default function ScheduleSettingsModal({
       onClose();
     } catch (err) {
       console.error('Could not delete schedule', err);
-      setError('The schedule couldn’t be deleted. Please try again.');
+      setError('The master schedule couldn’t be deleted. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -117,7 +117,7 @@ export default function ScheduleSettingsModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">Schedule settings</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Master schedule settings</h2>
             <p className="text-xs text-gray-500">{schedule.name}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
@@ -132,7 +132,7 @@ export default function ScheduleSettingsModal({
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
                 {shownLogo ? (
-                  <img src={shownLogo} alt="Schedule logo" className="w-full h-full object-contain" />
+                  <img src={shownLogo} alt="Master schedule logo" className="w-full h-full object-contain" />
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center"
@@ -171,12 +171,12 @@ export default function ScheduleSettingsModal({
                 onChange={e => pickLogo(e.target.files?.[0] ?? null)}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-2">Shown on the schedule card instead of the coloured letter.</p>
+            <p className="text-xs text-gray-500 mt-2">Shown on the master schedule card instead of the coloured letter.</p>
           </div>
 
           {/* Colour */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">Schedule colour</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Master schedule colour</h3>
             <p className="text-xs text-gray-500 mb-3">
               Used for the card accent and letter tile on the dashboard.
             </p>
@@ -232,7 +232,7 @@ export default function ScheduleSettingsModal({
               />
             </div>
             {!canEdit && (
-              <p className="text-xs text-gray-500">Only the schedule owner can change these settings.</p>
+              <p className="text-xs text-gray-500">Only the master schedule owner can change these settings.</p>
             )}
           </div>
 
@@ -262,14 +262,14 @@ export default function ScheduleSettingsModal({
             <div className="pt-4 border-t border-gray-200">
               <h3 className="text-sm font-semibold text-red-600 mb-2">Danger zone</h3>
               <p className="text-xs text-gray-500 mb-3">
-                Deleting this schedule permanently removes its campaigns, events, people, members and invites.
+                Deleting this master schedule permanently removes its campaigns, events, people, members and invites.
               </p>
               <button
                 onClick={handleDelete}
                 disabled={isBusy || isDeleting}
                 className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium disabled:opacity-50"
               >
-                {isDeleting ? 'Deleting…' : 'Delete schedule'}
+                {isDeleting ? 'Deleting…' : 'Delete master schedule'}
               </button>
             </div>
           )}

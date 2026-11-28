@@ -96,8 +96,8 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
   const statsText = scheduleCount === 0
     ? ''
     : sharedCount > 0
-      ? `${scheduleCount} ${scheduleCount === 1 ? 'schedule' : 'schedules'} · ${ownedCount} owned · ${sharedCount} shared`
-      : `${scheduleCount} ${scheduleCount === 1 ? 'schedule' : 'schedules'} · all owned`;
+      ? `${scheduleCount} ${scheduleCount === 1 ? 'master schedule' : 'master schedules'} · ${ownedCount} owned · ${sharedCount} shared`
+      : `${scheduleCount} ${scheduleCount === 1 ? 'master schedule' : 'master schedules'} · all owned`;
 
   return (
     <div className="h-full w-full flex bg-gray-50">
@@ -111,15 +111,15 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
           <span className="font-bold text-gray-900 tracking-wide">ARGUS</span>
         </div>
 
-        {/* New Schedule Button */}
+        {/* New master schedule button */}
         <div className="p-4">
           <button onClick={handleNewSchedule} className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 text-sm font-medium">
             <Plus size={16} />
-            <span>New Schedule</span>
+            <span>New master schedule</span>
           </button>
         </div>
 
-        {/* Your Schedules */}
+        {/* Your master schedules */}
         <div className="px-4 py-2">
           <div className="text-xs font-semibold text-gray-400 tracking-wider mb-2">
             YOUR SCHEDULES
@@ -165,7 +165,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
               <button
                 onClick={() => setIsAdminOverviewOpen(true)}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
-                title="Platform stats across all accounts and schedules"
+                title="Platform stats across all accounts and master schedules"
               >
                 <LayoutDashboard size={16} />
                 <span>Admin</span>
@@ -183,7 +183,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
             )}
             <button onClick={handleNewSchedule} className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center gap-2 text-sm font-medium">
               <Plus size={16} />
-              <span>Create New Schedule</span>
+              <span>Create New Master Schedule</span>
             </button>
             <div className="relative">
               <button
@@ -214,11 +214,11 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
           </div>
         </div>
 
-        {/* Schedule Cards */}
+        {/* Master schedule cards */}
         <div className="flex-1 overflow-auto p-6">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {!error && schedules === null && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse" aria-label="Loading schedules">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse" aria-label="Loading master schedules">
               {Array.from({ length: 8 }, (_, i) => (
                 <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 h-48 flex flex-col">
                   <div className="w-12 h-12 rounded-lg bg-gray-200" />
@@ -234,14 +234,14 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                   <LayoutDashboard size={22} className="text-gray-400" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-800">No schedules yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Create a schedule to start planning campaigns and blocks.</p>
+                <h3 className="text-sm font-semibold text-gray-800">No master schedules yet</h3>
+                <p className="mt-1 text-sm text-gray-500">Create a master schedule to start planning campaigns and blocks.</p>
                 <button
                   onClick={handleNewSchedule}
                   className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium inline-flex items-center gap-2"
                 >
                   <Plus size={15} />
-                  New schedule
+                  New master schedule
                 </button>
               </div>
             </div>
@@ -311,7 +311,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                             >
                               <Settings size={14} />
-                              Schedule settings
+                              Master schedule settings
                             </button>
                           </div>
                         </>

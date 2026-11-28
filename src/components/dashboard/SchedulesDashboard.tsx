@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Users, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings, LayoutDashboard } from 'lucide-react';
+import { Plus, MoreVertical, ShieldCheck, LogOut, UserPlus, Settings, LayoutDashboard } from 'lucide-react';
 import { scheduleAccent } from '@/lib/colorUtils';
 import { acceptScheduleInvites, checkIsSiteAdmin, listSchedules, ScheduleSummary } from '@/lib/scheduleData';
 import AdminOverviewModal from './AdminOverviewModal';
@@ -25,6 +25,15 @@ const openedLabel = (timestamp?: number) => {
   if (days <= 0) return 'opened today';
   if (days === 1) return 'opened yesterday';
   return `opened ${days}d ago`;
+};
+
+const roleSummary = (schedule: ScheduleSummary) => {
+  const parts = [
+    schedule.ownerCount > 0 && `${schedule.ownerCount} owner${schedule.ownerCount === 1 ? '' : 's'}`,
+    schedule.editorCount > 0 && `${schedule.editorCount} editor${schedule.editorCount === 1 ? '' : 's'}`,
+    schedule.viewerCount > 0 && `${schedule.viewerCount} viewer${schedule.viewerCount === 1 ? '' : 's'}`,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
 };
 
 export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSignOut }: SchedulesDashboardProps) {
@@ -211,7 +220,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
           {!error && schedules === null && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse" aria-label="Loading schedules">
               {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 h-40 flex flex-col">
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 h-48 flex flex-col">
                   <div className="w-12 h-12 rounded-lg bg-gray-200" />
                   <div className="mt-4 h-3.5 w-2/3 rounded bg-gray-200" />
                   <div className="mt-2 h-3 w-1/3 rounded bg-gray-100" />
@@ -245,7 +254,7 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 tabIndex={0}
                 onClick={() => openSchedule(schedule)}
                 onKeyDown={(e) => e.key === 'Enter' && openSchedule(schedule)}
-                className="card-enter bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 transition-all duration-200 h-40 flex flex-col cursor-pointer"
+                className="card-enter bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 transition-all duration-200 h-48 flex flex-col cursor-pointer"
                 style={{
                   animationDelay: `${Math.min(index, 8) * 40}ms`,
                   borderTopWidth: '4px',
@@ -317,10 +326,13 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                   {schedule.description || 'No description'}
                 </div>
 
+                {/* Members by role */}
+                {roleSummary(schedule) && (
+                  <div className="text-xs text-gray-500">{roleSummary(schedule)}</div>
+                )}
+
                 {/* Card Footer */}
                 <div className="mt-auto flex items-center gap-1.5 text-xs text-gray-500 min-w-0">
-                  <Users size={13} className="flex-shrink-0" />
-                  <span className="flex-shrink-0">{schedule.memberCount} {schedule.memberCount === 1 ? 'member' : 'members'}</span>
                   {schedule.ownerEmail && (
                     <span className="text-gray-400 truncate" title={`Owner: ${schedule.ownerEmail}`}>
                       · {schedule.ownerEmail}

@@ -15,6 +15,9 @@ export interface ScheduleSummary {
   ownerEmail: string | null;
   role: ScheduleRole;
   memberCount: number;
+  ownerCount: number;
+  editorCount: number;
+  viewerCount: number;
 }
 
 export interface ScheduleContent {
@@ -43,6 +46,9 @@ export async function listSchedules(userId: string): Promise<ScheduleSummary[]> 
       ownerEmail: members.find(m => m.role === 'owner')?.email ?? null,
       role: members.find(m => m.user_id === userId)?.role ?? 'viewer',
       memberCount: members.length,
+      ownerCount: members.filter(m => m.role === 'owner').length,
+      editorCount: members.filter(m => m.role === 'editor').length,
+      viewerCount: members.filter(m => m.role === 'viewer').length,
     };
   });
 }

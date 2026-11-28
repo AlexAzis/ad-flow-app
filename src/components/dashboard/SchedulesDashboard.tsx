@@ -318,11 +318,16 @@ export default function SchedulesDashboard({ userId, email, onOpenSchedule, onSi
                 </div>
 
                 {/* Card Footer */}
-                <div className="mt-auto flex items-center gap-1.5 text-xs text-gray-500">
-                  <Users size={13} />
-                  <span>{schedule.memberCount} {schedule.memberCount === 1 ? 'member' : 'members'}</span>
+                <div className="mt-auto flex items-center gap-1.5 text-xs text-gray-500 min-w-0">
+                  <Users size={13} className="flex-shrink-0" />
+                  <span className="flex-shrink-0">{schedule.memberCount} {schedule.memberCount === 1 ? 'member' : 'members'}</span>
+                  {schedule.ownerEmail && (
+                    <span className="text-gray-400 truncate" title={`Owner: ${schedule.ownerEmail}`}>
+                      · {schedule.ownerEmail}
+                    </span>
+                  )}
                   {openedLabel(lastOpened[schedule.id]) && (
-                    <span className="text-gray-400">· {openedLabel(lastOpened[schedule.id])}</span>
+                    <span className="text-gray-400 flex-shrink-0">· {openedLabel(lastOpened[schedule.id])}</span>
                   )}
                 </div>
               </div>

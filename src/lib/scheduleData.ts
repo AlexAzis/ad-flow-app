@@ -12,6 +12,7 @@ export interface ScheduleSummary {
   description: string | null;
   logoUrl: string | null;
   color: string | null;
+  ownerEmail: string | null;
   role: ScheduleRole;
   memberCount: number;
 }
@@ -28,17 +29,18 @@ const PAGE_SIZE = 1000;
 export async function listSchedules(userId: string): Promise<ScheduleSummary[]> {
   const { data, error } = await supabase
     .from('schedules')
-    .select('id, name, description, logo_url, color, schedule_members(user_id, role)')
+    .select('id, name, description, logo_url, color, schedule_members(user_id, role, email)')
     .order('created_at');
   if (error) throw error;
   return (data ?? []).map(row => {
-    const members = (row.schedule_members ?? []) as { user_id: string; role: ScheduleRole }[];
+    const members = (row.schedule_members ?? []) as { user_id: string; role: ScheduleRole; email: string | null }[];
     return {
       id: row.id,
       name: row.name,
       description: row.description,
       logoUrl: row.logo_url,
       color: row.color ?? null,
+      ownerEmail: members.find(m => m.role === 'owner')?.email ?? null,
       role: members.find(m => m.user_id === userId)?.role ?? 'viewer',
       memberCount: members.length,
     };

@@ -30,3 +30,13 @@ Files are `Names_Schedule_YYMMDD`: all visible campaign names joined, spaces →
 underscores, punctuation stripped, literal "Schedule", date `yyMMdd`.
 Helper: `exportFileName()` in `src/lib/exportUtils.ts`. Exports are JPEG/PDF
 capped at 10 MB, captured from a detached DOM clone at up to 3x.
+
+## Deferred ideas (back burner — revisit if asked)
+
+- Bulk block actions: selection action bar with move-to-date, reassign, and
+  bulk delete. Multi-select, multi-drag, copy/paste and undo already work;
+  the gaps are bulk delete/edit and a visible affordance.
+- Activity log ("who changed what, when") — needs a small `activity` table.
+- Remote-change toasts/highlights — user wasn't sure teammates would use it.
+- PDF pagination for tall exports; cross-schedule copy/paste; recurring blocks;
+  schedule-wide block search.
